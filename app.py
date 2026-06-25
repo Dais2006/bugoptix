@@ -56,6 +56,16 @@ strl.markdown("""
         overflow-x: auto;
         color: #e6edf3;
     }
+    div.stDownloadButton > button {
+        background: linear-gradient(180deg, #58a6ff 0%, #2188ff 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(240,246,252,0.1) !important; 
+        border-radius: 6px !important;
+        padding: 0.6rem 1.5rem !important;
+        width: 100%;
+        font-weight: 600 !important;
+    }
+    div.stDownloadButton > button:hover { background: #2188ff !important; border-color: #58a6ff !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -87,7 +97,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
             )
             page = await context.new_page()
 
-            # Optimize pipeline speed
             await page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "font", "media"] else route.continue_())
 
             page.on("pageerror", lambda exc: results["console_errors"].append(f"JS Crash: {exc}"))
@@ -102,7 +111,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
             try:
                 results["title"] = await page.title() or "Target Portal Workspace"
                 
-                # Dynamic Element Schema Parsing Loop
                 form_elements = await page.evaluate("""() => {
                     const inputs = Array.from(document.querySelectorAll('input, select, textarea'));
                     return inputs.map(el => {
@@ -119,8 +127,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                     });
                 }""")
                 
-                # --- CODE CODE FIXED-LENGTH BOUNDARY VALIDATION ---
-                # Check fields that should logically be fixed length but have open HTML structures
                 validated_structures = []
                 for field in form_elements:
                     fn = field["name"].lower()
@@ -153,6 +159,52 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
     return results
 
 
+# --- FUNCTIONAL SOLUTION: NATIVE BROWSER PDF CONVERTER ENGINE ---
+def generate_pdf_report(report_text, target_url, audit_title):
+    # This maps the report securely to a standard printing format
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333333; line-height: 1.6; padding: 40px; }}
+            .header {{ border-bottom: 2px solid #58a6ff; padding-bottom: 15px; margin-bottom: 30px; }}
+            .title {{ color: #0056b3; font-size: 24px; font-weight: bold; margin: 0; }}
+            .meta {{ color: #666666; font-size: 12px; margin-top: 5px; }}
+            .content {{ font-family: 'Courier New', Courier, monospace; white-space: pre-wrap; background-color: #f6f8fa; padding: 20px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; }}
+            .footer {{ margin-top: 40px; text-align: center; font-size: 11px; color: #999999; border-top: 1px solid #eee; padding-top: 10px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="title">🛡️ BugOptix AI — Formal Compliance Artifact</div>
+            <div class="meta">Target Scope: {target_url} | Workspace: {audit_title}</div>
+        </div>
+        <div class="content">{report_text}</div>
+        <div class="footer">Generated securely via BugOptix Deep Diagnostic Suite Infrastructure Engine</div>
+    </body>
+    </html>
+    """
+    
+    # We use Playwright's headless printing context to generate an actual production-ready PDF 
+    # This avoids using clunky binary Python dependencies that break Streamlit's pipeline
+    async def render_pdf():
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
+            page = await browser.new_page()
+            await page.set_content(html_content)
+            pdf_bytes = await page.pdf(format="A4", print_background=True)
+            await browser.close()
+            return pdf_bytes
+
+    try:
+        return asyncio.run(render_pdf())
+    except RuntimeError:
+        # Handles edge case async runtime loops safely within running Streamlit worker threads
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(render_pdf())
+
+
 # --- Layout Presentation Layer ---
 strl.title("🛡️ BugOptix AI — Deep Diagnostic Suite")
 strl.markdown("### Automated Web Application QA & Technical Compliance Engine")
@@ -176,6 +228,12 @@ with col3:
 with col4:
     responsive_profile = strl.selectbox("Device Emulation Viewport", ["Desktop (1080p)", "ios", "android"])
 
+# Keep the global view layout persistence mapped inside session state containers
+if "live_report" not in strl.session_state:
+    strl.session_state["live_report"] = None
+if "target_title" not in strl.session_state:
+    strl.session_state["target_title"] = ""
+
 if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
     if not target_url.strip():
         strl.warning("🚨 Operational Warning: Provide a valid web URL schema.")
@@ -197,6 +255,7 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
             strl.error(f"❌ Connection Pipeline Terminated: {audit_data.get('error')}")
         else:
             strl.success("✔️ UI Layout structure mapped successfully.")
+            strl.session_state["target_title"] = audit_data["title"]
 
             if audit_data.get("screenshot"):
                 strl.session_state["captured_img"] = audit_data["screenshot"]
@@ -235,15 +294,35 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
             if not response_text:
                 response_text = f"Analysis completed.\n\nForm Map Elements:\n{form_summary}\n\nTraces:\n{network_logs_str}"
 
+            # Persist response directly to session state tracking
             strl.session_state["live_report"] = response_text
 
-# --- Presentation Layer ---
+# --- Persistent Rendering Layout (Keeps download interface elements visible!) ---
 if "captured_img" in strl.session_state:
     strl.markdown("### 📸 Captured Visual UI Layout Checkpoint")
     strl.image(strl.session_state["captured_img"], use_container_width=True)
 
-if "live_report" in strl.session_state:
+if strl.session_state["live_report"]:
     strl.markdown("### 📊 Live System Audit Output Visualization")
     strl.markdown("<div class='report-card'>", unsafe_allow_html=True)
     strl.text(strl.session_state["live_report"])
     strl.markdown("</div>", unsafe_allow_html=True)
+    
+    strl.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- AUTOMATED COMPILING OF PRODUCTION-READY PDF BLOCKS ---
+    with strl.spinner("📊 Compiling report structures into secure PDF file format..."):
+        generated_pdf_data = generate_pdf_report(
+            strl.session_state["live_report"], 
+            target_url, 
+            strl.session_state["target_title"]
+        )
+    
+    # The dedicated Download Action Trigger block
+    strl.download_button(
+        label="📥 Download Official BugOptix QA Test Report Document (.pdf)",
+        data=generated_pdf_data,
+        file_name="BugOptix_Formal_Compliance_Report.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )

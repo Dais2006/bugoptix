@@ -1,6 +1,25 @@
 import os
 import asyncio
+import subprocess
+import sys
 import streamlit as strl
+
+# --- MANDATORY PRE-FLIGHT SYSTEM INITIALIZATION ---
+# This forces Streamlit to install the required Playwright binaries instantly on container bootup.
+def initialize_playwright_binaries():
+    try:
+        expected_bin_path = os.path.expanduser("~/.cache/ms-playwright")
+        if not os.path.exists(expected_bin_path):
+            print("Downloading container headless browser dependencies...")
+            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+            subprocess.run([sys.executable, "-m", "playwright", "install-deps"], check=True)
+            print("System binaries mapped successfully.")
+    except Exception as e:
+        print(f"Pre-flight binary configuration note: {e}")
+
+initialize_playwright_binaries()
+
+# Safe to import processing packages now
 from google import genai
 from google.genai.errors import APIError
 from playwright.async_api import async_playwright
@@ -67,15 +86,15 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
         "console_errors": [], "failed_requests": [], "error": "", "screenshot": None, "perf_metrics": {}
     }
 
-    # Map Simplified Responsive Profiles to Exact Viewport Configurations
+    # FIX: Keys matched to lowercase input configurations exactly
     dimensions = {
-        "Desktop (1080p)": {"w": 1920, "h": 1080, "is_mobile": False},
-        "IOS": {"w": 393, "h": 852, "is_mobile": True},
-        "Android": {"w": 412, "h": 915, "is_mobile": True},
-        "Apple iPad Pro": {"w": 1024, "h": 1366, "is_mobile": False}
+        "desktop (1080p)": {"w": 1920, "h": 1080, "is_mobile": False},
+        "ios": {"w": 393, "h": 852, "is_mobile": True},
+        "android": {"w": 412, "h": 915, "is_mobile": True},
+        "apple ipad pro": {"w": 1024, "h": 1366, "is_mobile": False}
     }
 
-    target_config = dimensions.get(profile, dimensions["Desktop (1080p)"])
+    target_config = dimensions.get(profile.lower(), dimensions["desktop (1080p)"])
 
     try:
         async with async_playwright() as p:
@@ -101,13 +120,16 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                 await page.wait_for_timeout(1500)
 
                 # Performance Load Diagnostics
-                results["perf_metrics"] = await page.evaluate("""() => {
-                    const t = window.performance.timing;
-                    return {
-                        "load_time_ms": t.loadEventEnd - t.navigationStart,
-                        "dom_ready_ms": t.domComplete - t.responseEnd
-                    };
-                }""")
+                try:
+                    results["perf_metrics"] = await page.evaluate("""() => {
+                        const t = window.performance.timing;
+                        return {
+                            "load_time_ms": t.loadEventEnd - t.navigationStart,
+                            "dom_ready_ms": t.domComplete - t.responseEnd
+                        };
+                    }""")
+                except Exception:
+                    results["perf_metrics"] = {"load_time_ms": "N/A", "dom_ready_ms": "N/A"}
 
                 results["title"] = await page.title()
 
@@ -141,11 +163,12 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                 results["success"] = True
             except Exception as nav_err:
                 results["error"] = str(nav_err)
-                results["success"] = True
+                results["success"] = False
 
             await browser.close()
     except Exception as e:
         results["error"] = str(e)
+        results["success"] = False
     return results
 
 
@@ -193,14 +216,17 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
         with strl.spinner(
                 f"🌐 Crawling target domain and packaging environment profile footprint ({responsive_profile})..."):
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # Handle execution cleanly across modern Streamlit runtime worker instances
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
                 audit_data = loop.run_until_complete(
                     perform_deep_audit(target_url.strip(), scan_depth, target_selector, responsive_profile))
             except Exception as loop_err:
                 audit_data = {"success": False, "error": str(loop_err)}
-            finally:
-                loop.close()
 
         if not audit_data.get("success"):
             strl.error(f"❌ Connection Pipeline Terminated: {audit_data.get('error')}")
@@ -246,7 +272,7 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
             if not response_text:
                 status_health = "STABLE CONNECTION" if "None" in network_logs_str else "MINOR ANOMALIES DETECTED"
                 response_text = f"""================================================================================
-                SIMPLE WEBSITE COMPLIANCE & BUG AUDIT REPORT (LOCAL AUTOMATION RUN)
+SIMPLE WEBSITE COMPLIANCE & BUG AUDIT REPORT (LOCAL AUTOMATION RUN)
 ================================================================================
 Tested Website Link: {target_url}
 Website Name: {audit_data['title']}
@@ -275,7 +301,7 @@ The system flags an active background status code metric of: {status_health}.
   - Assessment: Element tracking structures rendered within expected parameters.
 
 ================================================================================
-                            END OF REPORT DOCUMENT
+                                END OF REPORT DOCUMENT
 ================================================================================"""
 
             strl.session_state["live_report"] = response_text

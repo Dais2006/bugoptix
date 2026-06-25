@@ -1,59 +1,72 @@
 import os
 import subprocess
 import sys
-
-# 1. FORCE THE BROWSER INSTALLATION ON SERVER STARTUP
-# We do this before any other imports to guarantee the binary exists.
-def setup_playwright():
-    try:
-        # Inform the logs we are installing
-        print("Starting Playwright system installation...")
-        
-        # Install the specific chromium headless shell binary
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-        
-        # Install any missing system dependencies for Linux
-        subprocess.run([sys.executable, "-m", "playwright", "install-deps"], check=True)
-        
-        print("Playwright installation completed successfully!")
-    except Exception as e:
-        print(f"Playwright installation failed: {e}")
-
-# Run the installer automatically every time the container starts up
-setup_playwright()
-
-# Now it is safe to import streamlit and playwright
 import streamlit as st
+
+# --- PRE-FLIGHT INITIALIZATION ---
+# This ensures Playwright installs the headless chromium shell cleanly if missing
+@st.cache_resource
+def ensure_playwright_binaries():
+    try:
+        # Check if the cache path already exists to save launch time
+        expected_path = os.path.expanduser("~/.cache/ms-playwright")
+        if not os.path.exists(expected_path):
+            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+    except Exception as e:
+        st.warning(f"Note on binary environment mapping: {e}")
+
+ensure_playwright_binaries()
+
+# Safe to import playwright now
 from playwright.sync_api import sync_playwright
 
-# ----------------------------------------------------
-# 2. APPLICATION INTERFACE
-# ----------------------------------------------------
-st.title("Automated Web Application QA & Technical Compliance Engine")
+# --- UI IMPLEMENTATION ---
+st.title("BugOptix AI — Deep Diagnostic Suite")
+st.subheader("Automated Web Application QA & Technical Compliance Engine")
 
-# Optional setup checks visible to you
-st.sidebar.success("System Environment: Initialized")
+# Sidebar Configuration
+with st.sidebar:
+    st.header("Authentication Setup")
+    gemini_key = st.text_input("Enter Gemini API Key:", type="password")
+    model_setup = st.selectbox("Global Brain Model Setup", ["gemini-2.5-flash", "gemini-2.5-pro"])
 
+# Form layout components matching your UI
+col1, col2 = st.columns(2)
+with col1:
+    target_url = st.text_input("Target Application URL Endpoint:", value="https://zgcollege.wakinedu.com/erp/admission")
+    target_selector = st.text_input("Target Element Scope Selector (Optional):", placeholder="e.g. #login-form, .nav-bar")
+with col2:
+    audit_depth = st.selectbox("Operational Audit Depth", ["Surface UI Content Validation", "Full Matrix Diagnostic Sweep"])
+    viewport_opt = st.selectbox("Device Emulation Viewport", ["Desktop (1080p)", "Mobile Viewport"])
+
+# Trigger Execution Pipeline
 if st.button("Execute Comprehensive Deep Diagnostic Scan"):
-    st.info("Scanner initialized. Launching browser instance...")
-    
-    try:
-        # Wrap execution tightly in context managers
-        with sync_playwright() as p:
-            # Headless mode is mandatory on cloud environments
-            browser = p.chromium.launch(headless=True)
-            
-            page = browser.new_page()
-            st.info("Navigating to target URL...")
-            
-            # Navigate to the target input field URL safely
-            page.goto("https://zgcollege.wakinedu.com/erp/admission", timeout=60000)
-            
-            st.success(f"Successfully reached page! Title: {page.title()}")
-            
-            # --- Insert your custom testing or scraping analysis code here ---
-            
-            browser.close()
-            
-    except Exception as error:
-        st.error(f"Execution Error encountered: {error}")
+    if not target_url:
+        st.error("Please enter a valid Target Application URL Endpoint.")
+    else:
+        st.info("🔄 Connecting Pipeline: Launching Headless Chromium Browser...")
+        
+        try:
+            with sync_playwright() as p:
+                # Crucial flags for restricted linux containers
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+                )
+                
+                context = browser.new_context()
+                page = context.new_page()
+                
+                st.info(f"Navigating securely to: {target_url}")
+                page.goto(target_url, timeout=60000)
+                
+                # Success Checkpoint
+                page_title = page.title()
+                st.success(f"✅ Connection Established successfully! Page Title: **{page_title}**")
+                
+                # --- [INSERT YOUR DOMAIN ANALYSIS / SCRAPING ALGORITHMS HERE] ---
+                
+                browser.close()
+                
+        except Exception as error:
+            st.error(f"❌ Connection Pipeline Terminated: {error}")

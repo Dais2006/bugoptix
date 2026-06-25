@@ -5,21 +5,22 @@ import sys
 import streamlit as strl
 
 # --- MANDATORY PRE-FLIGHT SYSTEM INITIALIZATION ---
-# This forces Streamlit to install the required Playwright binaries instantly on container bootup.
+@strl.cache_resource
 def initialize_playwright_binaries():
     try:
         expected_bin_path = os.path.expanduser("~/.cache/ms-playwright")
         if not os.path.exists(expected_bin_path):
             print("Downloading container headless browser dependencies...")
+            # Safe synchronous execution of the browser framework compilation
             subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-            subprocess.run([sys.executable, "-m", "playwright", "install-deps"], check=True)
             print("System binaries mapped successfully.")
     except Exception as e:
         print(f"Pre-flight binary configuration note: {e}")
 
+# Run installer immediately on app initialization frame
 initialize_playwright_binaries()
 
-# Safe to import processing packages now
+# Safe to import core functional packages now
 from google import genai
 from google.genai.errors import APIError
 from playwright.async_api import async_playwright
@@ -68,8 +69,6 @@ strl.markdown("""
         width: 100%;
         font-weight: 600 !important;
     }
-
-    /* PDF Print Rule Optimization layout */
     @media print {
         body * { visibility: hidden; }
         .report-card, .report-card * { visibility: visible; }
@@ -79,14 +78,13 @@ strl.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- Deep Audit Web Scraper Engine (With Responsive OS Footprint Emulation) ---
+# --- Deep Audit Web Scraper Engine ---
 async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) -> dict:
     results = {
         "success": False, "title": "Target Sandbox Domain", "content": "No visual content could be rendered.",
         "console_errors": [], "failed_requests": [], "error": "", "screenshot": None, "perf_metrics": {}
     }
 
-    # FIX: Keys matched to lowercase input configurations exactly
     dimensions = {
         "desktop (1080p)": {"w": 1920, "h": 1080, "is_mobile": False},
         "ios": {"w": 393, "h": 852, "is_mobile": True},
@@ -103,7 +101,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                 args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
             )
 
-            # Configure context properties based on selected OS platform profile
             context = await browser.new_context(
                 viewport={"width": target_config["w"], "height": target_config["h"]},
                 is_mobile=target_config["is_mobile"],
@@ -111,7 +108,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
             )
             page = await context.new_page()
 
-            # Catch background errors
             page.on("pageerror", lambda exc: results["console_errors"].append(f"JS Crash: {exc}"))
             page.on("requestfailed", lambda req: results["failed_requests"].append(f"Network Drop: {req.url}"))
 
@@ -119,7 +115,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                 await page.goto(url, wait_until="load", timeout=20000)
                 await page.wait_for_timeout(1500)
 
-                # Performance Load Diagnostics
                 try:
                     results["perf_metrics"] = await page.evaluate("""() => {
                         const t = window.performance.timing;
@@ -133,34 +128,28 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
 
                 results["title"] = await page.title()
 
-                # Targeted Selector Isolation Scope Check
                 raw_text = ""
                 if selector.strip():
                     try:
                         target_element = page.locator(selector.strip()).first
                         raw_text = await target_element.inner_text()
                     except Exception:
-                        raw_text = f"[System Warning: Element target selector matching '{selector}' was not found on screen. Falling back to body parsing.]"
+                        raw_text = f"[System Warning: Element target selector matching '{selector}' was not found on screen.]"
 
                 if not raw_text or selector.strip() == "":
                     body_element = page.locator("body")
                     raw_text = await body_element.inner_text()
 
-                # Capture Device Profile Screenshot
                 try:
                     results["screenshot"] = await page.screenshot(full_page=False, timeout=5000)
                 except Exception:
                     results["screenshot"] = None
 
-                # Clean Whitespace Payload Text
                 cleaned_text = " ".join(raw_text.split())
-
-                if depth == "Surface UI Content Validation":
-                    results["content"] = cleaned_text[:1200] + "\n...[Optimized Payload For Free Quota Protection]..."
-                else:
-                    results["content"] = cleaned_text[:2500] + "\n...[Optimized Payload For Free Quota Protection]..."
-
+                limit_len = 1200 if depth == "Surface UI Content Validation" else 2500
+                results["content"] = cleaned_text[:limit_len] + "\n...[Optimized Payload For Free Quota Protection]..."
                 results["success"] = True
+
             except Exception as nav_err:
                 results["error"] = str(nav_err)
                 results["success"] = False
@@ -213,10 +202,8 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
     if not target_url.strip():
         strl.warning("🚨 Operational Warning: Provide a valid web URL schema.")
     else:
-        with strl.spinner(
-                f"🌐 Crawling target domain and packaging environment profile footprint ({responsive_profile})..."):
+        with strl.spinner(f"🌐 Crawling target domain and packaging environment profile footprint ({responsive_profile})..."):
             try:
-                # Handle execution cleanly across modern Streamlit runtime worker instances
                 try:
                     loop = asyncio.get_running_loop()
                 except RuntimeError:
@@ -242,10 +229,8 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
             else:
                 strl.session_state.pop("captured_img", None)
 
-            console_logs_str = "\n".join(audit_data["console_errors"][:2]) if audit_data[
-                "console_errors"] else "None detected."
-            network_logs_str = "\n".join(audit_data["failed_requests"][:2]) if audit_data[
-                "failed_requests"] else "None."
+            console_logs_str = "\n".join(audit_data["console_errors"][:2]) if audit_data["console_errors"] else "None detected."
+            network_logs_str = "\n".join(audit_data["failed_requests"][:2]) if audit_data["failed_requests"] else "None."
 
             response_text = None
 
@@ -267,7 +252,7 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
                         )
                         response_text = response.text
                     except Exception:
-                        strl.warning("⚠️ Gemini rate limits hit. Switching automatically to Local Safe Engine...")
+                        strl.warning("⚠️ Gemini execution encountered an issue. Switching to Local Safe Engine...")
 
             if not response_text:
                 status_health = "STABLE CONNECTION" if "None" in network_logs_str else "MINOR ANOMALIES DETECTED"
@@ -309,18 +294,15 @@ The system flags an active background status code metric of: {status_health}.
 # --- Presentation Layer ---
 if "captured_img" in strl.session_state:
     strl.markdown("### 📸 Captured Visual UI Layout Checkpoint")
-    strl.image(strl.session_state["captured_img"], caption=f"Live Sandbox Screen Capture — {responsive_profile}",
-               use_container_width=True)
+    strl.image(strl.session_state["captured_img"], caption=f"Live Sandbox Screen Capture — {responsive_profile}", use_container_width=True)
 
 if "live_report" in strl.session_state:
     strl.markdown("### 📊 Live System Audit Output Visualization")
     strl.markdown("<div class='report-card'>", unsafe_allow_html=True)
     strl.text(strl.session_state["live_report"])
     strl.markdown("</div>", unsafe_allow_html=True)
-
     strl.markdown("<br>", unsafe_allow_html=True)
 
-    # File Exporter Center
     strl.download_button(
         label="📥 Download Formal Audit Artifact Document (.txt)",
         data=strl.session_state["live_report"],

@@ -1,40 +1,59 @@
 import os
-import sys
 import subprocess
-import streamlit as st
+import sys
 
-# FORCE PLAYWRIGHT TO INSTALL ON THE CLOUD SERVER ONCE AT STARTUP
-@st.cache_resource
-def install_browser_binaries():
+# 1. FORCE THE BROWSER INSTALLATION ON SERVER STARTUP
+# We do this before any other imports to guarantee the binary exists.
+def setup_playwright():
     try:
-        # Runs the official command to download the headless engine
+        # Inform the logs we are installing
+        print("Starting Playwright system installation...")
+        
+        # Install the specific chromium headless shell binary
         subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+        
+        # Install any missing system dependencies for Linux
+        subprocess.run([sys.executable, "-m", "playwright", "install-deps"], check=True)
+        
+        print("Playwright installation completed successfully!")
     except Exception as e:
-        st.error(f"Binary setup error: {e}")
+        print(f"Playwright installation failed: {e}")
 
-# Run the installer function
-install_browser_binaries()
+# Run the installer automatically every time the container starts up
+setup_playwright()
+
+# Now it is safe to import streamlit and playwright
+import streamlit as st
+from playwright.sync_api import sync_playwright
 
 # ----------------------------------------------------
-# Your Main App Logic Starts Here
+# 2. APPLICATION INTERFACE
 # ----------------------------------------------------
-st.title("Comprehensive Deep Diagnostic Scan")
+st.title("Automated Web Application QA & Technical Compliance Engine")
+
+# Optional setup checks visible to you
+st.sidebar.success("System Environment: Initialized")
 
 if st.button("Execute Comprehensive Deep Diagnostic Scan"):
-    st.info("Scanner initialized. Running task...")
+    st.info("Scanner initialized. Launching browser instance...")
     
-    # IMPORTANT: Import your automation libraries *INSIDE* the button 
-    # to guarantee they don't fire until after the installer above finishes.
     try:
-        from playwright.sync_api import sync_playwright
-        
+        # Wrap execution tightly in context managers
         with sync_playwright() as p:
-            # Launch the headless shell safely
+            # Headless mode is mandatory on cloud environments
             browser = p.chromium.launch(headless=True)
+            
             page = browser.new_page()
-            page.goto("https://example.com")
-            st.success(f"Successfully reached target! Title: {page.title()}")
+            st.info("Navigating to target URL...")
+            
+            # Navigate to the target input field URL safely
+            page.goto("https://zgcollege.wakinedu.com/erp/admission", timeout=60000)
+            
+            st.success(f"Successfully reached page! Title: {page.title()}")
+            
+            # --- Insert your custom testing or scraping analysis code here ---
+            
             browser.close()
             
     except Exception as error:
-        st.error(f"Execution Error: {error}")
+        st.error(f"Execution Error encountered: {error}")

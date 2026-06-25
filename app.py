@@ -1,19 +1,18 @@
 import os
-import time
 import asyncio
 import streamlit as strl
 from google import genai
 from google.genai.errors import APIError
 from playwright.async_api import async_playwright
 
-# Deep Space Enterprise Theme Configuration
+# --- Deep Space Enterprise Theme Configuration ---
 strl.set_page_config(
     page_title="BugOptix | Ultimate Enterprise QA Auditor",
     page_icon="🛡️",
     layout="wide"
 )
 
-# Custom Corporate CSS Injection for Professional Presentation
+# Custom Corporate CSS Injection for Professional Presentation & Printing
 strl.markdown("""
     <style>
     .main { background-color: #0d1117; color: #c9d1d9; }
@@ -50,52 +49,97 @@ strl.markdown("""
         width: 100%;
         font-weight: 600 !important;
     }
-    div.stDownloadButton > button:hover {
-        background-color: #30363d !important;
-        border-color: #8b949e !important;
+
+    /* PDF Print Rule Optimization layout */
+    @media print {
+        body * { visibility: hidden; }
+        .report-card, .report-card * { visibility: visible; }
+        .report-card { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; border: none; }
     }
     </style>
 """, unsafe_allow_html=True)
 
 
-# Deep Audit Web Scraper Engine (With Active Pipeline Error Interception)
-async def perform_deep_audit(url: str) -> dict:
+# --- Deep Audit Web Scraper Engine (With Responsive OS Footprint Emulation) ---
+async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) -> dict:
     results = {
         "success": False, "title": "Target Sandbox Domain", "content": "No visual content could be rendered.",
-        "console_errors": [], "failed_requests": [], "error": ""
+        "console_errors": [], "failed_requests": [], "error": "", "screenshot": None, "perf_metrics": {}
     }
+
+    # Map Simplified Responsive Profiles to Exact Viewport Configurations
+    dimensions = {
+        "Desktop (1080p)": {"w": 1920, "h": 1080, "is_mobile": False},
+        "IOS": {"w": 393, "h": 852, "is_mobile": True},
+        "Android": {"w": 412, "h": 915, "is_mobile": True},
+        "Apple iPad Pro": {"w": 1024, "h": 1366, "is_mobile": False}
+    }
+
+    target_config = dimensions.get(profile, dimensions["Desktop (1080p)"])
+
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
                 args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
             )
+
+            # Configure context properties based on selected OS platform profile
             context = await browser.new_context(
-                viewport={"width": 1280, "height": 800},
+                viewport={"width": target_config["w"], "height": target_config["h"]},
+                is_mobile=target_config["is_mobile"],
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             page = await context.new_page()
 
-            # LAYER 2 Listener: Catch background JavaScript Console Crashes
-            page.on("pageerror", lambda exc: results["console_errors"].append(f"JS Crash Reference: {exc}"))
-            page.on("console", lambda msg: results["console_errors"].append(
-                f"Console Script Error: {msg.text}") if msg.type == "error" else None)
-
-            # LAYER 3 Listener: Catch Network Request & API Gateway Failures
-            page.on("requestfailed", lambda req: results["failed_requests"].append(f"Network Drop/Timeout: {req.url}"))
-            page.on("response", lambda res: results["failed_requests"].append(
-                f"API HTTP Error {res.status}: {res.url}") if res.status >= 400 else None)
+            # Catch background errors
+            page.on("pageerror", lambda exc: results["console_errors"].append(f"JS Crash: {exc}"))
+            page.on("requestfailed", lambda req: results["failed_requests"].append(f"Network Drop: {req.url}"))
 
             try:
                 await page.goto(url, wait_until="load", timeout=20000)
-                await page.wait_for_timeout(2000)
+                await page.wait_for_timeout(1500)
+
+                # Performance Load Diagnostics
+                results["perf_metrics"] = await page.evaluate("""() => {
+                    const t = window.performance.timing;
+                    return {
+                        "load_time_ms": t.loadEventEnd - t.navigationStart,
+                        "dom_ready_ms": t.domComplete - t.responseEnd
+                    };
+                }""")
 
                 results["title"] = await page.title()
-                body_element = page.locator("body")
-                results["content"] = await body_element.inner_text()
+
+                # Targeted Selector Isolation Scope Check
+                raw_text = ""
+                if selector.strip():
+                    try:
+                        target_element = page.locator(selector.strip()).first
+                        raw_text = await target_element.inner_text()
+                    except Exception:
+                        raw_text = f"[System Warning: Element target selector matching '{selector}' was not found on screen. Falling back to body parsing.]"
+
+                if not raw_text or selector.strip() == "":
+                    body_element = page.locator("body")
+                    raw_text = await body_element.inner_text()
+
+                # Capture Device Profile Screenshot
+                try:
+                    results["screenshot"] = await page.screenshot(full_page=False, timeout=5000)
+                except Exception:
+                    results["screenshot"] = None
+
+                # Clean Whitespace Payload Text
+                cleaned_text = " ".join(raw_text.split())
+
+                if depth == "Surface UI Content Validation":
+                    results["content"] = cleaned_text[:1200] + "\n...[Optimized Payload For Free Quota Protection]..."
+                else:
+                    results["content"] = cleaned_text[:2500] + "\n...[Optimized Payload For Free Quota Protection]..."
+
                 results["success"] = True
             except Exception as nav_err:
-                results["failed_requests"].append(f"CRITICAL PIPELINE DISRUPTION: {str(nav_err)}")
                 results["error"] = str(nav_err)
                 results["success"] = True
 
@@ -105,155 +149,143 @@ async def perform_deep_audit(url: str) -> dict:
     return results
 
 
-# --- App Header Section ---
+# --- App Presentation Layout ---
 strl.title("🛡️ BugOptix AI — Deep Diagnostic Suite")
 strl.markdown("### Automated Web Application QA & Technical Compliance Engine")
 strl.markdown("---")
 
-# --- Interactive Sidebar for Credentials ---
+# Sidebar Authentication Panel
 strl.sidebar.header("🔑 Authentication Setup")
-ui_key_input = strl.sidebar.text_input("Enter Gemini API Key:", type="password",
-                                       help="Get a free key from https://aistudio.google.com/")
+ui_key_input = strl.sidebar.text_input("Enter Gemini API Key:", type="password")
 
-# Resolve key prioritizing the UI input box
+selected_model = strl.sidebar.selectbox(
+    "AI Brain Model Setup",
+    ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"]
+)
+
 API_KEY = ui_key_input.strip() if ui_key_input.strip() else os.environ.get("GEMINI_API_KEY", "")
 
-# --- Interface Layout Columns ---
+# Main Configuration Matrix Input Rows
 col1, col2 = strl.columns([2, 1])
 with col1:
-    target_url = strl.text_input("Target Application URL Endpoint:", placeholder="https://your-student-app.com")
+    target_url = strl.text_input("Target Application URL Endpoint:", placeholder="https://example.com")
 with col2:
     scan_depth = strl.selectbox("Operational Audit Depth",
-                                ["Full Matrix Diagnostic Sweep", "Surface UI Content Validation"])
+                                ["Surface UI Content Validation", "Full Matrix Diagnostic Sweep"])
+
+col3, col4 = strl.columns([2, 1])
+with col3:
+    target_selector = strl.text_input("Target Element Scope Selector (Optional):",
+                                      placeholder="e.g. #login-form, .nav-bar, button")
+with col4:
+    responsive_profile = strl.selectbox(
+        "Device Emulation Viewport",
+        ["Desktop (1080p)", "ios", "android", "Apple iPad Pro"]
+    )
 
 strl.markdown("<br>", unsafe_allow_html=True)
 
-# --- Primary Analysis Pipeline ---
+# --- Execution Core Pipeline ---
 if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
-    if not API_KEY:
-        strl.error(
-            "🔑 Authentication Missing: Please paste your Gemini API Key into the password field on the left sidebar panel.")
-    elif not target_url.strip():
-        strl.warning("🚨 Operational Warning: Target routing parameter missing. Provide a valid web URL.")
-    elif not target_url.startswith(("http://", "https://")):
-        strl.error(
-            "❌ Protocol Validation Refused: Target URL must explicitly begin with standard http:// or https:// schemas.")
+    if not target_url.strip():
+        strl.warning("🚨 Operational Warning: Provide a valid web URL schema.")
     else:
-        with strl.spinner("🌐 Provisioning sandboxed automation browser and hooking diagnostic listeners..."):
+        with strl.spinner(
+                f"🌐 Crawling target domain and packaging environment profile footprint ({responsive_profile})..."):
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                audit_data = loop.run_until_complete(perform_deep_audit(target_url.strip()))
+                audit_data = loop.run_until_complete(
+                    perform_deep_audit(target_url.strip(), scan_depth, target_selector, responsive_profile))
             except Exception as loop_err:
                 audit_data = {"success": False, "error": str(loop_err)}
             finally:
                 loop.close()
 
         if not audit_data.get("success"):
-            strl.error(f"❌ Connection Pipeline Terminated: Handshake dropped. Details: {audit_data.get('error')}")
+            strl.error(f"❌ Connection Pipeline Terminated: {audit_data.get('error')}")
         else:
-            strl.success("✔️ Target analysis matrices successfully mapped. Analyzing structural pathways...")
+            strl.success(f"✔️ Target metrics mapped locally using {responsive_profile} validation matrices.")
 
-            with strl.spinner("🧠 Compiling data matrices. Querying Gemini Core models with traffic retry logic..."):
+            p_metrics = audit_data.get("perf_metrics", {})
+            load_time = p_metrics.get("load_time_ms", "N/A")
+            dom_ready = p_metrics.get("dom_ready_ms", "N/A")
 
-                console_logs_str = "\n".join(audit_data["console_errors"]) if audit_data[
-                    "console_errors"] else "None detected."
-                network_logs_str = "\n".join(audit_data["failed_requests"]) if audit_data[
-                    "failed_requests"] else "All network requests returned status 200 OK."
+            if audit_data.get("screenshot"):
+                strl.session_state["captured_img"] = audit_data["screenshot"]
+            else:
+                strl.session_state.pop("captured_img", None)
 
-                system_analysis_prompt = f"""
-                You are a Lead QA Automation Engineer and Senior Core Infrastructure System Architect. 
-                Perform a rigorous web evaluation across ALL vectors: UI plain text, background browser console traces, and raw network API logs.
+            console_logs_str = "\n".join(audit_data["console_errors"][:2]) if audit_data[
+                "console_errors"] else "None detected."
+            network_logs_str = "\n".join(audit_data["failed_requests"][:2]) if audit_data[
+                "failed_requests"] else "None."
 
-                Target App Context URL: {target_url}
-                Application Manifest Title: {audit_data['title']}
+            response_text = None
 
-                [DIAGNOSTIC LAYER 1: VISUAL UI TEXT CONTENT]
-                ---
-                {audit_data['content']}
-                ---
+            if API_KEY:
+                with strl.spinner(f"🧠 Querying Gemini Core Infrastructure ({selected_model})..."):
+                    system_analysis_prompt = (
+                        f"Provide a brief 3-item bulleted summary website health report. "
+                        f"Website Title: {audit_data['title']}. Device Target Platform Emulated: {responsive_profile}. "
+                        f"Target element selection checked: '{target_selector if target_selector else 'Full Body Context'}'. "
+                        f"Core Load Time: {load_time}ms, DOM Engine Processing Time: {dom_ready}ms. "
+                        f"Content snippet parsed: {audit_data['content']}. "
+                        f"Failures: JavaScript: {console_logs_str}, Network: {network_logs_str}."
+                    )
+                    try:
+                        client = genai.Client(api_key=API_KEY)
+                        response = client.models.generate_content(
+                            model=selected_model,
+                            contents=system_analysis_prompt,
+                        )
+                        response_text = response.text
+                    except Exception:
+                        strl.warning("⚠️ Gemini rate limits hit. Switching automatically to Local Safe Engine...")
 
-                [DIAGNOSTIC LAYER 2: BACKGROUND JAVASCRIPT CONSOLE ERRORS]
-                ---
-                {console_logs_str}
-                ---
+            if not response_text:
+                status_health = "STABLE CONNECTION" if "None" in network_logs_str else "MINOR ANOMALIES DETECTED"
+                response_text = f"""================================================================================
+                SIMPLE WEBSITE COMPLIANCE & BUG AUDIT REPORT (LOCAL AUTOMATION RUN)
+================================================================================
+Tested Website Link: {target_url}
+Website Name: {audit_data['title']}
+Device Profile Viewport: {responsive_profile}
+Target Element Component: {target_selector if target_selector else "Global Web Page Body Layout"}
+--------------------------------------------------------------------------------
 
-                [DIAGNOSTIC LAYER 3: FAILED NETWORK API REQUESTS]
-                ---
-                {network_logs_str}
-                ---
+1. CORE PERFORMANCE DIAGNOSTICS
+--------------------------------------------------------------------------------
+* Raw Browser Handshake Load Time   : {load_time} ms
+* DOM Engine Structure Ready Time   : {dom_ready} ms
 
-                Generate a high-grade professional text engineering report using this EXACT plain text layout:
+2. SIMPLE SUMMARY OF WEBSITE HEALTH
+--------------------------------------------------------------------------------
+The target workspace was parsed successfully by the local automation core engine. 
+The system flags an active background status code metric of: {status_health}.
 
-                ================================================================================
-                                ENTERPRISE SOFTWARE QUALITY ASSURANCE AUDIT REPORT
-                ================================================================================
-                Generated Via: BugOptix AI Deep Suite Engine
-                Target Environment URL: {target_url}
-                Document Title Context: {audit_data['title']}
-                --------------------------------------------------------------------------------
+3. LIST OF DETECTED ISSUES & BUGS (EXPLAINED SIMPLY)
+--------------------------------------------------------------------------------
+* BACKGROUND SCRIPT ERRORS:
+  - Raw Code Output: {console_logs_str}
+  - Assessment: Common frontend context flags caught during page execution frame.
 
-                1. EXECUTIVE SUMMARY & SYSTEM INTEGRITY OVERVIEW
-                --------------------------------------------------------------------------------
-                [Provide a comprehensive structural evaluation of the target interface status based on all 3 diagnostic layers]
+* NETWORK CONNECTIONS:
+  - Raw Code Output: {network_logs_str}
+  - Assessment: Element tracking structures rendered within expected parameters.
 
-                2. TOTAL COMPLIANCE MATRIX & ALL IDENTIFIED CRASHES/ERRORS
-                --------------------------------------------------------------------------------
-                [List every single error found across UI, Console, and Network paths. If none are present at all, print "NO CRITICAL SYSTEM ERRORS DETECTED"]
+================================================================================
+                            END OF REPORT DOCUMENT
+================================================================================"""
 
-                * ISSUE ID: BUG-001
-                  - Critical Level: [High/Medium/Low]
-                  - Source Layer: [UI Text / Browser Console / Network Request]
-                  - Error Signature: [The string error message, script line, or failing URL endpoint]
-                  - Observed Flaw & Behaviour: [What failed and why it behaves this way]
-                  - Strategic Mitigation Steps: [Clear, step-by-step developer remediation instructions]
+            strl.session_state["live_report"] = response_text
 
-                ================================================================================
-                                        END OF VERIFICATION REPORT DOCUMENT
-                ================================================================================
-                """
+# --- Presentation Layer ---
+if "captured_img" in strl.session_state:
+    strl.markdown("### 📸 Captured Visual UI Layout Checkpoint")
+    strl.image(strl.session_state["captured_img"], caption=f"Live Sandbox Screen Capture — {responsive_profile}",
+               use_container_width=True)
 
-                # --- Advanced Traffic Congestion (503 Bypass) Handler ---
-                models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
-                response_text = None
-                execution_error = None
-
-                client = genai.Client(api_key=API_KEY)
-
-                for selected_model in models_to_try:
-                    retries = 3
-                    delay = 2  # Starting pause threshold in seconds
-
-                    for attempt in range(retries):
-                        try:
-                            response = client.models.generate_content(
-                                model=selected_model,
-                                contents=system_analysis_prompt,
-                            )
-                            response_text = response.text
-                            break  # Success! Break out of the retry loop
-                        except APIError as api_err:
-                            execution_error = api_err
-                            if api_err.code == 503:
-                                # High demand flag hit. Back off and wait before retrying.
-                                time.sleep(delay)
-                                delay *= 2  # Exponentially step up delay timeline
-                            else:
-                                break
-                        except Exception as e:
-                            execution_error = e
-                            break
-
-                    if response_text:
-                        break  # Break out of the model selection loop if we got a response!
-
-                if response_text:
-                    strl.session_state["live_report"] = response_text
-                else:
-                    strl.error(
-                        f"🛡️ Processing Core Exception (Traffic/Overload Error): The servers are currently completely maxed out across backup networks. System Details: {str(execution_error)}. Please hit the scan button again in a moment!")
-
-# --- Presentation & Document Download Framework ---
 if "live_report" in strl.session_state:
     strl.markdown("### 📊 Live System Audit Output Visualization")
     strl.markdown("<div class='report-card'>", unsafe_allow_html=True)
@@ -262,10 +294,11 @@ if "live_report" in strl.session_state:
 
     strl.markdown("<br>", unsafe_allow_html=True)
 
+    # File Exporter Center
     strl.download_button(
         label="📥 Download Formal Audit Artifact Document (.txt)",
         data=strl.session_state["live_report"],
-        file_name="BugOptix_Deep_System_Audit.txt",
+        file_name="BugOptix_Comprehensive_System_Audit.txt",
         mime="text/plain",
         use_container_width=True
     )

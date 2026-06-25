@@ -1,20 +1,25 @@
 import os
+import subprocess
+import sys
 import streamlit as st
 
-# --- AUTOMATED PLAYWRIGHT COMPONENT RUNNER ---
+# --- 1. ENVIRONMENT WORKAROUND FOR PLAYWRIGHT ---
 @st.cache_resource
-def install_playwright_binaries():
-    # Force download chromium engine and its system requirements locally
-    os.system("playwright install chromium")
-    os.system("playwright install-deps")
+def initialize_system_binaries():
+    try:
+        # Run standard package injection for chromium architecture inside cloud container
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+    except Exception as e:
+        st.warning(f"System binary optimization skipped/handled: {e}")
 
-# Run the installation process on server launch smoothly
-install_playwright_binaries()
+# Run the installation wrapper on container initialization
+initialize_system_binaries()
 
-# Now import the browser runner safely
+# --- 2. SAFE PACKAGES IMPORTING ---
 from playwright.sync_api import sync_playwright
+from google import genai
 
-# --- UI APP CONFIGURATION ---
+# --- 3. UI LAYOUT ARCHITECTURE ---
 st.title("BugOptix AI — Deep Diagnostic Suite")
 st.subheader("Automated Web Application QA & Technical Compliance Engine")
 
@@ -24,7 +29,7 @@ with st.sidebar:
     gemini_key = st.text_input("Enter Gemini API Key:", type="password")
     model_setup = st.selectbox("Global Brain Model Setup", ["gemini-2.5-flash", "gemini-2.5-pro"])
 
-# Form parameters
+# Parameters Matrix
 col1, col2 = st.columns(2)
 with col1:
     target_url = st.text_input("Target Application URL Endpoint:", value="https://zgcollege.wakinedu.com/erp/admission")
@@ -33,16 +38,16 @@ with col2:
     audit_depth = st.selectbox("Operational Audit Depth", ["Surface UI Content Validation", "Full Matrix Diagnostic Sweep"])
     viewport_opt = st.selectbox("Device Emulation Viewport", ["Desktop (1080p)", "Mobile Viewport"])
 
-# --- PROCESS EXECUTION PIPELINE ---
+# --- 4. DATA PROCESSING PIPELINE ---
 if st.button("Execute Comprehensive Deep Diagnostic Scan"):
     if not target_url:
         st.error("Please enter a valid Target Application URL Endpoint.")
     else:
-        st.info("🔄 Connecting Pipeline: Launching Headless Chromium Engine...")
+        st.info("🔄 Connecting Pipeline: Initializing Cloud Browser Instance...")
         
         try:
             with sync_playwright() as p:
-                # Launching with production flags optimized for linux containers
+                # Essential production container parameters
                 browser = p.chromium.launch(
                     headless=True,
                     args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
@@ -54,11 +59,18 @@ if st.button("Execute Comprehensive Deep Diagnostic Scan"):
                 st.info(f"Navigating securely to: {target_url}")
                 page.goto(target_url, timeout=60000)
                 
-                # Fetch output validation checkpoint
+                # Fetch Target Properties
                 page_title = page.title()
-                st.success(f"✅ Connection Established successfully! Page Title: **{page_title}**")
+                st.success(f"✅ Connection Established! Target Page Title: **{page_title}**")
                 
-                # [Your automation/scraping processes execute safely right here]
+                # --- GEMINI INTEGRATION EXAMPLE ---
+                if gemini_key:
+                    st.info("🧠 Initializing Gemini Intelligence Suite...")
+                    # Initialize client using the official google-genai library structure
+                    client = genai.Client(api_key=gemini_key)
+                    # Example call:
+                    # response = client.models.generate_content(model=model_setup, contents=f"Analyze page: {page_title}")
+                    # st.write(response.text)
                 
                 browser.close()
                 

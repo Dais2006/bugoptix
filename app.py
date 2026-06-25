@@ -2,6 +2,7 @@ import os
 import asyncio
 import subprocess
 import sys
+import time
 import streamlit as strl
 
 # --- MANDATORY PRE-FLIGHT SYSTEM INITIALIZATION ---
@@ -127,6 +128,7 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                     });
                 }""")
                 
+                # --- CODE RESOLUTION: BOUNDARY LOGIC VALIDATOR ---
                 validated_structures = []
                 for field in form_elements:
                     fn = field["name"].lower()
@@ -161,7 +163,6 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
 
 # --- FUNCTIONAL SOLUTION: NATIVE BROWSER PDF CONVERTER ENGINE ---
 def generate_pdf_report(report_text, target_url, audit_title):
-    # This maps the report securely to a standard printing format
     html_content = f"""
     <html>
     <head>
@@ -185,8 +186,6 @@ def generate_pdf_report(report_text, target_url, audit_title):
     </html>
     """
     
-    # We use Playwright's headless printing context to generate an actual production-ready PDF 
-    # This avoids using clunky binary Python dependencies that break Streamlit's pipeline
     async def render_pdf():
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -199,7 +198,6 @@ def generate_pdf_report(report_text, target_url, audit_title):
     try:
         return asyncio.run(render_pdf())
     except RuntimeError:
-        # Handles edge case async runtime loops safely within running Streamlit worker threads
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop.run_until_complete(render_pdf())
@@ -228,7 +226,6 @@ with col3:
 with col4:
     responsive_profile = strl.selectbox("Device Emulation Viewport", ["Desktop (1080p)", "ios", "android"])
 
-# Keep the global view layout persistence mapped inside session state containers
 if "live_report" not in strl.session_state:
     strl.session_state["live_report"] = None
 if "target_title" not in strl.session_state:
@@ -289,15 +286,24 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
                         response = client.models.generate_content(model=selected_model, contents=system_analysis_prompt)
                         response_text = response.text
                     except Exception as e:
-                        strl.warning(f"AI fallthrough: {e}")
+                        # --- CODE RESOLUTION: 429 RATE LIMIT INTERCEPTOR ---
+                        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                            strl.warning("⏳ Free tier Pro quota exhausted. Automatically backing off for 40 seconds to reset...")
+                            time.sleep(42) # Safe window delay execution pause
+                            try:
+                                response = client.models.generate_content(model=selected_model, contents=system_analysis_prompt)
+                                response_text = response.text
+                            except Exception as retry_fault:
+                                strl.error(f"Fallback structural generation halted: {retry_fault}")
+                        else:
+                            strl.warning(f"AI fallthrough: {e}")
 
             if not response_text:
                 response_text = f"Analysis completed.\n\nForm Map Elements:\n{form_summary}\n\nTraces:\n{network_logs_str}"
 
-            # Persist response directly to session state tracking
             strl.session_state["live_report"] = response_text
 
-# --- Persistent Rendering Layout (Keeps download interface elements visible!) ---
+# --- State Preserving Presentation Layer ---
 if "captured_img" in strl.session_state:
     strl.markdown("### 📸 Captured Visual UI Layout Checkpoint")
     strl.image(strl.session_state["captured_img"], use_container_width=True)
@@ -310,7 +316,6 @@ if strl.session_state["live_report"]:
     
     strl.markdown("<br>", unsafe_allow_html=True)
     
-    # --- AUTOMATED COMPILING OF PRODUCTION-READY PDF BLOCKS ---
     with strl.spinner("📊 Compiling report structures into secure PDF file format..."):
         generated_pdf_data = generate_pdf_report(
             strl.session_state["live_report"], 
@@ -318,7 +323,6 @@ if strl.session_state["live_report"]:
             strl.session_state["target_title"]
         )
     
-    # The dedicated Download Action Trigger block
     strl.download_button(
         label="📥 Download Official BugOptix QA Test Report Document (.pdf)",
         data=generated_pdf_data,

@@ -11,7 +11,6 @@ def initialize_playwright_binaries():
         expected_bin_path = os.path.expanduser("~/.cache/ms-playwright")
         if not os.path.exists(expected_bin_path):
             print("Downloading container headless browser dependencies...")
-            # Safe synchronous execution of the browser framework compilation
             subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
             print("System binaries mapped successfully.")
     except Exception as e:
@@ -32,7 +31,7 @@ strl.set_page_config(
     layout="wide"
 )
 
-# Custom Corporate CSS Injection for Professional Presentation & Printing
+# Custom Corporate CSS Injection
 strl.markdown("""
     <style>
     .main { background-color: #0d1117; color: #c9d1d9; }

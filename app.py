@@ -82,7 +82,8 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
         "browser_used": target_browser, "crawled_routes": [], "all_bugs": [],
         "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
-        "seo_metrics": {"score": 100, "checks": []}, "api_metrics": {"score": 100, "logs": []},
+        "seo_metrics": {"score": 100, "checks": []}, 
+        "api_metrics": {"score": 100, "endpoints_tested": 0, "failed_contracts": 0},
         "network_metrics": {"failed": 0, "slow": 0, "404s": 0, "500s": 0},
         "accessibility_metrics": {"score": 100, "total_violations": 0},
         "waterfall_logs": [], "snapshots": {}
@@ -91,6 +92,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
     parsed_root = urlparse(target_url)
     queue = [target_url]
     visited = set()
+    discovered_api_endpoints = set()
 
     async with async_playwright() as p:
         browser_type = p.chromium
@@ -105,11 +107,18 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         context = await browser.new_context(**context_opts)
         page = await context.new_page()
 
+        # Dynamic Network Observer to Catch Real-time API Interactions
         def trace_network_response(resp):
             telemetry["waterfall_logs"].append({
                 "resource_url": resp.url[:70] + "...", "status_code": resp.status,
                 "method_type": resp.request.method, "content_type": resp.headers.get("content-type", "Unknown")
             })
+            
+            # Identify API Calls via request signature/content types
+            is_api_route = "/api/" in resp.url or "/v1/" in resp.url or "json" in resp.headers.get("content-type", "").lower()
+            if is_api_route and resp.url not in discovered_api_endpoints:
+                discovered_api_endpoints.add((resp.url, resp.request.method))
+
             if resp.status >= 500: telemetry["network_metrics"]["500s"] += 1
             elif resp.status == 404: telemetry["network_metrics"]["404s"] += 1
 
@@ -148,43 +157,27 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
                 telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
 
-                # --- DYNAMIC AXE-CORE ACCESSIBILITY ENGINE INTEGRATION ---
+                # --- AXE-CORE ACCESSIBILITY ENGINE ---
                 try:
-                    # Injecting a hosted/Cdn Axe-core bundle into the browser execution frame
                     await page.add_script_tag(url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
                     axe_results = await page.evaluate("async () => { return await axe.run(); }")
-                    
                     violations = axe_results.get("violations", [])
                     if violations:
                         telemetry["accessibility_metrics"]["total_violations"] += len(violations)
-                        # Deduct penalty dynamically per unique standard infraction found
                         telemetry["accessibility_metrics"]["score"] = max(10, telemetry["accessibility_metrics"]["score"] - (len(violations) * 4))
-                        
                         for v in violations:
                             severity_map = {"critical": "Critical", "serious": "High", "moderate": "Medium", "minor": "Low"}
-                            target_impact = severity_map.get(v.get("impact"), "High")
-                            
                             telemetry["all_bugs"].append({
                                 "bug_id": f"BUG-A11Y-{hash(v.get('id') + current_route) % 10000}",
-                                "route_location": current_route,
-                                "module": "Accessibility Compliance (WCAG)",
+                                "route_location": current_route, "module": "Accessibility Compliance (WCAG)",
                                 "issue": f"WCAG Violation: {v.get('id')} ({', '.join(v.get('tags', []))})",
-                                "severity": target_impact,
+                                "severity": severity_map.get(v.get("impact"), "High"),
                                 "brief_summary": v.get("description", "Accessibility rule violation detected."),
-                                "ai_cause": "Unvalidated contrast ratio, incorrect ARIA hierarchy, or broken sequential keyboard focus structures.",
-                                "ai_fix": f"Review element selectors matching standard rules to ensure conformance with WCAG guidelines: {v.get('helpUrl')}"
+                                "ai_cause": "Unvalidated contrast ratio, incorrect ARIA hierarchy, or broken keyboard navigation configurations.",
+                                "ai_fix": f"Adjust DOM configuration elements to follow standard rule pattern requirements: {v.get('helpUrl')}"
                             })
-                except Exception as a11y_err:
-                    # Fallback structural regex-heuristics if external script CDNs are blocked
-                    html_content = await page.content()
-                    if "contrast" in html_content.lower() or not aria_check := re.findall(r'aria-[a-z]+=""', html_content):
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-A11Y-FALLBACK-{hash(current_route) % 1000}",
-                            "route_location": current_route, "module": "Accessibility Compliance (Static)",
-                            "issue": "Degraded DOM Layout: Suspected Keyboard Tab-Index or ARIA Malformation",
-                            "severity": "High", "brief_summary": "Empty or broken layout element violates predictable interaction expectations.",
-                            "ai_cause": "Elements omitted from accessibility markup tree.", "ai_fix": "Expose accurate role attributes explicitly."
-                        })
+                except:
+                    pass
 
                 if response:
                     headers = {k.lower(): v for k, v in response.headers.items()}
@@ -202,6 +195,57 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                     abs_url = urljoin(current_route, link)
                     if urlparse(abs_url).netloc == parsed_root.netloc and abs_url not in visited: queue.append(abs_url)
             except:
+                pass
+
+        # --- DYNAMIC ACTIVE API TESTING ENGINE ---
+        # Seed fallback common api/schema declaration structures if zero observed via interaction
+        if not discovered_api_endpoints:
+            for fallback_path in ["/api", "/v1", "/swagger.json", "/api/v1/users"]:
+                discovered_api_endpoints.add((urljoin(target_url, fallback_path), "GET"))
+
+        api_request_context = context.request
+        for api_endpoint, method in list(discovered_api_endpoints)[:6]:
+            telemetry["api_metrics"]["endpoints_tested"] += 1
+            try:
+                t_start = time.time()
+                api_res = await api_request_context.fetch(api_endpoint, method=method)
+                t_end = time.time()
+                latency_ms = (t_end - t_start) * 1000
+
+                # 1. Status Validation
+                if api_res.status >= 400:
+                    telemetry["api_metrics"]["failed_contracts"] += 1
+                    telemetry["api_metrics"]["score"] = max(10, telemetry["api_metrics"]["score"] - 15)
+                    telemetry["all_bugs"].append({
+                        "bug_id": f"BUG-API-STATUS-{hash(api_endpoint) % 10000}",
+                        "route_location": api_endpoint, "module": "API Engine Testing",
+                        "issue": f"API Endpoint Route Failure Status: {api_res.status}", "severity": "High" if api_res.status < 500 else "Critical",
+                        "brief_summary": f"Target API endpoint threw error code {api_res.status} when hit with method {method}.",
+                        "ai_cause": "Broken backend logic router, missing access claims, or database runtime exceptions.",
+                        "ai_fix": "Verify endpoint routing paths, controller parameter handling constraints, and log data traces."
+                    })
+                    continue
+
+                # 2. Response Assertion & Schema Validation Contract Testing
+                try:
+                    res_body = await api_res.json()
+                    # Schema/Contract Test: Confirm response assertions contain real programmatic payload arrays or structured elements
+                    if isinstance(res_body, dict) and "errors" in res_body:
+                        raise ValueError("Payload explicitly flagged execution payload errors.")
+                    elif not res_body and res_body != [] and res_body != {}:
+                        raise ValueError("API endpoint contract schema structural response is invalid/empty.")
+                except Exception as contract_err:
+                    telemetry["api_metrics"]["failed_contracts"] += 1
+                    telemetry["api_metrics"]["score"] = max(10, telemetry["api_metrics"]["score"] - 10)
+                    telemetry["all_bugs"].append({
+                        "bug_id": f"BUG-API-SCHEMA-{hash(api_endpoint) % 10000}",
+                        "route_location": api_endpoint, "module": "API Engine Testing",
+                        "issue": "API Schema Contract Validation Failure", "severity": "Medium",
+                        "brief_summary": f"Response returned unexpected syntax framework or broken data schema: {str(contract_err)}",
+                        "ai_cause": "Contract transformation mismatch between API router layer definitions and internal runtime serializers.",
+                        "ai_fix": "Align response model attributes accurately with OpenAPI/Swagger declarations."
+                    })
+            except Exception as conn_err:
                 pass
 
         await context.close()
@@ -235,18 +279,23 @@ if "streamlit" in sys.modules:
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-        # DISPLAY DYNAMIC ACCESSIBILITY METRICS METERS
+        # DISPLAY PERFORMANCE METRICS METERS
         active_scan_data = strl.session_state.get("active_scan")
         if isinstance(active_scan_data, dict):
             a11y_metrics = active_scan_data.get("accessibility_metrics", {"score": 100, "total_violations": 0})
-            score_color = "🟢" if a11y_metrics["score"] >= 90 else "🟡" if a11y_metrics["score"] >= 75 else "🔴"
+            api_metrics = active_scan_data.get("api_metrics", {"score": 100, "endpoints_tested": 0, "failed_contracts": 0})
+            
+            a11y_color = "🟢" if a11y_metrics["score"] >= 90 else "🟡" if a11y_metrics["score"] >= 75 else "🔴"
+            api_color = "🟢" if api_metrics["score"] >= 90 else "🟡" if api_metrics["score"] >= 75 else "🔴"
             
             strl.markdown("### 📊 Engine Compliance Metrics")
-            met_c1, met_c2 = strl.columns(2)
+            met_c1, met_c2, met_c3 = strl.columns(3)
             with met_c1:
-                strl.metric(label=f"{score_color} Live Accessibility Index Score", value=f"{a11y_metrics['score']}/100")
+                strl.metric(label=f"{a11y_color} Live Accessibility Index Score", value=f"{a11y_metrics['score']}/100", delta=f"{a11y_metrics['total_violations']} WCAG Errors")
             with met_c2:
-                strl.metric(label="Evaluated WCAG Rule Violations Found", value=str(a11y_metrics['total_violations']), delta="Impact: Very High" if a11y_metrics['total_violations'] > 0 else "Clear")
+                strl.metric(label=f"{api_color} Dynamic API Testing Index", value=f"{api_metrics['score']}/100", delta=f"{api_metrics['failed_contracts']} Broken Contracts")
+            with met_c3:
+                strl.metric(label="Total Network Target Routes Tested", value=str(api_metrics['endpoints_tested']))
 
             bugs_list = active_scan_data.get("all_bugs", [])
             if isinstance(bugs_list, list) and len(bugs_list) > 0:

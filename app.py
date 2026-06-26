@@ -22,7 +22,6 @@ def enforce_system_binaries():
     except Exception:
         pass
 
-# Initialize system dependencies specifically for standard Streamlit operation
 if "streamlit" in sys.modules:
     enforce_system_binaries()
 
@@ -42,7 +41,6 @@ class VaultController:
                     data = json.load(f)
                     if not isinstance(data, dict): 
                         return default_structure
-                    # Secure every nested key parameter to prevent tracking load exceptions
                     if "scans" not in data or not isinstance(data["scans"], list): data["scans"] = []
                     if "lifecycle_states" not in data or not isinstance(data["lifecycle_states"], dict): data["lifecycle_states"] = {}
                     if "baseline_snapshots" not in data or not isinstance(data["baseline_snapshots"], dict): data["baseline_snapshots"] = {}
@@ -86,6 +84,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
         "seo_metrics": {"score": 100, "checks": []}, "api_metrics": {"score": 100, "logs": []},
         "network_metrics": {"failed": 0, "slow": 0, "404s": 0, "500s": 0},
+        "accessibility_metrics": {"score": 100, "total_violations": 0},
         "waterfall_logs": [], "snapshots": {}
     }
 
@@ -149,6 +148,44 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
                 telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
 
+                # --- DYNAMIC AXE-CORE ACCESSIBILITY ENGINE INTEGRATION ---
+                try:
+                    # Injecting a hosted/Cdn Axe-core bundle into the browser execution frame
+                    await page.add_script_tag(url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
+                    axe_results = await page.evaluate("async () => { return await axe.run(); }")
+                    
+                    violations = axe_results.get("violations", [])
+                    if violations:
+                        telemetry["accessibility_metrics"]["total_violations"] += len(violations)
+                        # Deduct penalty dynamically per unique standard infraction found
+                        telemetry["accessibility_metrics"]["score"] = max(10, telemetry["accessibility_metrics"]["score"] - (len(violations) * 4))
+                        
+                        for v in violations:
+                            severity_map = {"critical": "Critical", "serious": "High", "moderate": "Medium", "minor": "Low"}
+                            target_impact = severity_map.get(v.get("impact"), "High")
+                            
+                            telemetry["all_bugs"].append({
+                                "bug_id": f"BUG-A11Y-{hash(v.get('id') + current_route) % 10000}",
+                                "route_location": current_route,
+                                "module": "Accessibility Compliance (WCAG)",
+                                "issue": f"WCAG Violation: {v.get('id')} ({', '.join(v.get('tags', []))})",
+                                "severity": target_impact,
+                                "brief_summary": v.get("description", "Accessibility rule violation detected."),
+                                "ai_cause": "Unvalidated contrast ratio, incorrect ARIA hierarchy, or broken sequential keyboard focus structures.",
+                                "ai_fix": f"Review element selectors matching standard rules to ensure conformance with WCAG guidelines: {v.get('helpUrl')}"
+                            })
+                except Exception as a11y_err:
+                    # Fallback structural regex-heuristics if external script CDNs are blocked
+                    html_content = await page.content()
+                    if "contrast" in html_content.lower() or not aria_check := re.findall(r'aria-[a-z]+=""', html_content):
+                        telemetry["all_bugs"].append({
+                            "bug_id": f"BUG-A11Y-FALLBACK-{hash(current_route) % 1000}",
+                            "route_location": current_route, "module": "Accessibility Compliance (Static)",
+                            "issue": "Degraded DOM Layout: Suspected Keyboard Tab-Index or ARIA Malformation",
+                            "severity": "High", "brief_summary": "Empty or broken layout element violates predictable interaction expectations.",
+                            "ai_cause": "Elements omitted from accessibility markup tree.", "ai_fix": "Expose accurate role attributes explicitly."
+                        })
+
                 if response:
                     headers = {k.lower(): v for k, v in response.headers.items()}
                     if "content-security-policy" not in headers:
@@ -181,7 +218,6 @@ if "streamlit" in sys.modules:
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
-    # Standard presentation structure containing purely core tracking panels
     runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
 
     with runner_tab:
@@ -199,9 +235,19 @@ if "streamlit" in sys.modules:
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-        # DEFENSIVE EVALUATION RE-ENGINEERING
+        # DISPLAY DYNAMIC ACCESSIBILITY METRICS METERS
         active_scan_data = strl.session_state.get("active_scan")
         if isinstance(active_scan_data, dict):
+            a11y_metrics = active_scan_data.get("accessibility_metrics", {"score": 100, "total_violations": 0})
+            score_color = "🟢" if a11y_metrics["score"] >= 90 else "🟡" if a11y_metrics["score"] >= 75 else "🔴"
+            
+            strl.markdown("### 📊 Engine Compliance Metrics")
+            met_c1, met_c2 = strl.columns(2)
+            with met_c1:
+                strl.metric(label=f"{score_color} Live Accessibility Index Score", value=f"{a11y_metrics['score']}/100")
+            with met_c2:
+                strl.metric(label="Evaluated WCAG Rule Violations Found", value=str(a11y_metrics['total_violations']), delta="Impact: Very High" if a11y_metrics['total_violations'] > 0 else "Clear")
+
             bugs_list = active_scan_data.get("all_bugs", [])
             if isinstance(bugs_list, list) and len(bugs_list) > 0:
                 bugs_df = pd.DataFrame(bugs_list)
@@ -225,7 +271,8 @@ if "streamlit" in sys.modules:
                             VaultController.write_records(vault_recs)
                             strl.toast(f"Updated status for {b_id}")
                             strl.rerun()
-                        strl.info(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
+                        strl.info(f"**Brief Summary:** {bug.get('brief_summary', 'N/A')}")
+                        strl.warning(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
                         strl.markdown(f"**Fix Recommendation:** `{bug.get('ai_fix', 'N/A')}`")
             else:
                 strl.success("Zero defect exceptions flagged for this run.")

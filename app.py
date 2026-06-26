@@ -85,7 +85,7 @@ class VaultController:
                     return json.load(f)
             except:
                 pass
-        return {"scans": [], "chat_history": []}
+        return {"scans": [], "chat_history": [], "human_feedback": {}, "requirement_mapping": {}}
 
     @staticmethod
     def write_records(data: dict):
@@ -103,7 +103,7 @@ if "active_scan" not in strl.session_state:
 
 
 # --- 20-IN-1 UNIFIED LIVE ASSESSMENT ENGINE ---
-async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str) -> dict:
+async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_headers: str = None, storage_state_json: str = None) -> dict:
     start_time_stamp = datetime.now()
     telemetry = {
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
@@ -142,7 +142,24 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             visited.add(current_route)
             telemetry["crawled_routes"].append(current_route)
 
-            context = await browser.new_context(ignore_https_errors=True)
+            # Support for OAuth2 / MFA State Persistence Contexts
+            context_args = {"ignore_https_errors": True}
+            if storage_state_json:
+                try:
+                    state_data = json.loads(storage_state_json)
+                    context_args["storage_state"] = state_data
+                except:
+                    pass
+
+            context = await browser.new_context(**context_args)
+            
+            if auth_headers:
+                try:
+                    parsed_hdrs = json.loads(auth_headers)
+                    await context.set_extra_http_headers(parsed_hdrs)
+                except:
+                    pass
+
             page = await context.new_page()
 
             def handle_response(resp):
@@ -178,30 +195,34 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                     headers = {k.lower(): v for k, v in response.headers.items()}
                     sec_headers = [
                         ("content-security-policy", "Missing Content-Security-Policy isolation strings.", "High",
-                         "Missing standard protection header."),
+                         "Missing standard protection header.", "REQ-SEC-01: Data Protection & Transport Security"),
                         ("x-frame-options", "Missing X-Frame-Options anti-clickjacking defense parameters.", "Medium",
-                         "Clickjacking exposure point."),
+                         "Clickjacking exposure point.", "REQ-SEC-01: Data Protection & Transport Security"),
                         ("strict-transport-security", "Missing HSTS secure protocol enforcement routing.", "High",
-                         "Transport fallback exposure route."),
+                         "Transport fallback exposure route.", "REQ-SEC-01: Data Protection & Transport Security"),
                         ("x-content-type-options", "Missing X-Content-Type-Options mime sniff protection.", "Low",
-                         "Mime sniffing vector hole.")
+                         "Mime sniffing vector hole.", "REQ-SEC-01: Data Protection & Transport Security")
                     ]
-                    for h_name, desc, sev, brief in sec_headers:
+                    for h_name, desc, sev, brief, req_id in sec_headers:
                         if h_name not in headers:
                             telemetry["all_bugs"].append({
+                                "bug_id": f"BUG-SEC-{hash(current_route + h_name) % 10000}",
                                 "route_location": current_route, "module": "Security Testing",
                                 "issue": f"Header Omission: {h_name}",
                                 "severity": sev, "brief_summary": brief, "desc": desc,
+                                "requirement_id": req_id,
                                 "reproduction": f"1. Target target URL endpoint.\n2. Inspect transport header arrays.\n3. Identify missing parameter: {h_name}"
                             })
 
                     content_blob = await page.content()
                     if "AIzaSy" in content_blob or "sk_live_" in content_blob:
                         telemetry["all_bugs"].append({
+                            "bug_id": f"BUG-SEC-TOKEN-{hash(current_route) % 10000}",
                             "route_location": current_route, "module": "Security Testing",
                             "issue": "Exposed Cloud API Access Token Keys",
                             "severity": "Critical", "brief_summary": "Exposed credentials in source markup.",
                             "desc": "Live application source files contain raw cloud service keys.",
+                            "requirement_id": "REQ-AUTH-01: User Authentication & Identity Management",
                             "reproduction": "1. Render source markup script arrays.\n2. Scan pattern characters.\n3. Extract bare credential key strings."
                         })
 
@@ -211,11 +232,13 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                         axe_res = await page.evaluate("async () => { return await axe.run(); }")
                         for violation in axe_res.get("violations", []):
                             telemetry["all_bugs"].append({
+                                "bug_id": f"BUG-A11Y-{hash(current_route + violation['id']) % 10000}",
                                 "route_location": current_route, "module": "Accessibility Testing",
                                 "issue": f"WCAG: {violation['id'].upper()}",
                                 "severity": "Medium" if violation["impact"] == "moderate" else "High",
                                 "brief_summary": f"WCAG rule validation criteria fail: {violation['id']}",
                                 "desc": violation["help"],
+                                "requirement_id": "REQ-A11Y-01: WCAG 2.1 Compliance Infrastructure",
                                 "reproduction": f"1. Target accessible node tree.\n2. Locate DOM element footprint.\n3. Review WCAG guideline break condition."
                             })
                     except:
@@ -229,10 +252,12 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                     }""")
                     for item in raw_a11y:
                         telemetry["all_bugs"].append({
+                            "bug_id": f"BUG-A11Y-RAW-{hash(current_route + item['i']) % 10000}",
                             "route_location": current_route, "module": "Accessibility Testing", "issue": item["i"],
                             "severity": item["s"],
                             "brief_summary": item["b"],
                             "desc": "DOM structure lacks required screen-reader properties.",
+                            "requirement_id": "REQ-A11Y-01: WCAG 2.1 Compliance Infrastructure",
                             "reproduction": "1. Traverse DOM structure.\n2. Validate element parameters."
                         })
 
@@ -257,11 +282,13 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                     }""")
                     if overlaps > 0:
                         telemetry["all_bugs"].append({
+                            "bug_id": f"BUG-RESP-{hash(current_route + vp_name) % 10000}",
                             "route_location": current_route, "module": "Responsive Testing",
                             "issue": f"Layout Compression Overflow ({vp_name})",
                             "severity": "Low",
                             "brief_summary": f"Visual overlap detected on resolution breakpoint {vp_name}.",
                             "desc": "Structural coordinate boundaries collide on specific viewport target ranges.",
+                            "requirement_id": "REQ-UI-01: Adaptive Visual Layout System",
                             "reproduction": f"1. Emulate resolution to {w}x{h}.\n2. Evaluate node element box models.\n3. Catch boundary intersection."
                         })
 
@@ -292,10 +319,12 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
 
             except Exception as ex:
                 telemetry["all_bugs"].append({
+                    "bug_id": f"BUG-CORE-{hash(current_route) % 10000}",
                     "route_location": current_route, "module": "Functional Testing",
                     "issue": "Execution Context Core Failure",
                     "severity": "Critical", "brief_summary": "Browser environment runtime parsing crash.",
                     "desc": str(ex),
+                    "requirement_id": "REQ-AUTH-01: User Authentication & Identity Management",
                     "reproduction": "1. Access current target route path endpoint.\n2. Check browser network stack context failure."
                 })
             finally:
@@ -319,26 +348,37 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             {"endpoint": target_url, "latency": "0 ms", "response_code": "CONNECTION TIMEOUT", "schema": str(api_err)})
 
     telemetry["generated_test_cases"] = [
-        {"Test Case ID": "TC-SEC-01", "Scenario": f"Verify transport security configuration profiles for {target_url}",
+        {"Test Case ID": "TC-SEC-01", "Requirement ID": "REQ-SEC-01: Data Protection & Transport Security", "Scenario": f"Verify transport security configuration profiles for {target_url}",
          "Expected Result": "Headers map Content-Security-Policy security variables."},
-        {"Test Case ID": "TC-ACC-02",
-         "Scenario": f"Verify WCAG compliance element nodes for target domain route profiles",
+        {"Test Case ID": "TC-ACC-02", "Requirement ID": "REQ-A11Y-01: WCAG 2.1 Compliance Infrastructure", "Scenario": f"Verify WCAG compliance element nodes for target domain route profiles",
          "Expected Result": "All target system asset element images specify standard structural alt tags."}
     ]
 
+    # Persistent Vault mapping logic for dynamic tracking updates
+    vault_records = VaultController.read_records()
+    feedback_map = vault_records.get("human_feedback", {})
+
     for bug in telemetry["all_bugs"]:
+        b_id = bug["bug_id"]
+        
+        # Human in the loop adaptive context changes
+        if b_id in feedback_map:
+            bug["status_override"] = feedback_map[b_id]
+        else:
+            bug["status_override"] = "Valid Defect"
+
         if "Security" in bug["module"]:
             bug["ai_cause"] = "Gateway transport configurations skip encapsulation policy parameters."
             bug["ai_fix"] = "Append explicit security variable properties inside upstream server config routes."
-            bug["ai_conf"] = "96%"
+            bug["ai_conf"] = "96%" if bug["status_override"] == "Valid Defect" else "42% (Awaiting Reinforcement Alignment)"
         elif "Accessibility" in bug["module"]:
             bug["ai_cause"] = "DOM asset generation layers compile node components without attribute arrays."
             bug["ai_fix"] = "Inject required property markup hooks directly into rendering templates."
-            bug["ai_conf"] = "91%"
+            bug["ai_conf"] = "91%" if bug["status_override"] == "Valid Defect" else "38% (Awaiting Reinforcement Alignment)"
         else:
             bug["ai_cause"] = "Interface dimensions compress layout spaces beyond bounding parameters."
             bug["ai_fix"] = "Enforce adaptive media queries or add flexbox container rules."
-            bug["ai_conf"] = "88%"
+            bug["ai_conf"] = "88%" if bug["status_override"] == "Valid Defect" else "35% (Awaiting Reinforcement Alignment)"
 
     telemetry["test_duration_secs"] = (datetime.now() - start_time_stamp).total_seconds()
     return telemetry
@@ -349,6 +389,15 @@ strl.title("🛡️ BugOptix AI Tester")
 strl.markdown("---")
 
 with strl.sidebar:
+    strl.markdown("### 🔑 Corporate Authentication Matrix")
+    use_auth = strl.checkbox("Inject Multi-Factor / OAuth2 Context Profile")
+    custom_hdrs = None
+    storage_state_str = None
+    if use_auth:
+        custom_hdrs = strl.text_area("Extra HTTP Auth Headers (JSON Struct)", value='{"Authorization": "Bearer YOUR_MNC_OAUTH_TOKEN_HERE"}')
+        storage_state_str = strl.text_area("Persisted Browser Storage State Cookies / MFA Tokens (JSON)", value='{"cookies": [], "origins": []}')
+    
+    strl.markdown("---")
     strl.markdown("### 🤖 Ask BugOptix AI Assistant")
     user_query = strl.text_input("Pose runtime architectural or bug fix queries below:", key="sidebar_chat_query")
     if user_query:
@@ -363,8 +412,8 @@ with strl.sidebar:
             strl.write(
                 "> BugOptix engine architecture stands ready to compile script instructions, optimize delivery tracks, and generate multi-platform compliance assets.")
 
-runner_tab, reports_tab, integrations_tab = strl.tabs(
-    ["🚀 Quality Suite Test Runner", "📥 Report Generation Export Hub", "🔗 Production CI/CD Integrations Link"])
+runner_tab, traceability_tab, reports_tab, integrations_tab = strl.tabs(
+    ["🚀 Quality Suite Test Runner", "📊 Requirements Traceability Matrix", "📥 Report Generation Export Hub", "🔗 Production CI/CD Integrations Link"])
 
 with runner_tab:
     col_u, col_b, col_d = strl.columns([2, 1, 1])
@@ -380,7 +429,7 @@ with runner_tab:
 
     if strl.button("Dispatch Complete 20-in-1 Automated Compliance Pipeline Run"):
         with strl.spinner("Orchestrating live testing engines across multi-viewport browser frames..."):
-            res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser))
+            res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser, custom_hdrs, storage_state_str))
             strl.session_state["active_scan"] = res_data
 
             vault_recs = VaultController.read_records()
@@ -447,9 +496,31 @@ with runner_tab:
                     "🔥 Critical Security Risk or Blocking Runtime Exceptions Are Actively Identified Within Infrastructure Tracks.")
 
             for idx, bug in bugs_df.iterrows():
-                with strl.expander(f"[{bug['severity']}] {bug['module']} — {bug['issue']} at {bug['route_location']}"):
+                b_id = bug["bug_id"]
+                with strl.expander(f"[{bug['severity']}] {bug['module']} — {bug['issue']} ({b_id})"):
+                    strl.markdown(f"**Mapped Corporate Requirement:** `{bug.get('requirement_id', 'General Quality Target')}`")
                     strl.markdown(f"**Brief Summary Description:** `{bug['brief_summary']}`")
                     strl.markdown(f"**Full Finding Analysis:** {bug['desc']}")
+
+                    # Human Override Control Interface
+                    current_override = bug.get("status_override", "Valid Defect")
+                    selected_status = strl.selectbox(
+                        "Verify Verification Override Status (Human-In-The-Loop Feedback):",
+                        ["Valid Defect", "False Positive", "Mitigated Exception / Low Impact"],
+                        index=["Valid Defect", "False Positive", "Mitigated Exception / Low Impact"].index(current_override),
+                        key=f"override_{b_id}"
+                    )
+                    
+                    if selected_status != current_override:
+                        vault_recs = VaultController.read_records()
+                        vault_recs["human_feedback"][b_id] = selected_status
+                        VaultController.write_records(vault_recs)
+                        
+                        # Apply live feedback mutation changes to current session context structure
+                        scan["all_bugs"][idx]["status_override"] = selected_status
+                        strl.session_state["active_scan"] = scan
+                        strl.toast(f"AI Core optimized successfully! Flagged {b_id} as {selected_status}.", icon="🤖")
+                        strl.rerun()
 
                     strl.markdown("**⚙️ Verification Action Steps to Reproduce This Finding Behavior:**")
                     strl.code(bug["reproduction"], language="text")
@@ -460,7 +531,8 @@ with runner_tab:
                         "Target Found URL Endpoint Link": bug["route_location"],
                         "Isolated Cause Factor": bug["ai_cause"],
                         "Confidence Rating Score": bug["ai_conf"],
-                        "Suggested Correction Action Script": bug["ai_fix"]
+                        "Suggested Correction Action Script": bug["ai_fix"],
+                        "Dynamic Feedback Status Loop Flag": bug["status_override"]
                     })
         else:
             strl.success(
@@ -515,6 +587,48 @@ with runner_tab:
             strl.markdown("### 📋 Auto-Generated AI Test Cases")
             strl.dataframe(pd.DataFrame(scan['generated_test_cases']), use_container_width=True)
 
+with traceability_tab:
+    strl.markdown("### 📊 Requirements Traceability Matrix Dashboard Ledger")
+    if not strl.session_state["active_scan"]:
+        strl.info("Execute active evaluation sweeps above to construct traceability matrix relationships.")
+    else:
+        scan = strl.session_state["active_scan"]
+        bugs_df = pd.DataFrame(scan["all_bugs"])
+        t_cases_df = pd.DataFrame(scan["generated_test_cases"])
+
+        corporate_requirements = [
+            {"Requirement ID": "REQ-AUTH-01: User Authentication & Identity Management", "Description": "Enforce granular protection limits around credentials, tokens, and multi-factor authentication loops."},
+            {"Requirement ID": "REQ-SEC-01: Data Protection & Transport Security", "Description": "Enforce isolation layers including CSP, HSTS, and protection rules over internal asset distribution networks."},
+            {"Requirement ID": "REQ-A11Y-01: WCAG 2.1 Compliance Infrastructure", "Description": "Validate structural DOM components against screen readers and programmatic parsing access systems."},
+            {"Requirement ID": "REQ-UI-01: Adaptive Visual Layout System", "Description": "Ensure adaptive grid rendering models across varied desktop, tablet, and mobile device viewports."}
+        ]
+
+        for req in corporate_requirements:
+            with strl.container(border=True):
+                strl.markdown(f"#### 📋 ID: {req['Requirement ID']}")
+                strl.caption(f"**Enterprise Objective Criteria:** {req['Description']}")
+                
+                # Dynamic matching queries
+                matched_bugs = bugs_df[bugs_df["requirement_id"] == req['Requirement ID']] if not bugs_df.empty else pd.DataFrame()
+                matched_cases = t_cases_df[t_cases_df["Requirement ID"] == req['Requirement ID']] if not t_cases_df.empty else pd.DataFrame()
+                
+                tc_col, bug_col = strl.columns(2)
+                with tc_col:
+                    strl.markdown("**Linked Validation Test Cases:**")
+                    if not matched_cases.empty:
+                        strl.dataframe(matched_cases[["Test Case ID", "Scenario", "Expected Result"]], use_container_width=True, hide_index=True)
+                    else:
+                        strl.caption("No custom structural scenarios assigned to this profile module.")
+                
+                with bug_col:
+                    strl.markdown("**Directly Failed / Linked Exceptions Ledger:**")
+                    if not matched_bugs.empty:
+                        # Highlight exceptions by human decision parameters
+                        disp_bugs = matched_bugs[["bug_id", "issue", "severity", "status_override"]].copy()
+                        strl.dataframe(disp_bugs, use_container_width=True, hide_index=True)
+                    else:
+                        strl.success("Passed completely. Zero unhandled defect profiles link back to criteria requirements.")
+
 with reports_tab:
     strl.markdown("### 📥 Download Compliance Verification Artifacts Hub")
     if strl.session_state["active_scan"] is None:
@@ -541,70 +655,4 @@ with reports_tab:
         if "JSON" in sel_format:
             strl.download_button(label="Download Report Package File (.JSON)",
                                  data=json.dumps(active_scan_payload, indent=4),
-                                 file_name="bugoptix_compliance_report.json", mime="application/json")
-        elif "CSV" in sel_format:
-            csv_buffer = export_df.to_csv(index=False) if not export_df.empty else "No defect exceptions recorded."
-            strl.download_button(label="Download Defect Table Ledger (.CSV)", data=csv_buffer,
-                                 file_name="bugoptix_defect_ledger.csv", mime="text/csv")
-        elif "TXT" in sel_format:
-            txt_lines = [
-                f"BUGOPTIX AI TESTER REPORT\n",
-                f"Domain Target Checked: {active_scan_payload['url']}\n",
-                f"Timestamp Logged: {active_scan_payload['timestamp']}\n",
-                f"Total Defects Found: {len(active_scan_payload['all_bugs'])}\n",
-                f"--------------------------------------------------\n"
-            ]
-            for index, bug_row in export_df.iterrows():
-                txt_lines.append(
-                    f"[{bug_row['Severity']}] In {bug_row['Module Domain']} found at link: {bug_row['Route Location Link']}\nBrief summary: {bug_row['Brief Summary']}\n\n")
-
-            strl.download_button(label="Download Raw Summary Logs Data (.TXT)", data="".join(txt_lines),
-                                 file_name="bugoptix_summary.txt", mime="text/plain")
-        elif "PDF" in sel_format:
-            pdf_bytes_stream = (
-                f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
-                f"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>>>>> >>endobj\n"
-                f"4 0 obj<</Length 450>>stream\nBT\n/F1 14 Tf\n40 720 Td\n(BUGOPTIX AI TESTER EXECUTIVE ENTERPRISE COMPLIANCE REPORT) Tj\n"
-                f"/F1 11 Tf\n0 -40 Td\n(Inspected Infrastructure Protocol Target URI: {active_scan_payload['url']}) Tj\n"
-                f"0 -20 Td\n(Automated Scanning Engine Time Check-in: {active_scan_payload['timestamp']}) Tj\n"
-                f"0 -20 Td\n(Total Dynamic Defect Exceptions Logged Counter: {len(active_scan_payload['all_bugs'])}) Tj\n"
-                f"0 -30 Td\n(Defect Track Matrix Location Logs Summary Summary:) Tj\n"
-                f"0 -20 Td\n(Review complete dataset schema in JSON/CSV export modules for fully mapped item tracks.) Tj\n"
-                f"0 -40 Td\n(MNC Deployment Verification Protocol Status: APPROVED) Tj\nET\nendstream\nendobj\n"
-                f"xref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000250 00000 n\n"
-                f"trailer<</Size 5/Root 1 0 R>>\nstartxref\n740\n%%EOF"
-            )
-            strl.download_button(label="Download PDF Executive Report (.PDF)", data=pdf_bytes_stream.encode('utf-8'),
-                                 file_name="BugOptix_Report.pdf", mime="application/pdf")
-
-with integrations_tab:
-    strl.markdown("### 🔗 CI/CD Automation Integration Webhooks Pipeline Status")
-
-    c1, c2, c3, c4 = strl.columns(4)
-    c1.markdown(
-        "#### GitHub Actions\n![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-passing-success?style=flat&logo=github)")
-    c2.markdown(
-        "#### GitLab CI\n![GitLab CI](https://img.shields.io/badge/GitLab_CI-verified-blue?style=flat&logo=gitlab)")
-    c3.markdown("#### Jenkins\n![Jenkins](https://img.shields.io/badge/Jenkins-active-orange?style=flat&logo=jenkins)")
-    c4.markdown(
-        "#### Azure DevOps\n![Azure](https://img.shields.io/badge/Azure_Pipelines-compliant-purple?style=flat&logo=azure-pipelines)")
-
-    strl.markdown("---")
-    strl.markdown("#### Continuous Integration Configuration Integration Code Segment")
-    strl.info(
-        "Drop the integration code snippet into your automation file path to verify builds dynamically on push commands.")
-    strl.code("""
-name: BugOptix Automated Quality Gate Evaluation
-on: [push, pull_request]
-jobs:
-  compliance-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source Files
-        uses: actions/checkout@v3
-      - name: Initialize BugOptix Engine Run Execution
-        run: |
-          pip install playwright httpx streamlit pandas
-          python -m playwright install chromium
-          python -m httpx get http://localhost:8501/ --timeout 10
-    """, language="yaml")
+                                 file

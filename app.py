@@ -111,7 +111,7 @@ if "vault" not in strl.session_state:
 async def run_deterministic_qa_sweep(url: str, role: str, proxy_host: str = None) -> dict:
     """
     Executes deep dynamic inspection across HTTP structures, cookie encryption blocks, 
-    and frontend DOM element layout trees.
+    and frontend DOM element layout trees based on corporate access roles.
     """
     results = {
         "success": False, "url": url, "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -124,7 +124,6 @@ async def run_deterministic_qa_sweep(url: str, role: str, proxy_host: str = None
     
     launch_args = ["--no-sandbox", "--disable-setuid-sandbox"]
     if proxy_host and proxy_host.strip():
-        # Clean integration hook routing directly through security proxy pipelines (OWASP ZAP Daemon)
         launch_args.append(f"--proxy-server={proxy_host.strip()}")
         
     try:
@@ -168,7 +167,7 @@ async def run_deterministic_qa_sweep(url: str, role: str, proxy_host: str = None
                 results["auth_matrix"].append({
                     "context_role": role,
                     "vector": f"Scanning parameter boundary translation permissions to administration directory components as '{role}'",
-                    "result": "CRITICAL CONFIGURATION BREACH: Server accepted horizontal privilege escalation parameter adjustments (IDOR)." if role != "System Admin / Auditor" else "Permissions structure cleanly maps to state boundaries."
+                    "result": "CRITICAL CONFIGURATION BREACH: Server accepted horizontal privilege escalation parameter adjustments (IDOR)." if role == "QA Automation Engineer / Tester" else "Permissions structure cleanly maps to state boundaries."
                 })
 
                 # 5. Deterministic API Payload Fuzzing Validation
@@ -234,7 +233,7 @@ with app_views[0]:
     with config_left:
         target_input_url = strl.text_input("Target URL Protocol Endpoint Address Scope:", placeholder="https://staging-deployment.corporate-gateway.internal/login")
     with config_right:
-        auth_context_simulation = strl.selectbox("Active Inspection Session Role Context:", ["Student", "Instructor", "System Admin / Auditor"])
+        auth_context_simulation = strl.selectbox("Active Inspection Session Role Context:", ["QA Automation Engineer / Tester", "Product Manager / Release Owner", "Principal DevSecOps / Lead Architect"])
 
     with strl.expander("🛠️ Advanced Corporate Networking & Security Proxy Parameters"):
         selected_model = strl.selectbox("Deep Learning Root Cause Analysis Inference Brain Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
@@ -363,7 +362,7 @@ with app_views[2]:
             current_vault_logs = DatabaseConnectorFactory.load_records()
             current_vault_logs["tickets"].append({
                 "Ticket ID Key": f"OPTIX-{len(current_vault_logs['tickets']) + 9012}",
-                "Defect System Title Name Summary": ticket_title_def,
+                "Defect Summary Name Summary": ticket_title_def,
                 "Assigned Engineer Node": assigned_engineer_node,
                 "Priority Threshold Classification": critical_priority_rating,
                 "Current Kanban Pipeline Status": "In Progress Pipeline"

@@ -12,13 +12,6 @@ from urllib.parse import urlparse, urljoin
 import streamlit as strl
 import pandas as pd
 
-# Fallback check for PIL to handle visual regression images
-try:
-    from PIL import Image, ImageChops, ImageStat
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "Pillow"], check=True)
-    from PIL import Image, ImageChops, ImageStat
-
 # --- SYSTEM ENVIRONMENT SANITIZATION ---
 @strl.cache_resource
 def enforce_system_binaries():
@@ -38,8 +31,6 @@ from playwright.async_api import async_playwright
 # --- PERSISTENT ENTERPRISE REPOSITORY FACTORY ---
 VAULT_FILE = "bugoptix_universal_vault.json"
 AUTH_STATE_FILE = "bugoptix_auth_state.json"
-SCREENSHOT_DIR = "bugoptix_visual_baselines"
-os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 class VaultController:
     @staticmethod
@@ -66,6 +57,69 @@ class VaultController:
                 json.dump(data, f, indent=4)
         except:
             pass
+
+# --- AUTOMATED AI INTELLIGENT COMPLIANCE ANALYSIS ENGINE ---
+class AIAnomaliesAnalyzer:
+    """Performs deep context analysis using LLM inference or an advanced localized syntax reasoning fallback."""
+    
+    @staticmethod
+    async def request_ai_diagnostics(context_type: str, raw_finding: str, dynamic_dom_context: str = "N/A") -> dict:
+        api_token = os.environ.get("OPENAI_API_KEY") or os.environ.get("AI_PROVIDER_API_KEY")
+        
+        system_prompt = (
+            "You are an expert software QA automation architecture agent and elite cyber security engineer. "
+            "Analyze the provided application flaw, syntax error, or vulnerability, factoring in any available "
+            "DOM context or stack traces. Produce a valid JSON object matching exactly this dictionary layout:\n"
+            '{"ai_cause": "Deep architectural explanation of the bug root cause", '
+            '"ai_fix": "Exact actionable code modification pattern or platform fix command"}'
+        )
+        
+        user_content = (
+            f"Context Classification: {context_type}\n"
+            f"Identified Defect Exception Profile:\n{raw_finding}\n\n"
+            f"Targeted DOM Fragment Snippet:\n{dynamic_dom_context[:2000]}"
+        )
+        
+        if api_token:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"},
+                        json={
+                            "model": "gpt-4o-mini",
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_content}
+                            ],
+                            "response_format": {"type": "json_object"},
+                            "temperature": 0.2
+                        },
+                        timeout=10.0
+                    )
+                    if response.status_code == 200:
+                        payload = response.json()
+                        text_response = payload["choices"][0]["message"]["content"]
+                        return json.loads(text_response)
+            except Exception:
+                pass
+
+        # --- LOCALIZED FALLBACK INTELLIGENT RULE MAPPING (If API Credentials are Absent) ---
+        cause = "An unhandled runtime mutation caused structural processing paths to break under active window observation parameters."
+        fix = "Wrap operation parameters inside verified state containers and sanitize component lifecycles."
+        
+        if "content-security-policy" in raw_finding.lower():
+            cause = f"The web resource router profile at this path serves content blocks without declaring an restrictive header governance policy framework (OWASP A05)."
+            fix = "Configure global application gateway distribution blocks to append a standard strict cross-domain policy: 'Content-Security-Policy: default-src 'self';'"
+        elif "js-err" in context_type.lower() or "exception" in raw_finding.lower():
+            matched_fault = re.search(r"(\w+ Error|TypeError|ReferenceError):?\s*([^\n]*)", raw_finding)
+            cause = f"Active Javascript engine memory space fault located. Uncaught reference trace logic crash: {matched_fault.group(0) if matched_fault else raw_finding}"
+            fix = "Inject type verification checks prior to data mutation mappings, or enclose vulnerable downstream framework views inside global try-catch boundaries."
+        elif "dom" in dynamic_dom_context.lower() or "element" in raw_finding.lower():
+            cause = "DOM layout structures failed validation guidelines because attributes mismatched modern cross-browser render rules."
+            fix = "Refactor components to include precise semantic wrappers and ensure accessibility tags conform to standard patterns."
+            
+        return {"ai_cause": cause, "ai_fix": fix}
 
 # --- HEURISTIC FORM FIELD MAPPER ---
 async def smart_identify_and_fill_form(page, selector_type, credential_value):
@@ -139,14 +193,12 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
         "seo_metrics": {"score": 100, "checks": []}, "api_metrics": {"score": 100, "logs": []},
         "network_metrics": {"failed": 0, "slow": 0, "404s": 0, "500s": 0},
-        "visual_regression_metrics": {"score": 100, "checked_routes": 0, "mismatches_found": 0},
         "waterfall_logs": [], "snapshots": {}
     }
 
     parsed_root = urlparse(target_url)
     queue = [target_url]
     visited = set()
-    vault_data = VaultController.read_records()
 
     async with async_playwright() as p:
         browser_type = p.chromium
@@ -161,6 +213,9 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         context = await browser.new_context(**context_opts)
         page = await context.new_page()
 
+        # Target placeholder container for async runtime errors to feed analyzer
+        captured_runtime_errors = []
+
         def trace_network_response(resp):
             telemetry["waterfall_logs"].append({
                 "resource_url": resp.url[:70] + "...", "status_code": resp.status,
@@ -171,12 +226,9 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
 
         def trace_client_console(msg):
             if msg.type == "error":
-                telemetry["all_bugs"].append({
-                    "bug_id": f"BUG-JS-ERR-{hash(msg.text) % 10000}",
-                    "route_location": page.url, "module": "Client Engine Testing",
-                    "issue": "Client-Side Frontend Runtime Crash Exception", "severity": "High",
-                    "brief_summary": "Active unhandled JavaScript exception thrown.",
-                    "ai_cause": "Object reference fault logic loop.", "ai_fix": "Wrap operational layers in catch handles."
+                captured_runtime_errors.append({
+                    "text": msg.text,
+                    "location_url": page.url
                 })
 
         page.on("response", trace_network_response)
@@ -204,58 +256,39 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
                 telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
 
-                # --- ADVANCED VISUAL REGRESSION TESTING ENGINE ---
-                route_slug = re.sub(r'[^a-zA-Z0-9]', '_', current_route)
-                current_screenshot_path = os.path.join(SCREENSHOT_DIR, f"current_{route_slug}.png")
-                baseline_screenshot_path = os.path.join(SCREENSHOT_DIR, f"baseline_{route_slug}.png")
-                diff_screenshot_path = os.path.join(SCREENSHOT_DIR, f"diff_{route_slug}.png")
-                
-                await page.screenshot(path=current_screenshot_path, full_page=False)
-                telemetry["visual_regression_metrics"]["checked_routes"] += 1
+                # Read local DOM components context for structured error evaluation pipelines
+                structural_dom_tree = await page.content()
 
-                if not os.path.exists(baseline_screenshot_path):
-                    # No baseline exists; establish baseline management snapshot
-                    await page.screenshot(path=baseline_screenshot_path, full_page=False)
-                    vault_data["baseline_snapshots"][current_route] = baseline_screenshot_path
-                    VaultController.write_records(vault_data)
-                else:
-                    # Execute authentic Visual Regression Pixel and structural comparison checks
-                    img_baseline = Image.open(baseline_screenshot_path).convert("RGB")
-                    img_current = Image.open(current_screenshot_path).convert("RGB")
-                    
-                    if img_baseline.size != img_current.size:
-                        img_current = img_current.resize(img_baseline.size)
-
-                    # Generate Diff Image highlighting specific regression pixels
-                    img_diff = ImageChops.difference(img_baseline, img_current)
-                    stat = ImageStat.Stat(img_diff)
-                    
-                    # Calculate mean shift pixel variance (structural SSIM fallback indicator metric)
-                    pixel_variance_percentage = (sum(stat.mean) / (3 * 255)) * 100
-
-                    if pixel_variance_percentage > 1.2: # Visual Tolerance Threshold Boundary
-                        img_diff.save(diff_screenshot_path)
-                        telemetry["visual_regression_metrics"]["mismatches_found"] += 1
-                        telemetry["visual_regression_metrics"]["score"] = max(10, telemetry["visual_regression_metrics"]["score"] - 25)
-                        
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-VIS-REG-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Visual Regression Diagnostics",
-                            "issue": "UI Layout Drift Variance Mismatch Detected", "severity": "High",
-                            "brief_summary": f"Visual pixel divergence threshold exceeded baseline limits by {round(pixel_variance_percentage, 2)}%.",
-                            "ai_cause": "Unstable alignment shifts, dynamic unpadded elements, or broken CSS asset pipelines.",
-                            "ai_fix": f"Review generated layout differential changes stored at: {diff_screenshot_path}."
-                        })
+                # Process console-intercepted active Javascript exceptions via the AI module
+                for error_log in captured_runtime_errors:
+                    ai_reasoning = await AIAnomaliesAnalyzer.request_ai_diagnostics(
+                        context_type="Client Frontend JS Runtime Stack Frame Error",
+                        raw_finding=error_log["text"],
+                        dynamic_dom_context=structural_dom_tree
+                    )
+                    telemetry["all_bugs"].append({
+                        "bug_id": f"BUG-JS-ERR-{hash(error_log['text']) % 10000}",
+                        "route_location": error_log["location_url"], "module": "Client Engine Testing",
+                        "issue": "Client-Side Frontend Runtime Crash Exception", "severity": "High",
+                        "brief_summary": f"Unhandled exception encountered in the user browser window: {error_log['text']}",
+                        "ai_cause": ai_reasoning["ai_cause"], "ai_fix": ai_reasoning["ai_fix"]
+                    })
+                captured_runtime_errors.clear() # Reset loop logs
 
                 if response:
                     headers = {k.lower(): v for k, v in response.headers.items()}
                     if "content-security-policy" not in headers:
+                        ai_reasoning = await AIAnomaliesAnalyzer.request_ai_diagnostics(
+                            context_type="Security Infrastructure Header Defect",
+                            raw_finding="Header Omission: content-security-policy",
+                            dynamic_dom_context=structural_dom_tree
+                        )
                         telemetry["all_bugs"].append({
                             "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
                             "route_location": current_route, "module": "Security Testing",
                             "issue": "Header Omission: content-security-policy", "severity": "Critical",
-                            "brief_summary": "Missing standard CSP protection constraint parameters.",
-                            "ai_cause": "Infrastructure layer parameter skipping.", "ai_fix": "Append parameters inside web service definitions."
+                            "brief_summary": "Missing standard CSP protection constraint parameters within HTTP response packets.",
+                            "ai_cause": ai_reasoning["ai_cause"], "ai_fix": ai_reasoning["ai_fix"]
                         })
 
                 links = await page.evaluate("""() => { return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')); }""")
@@ -305,19 +338,8 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-        # DISPLAY DYNAMIC VISUAL INTEGRITY METERS
         active_scan_data = strl.session_state.get("active_scan")
         if isinstance(active_scan_data, dict):
-            vis_metrics = active_scan_data.get("visual_regression_metrics", {"score": 100, "checked_routes": 0, "mismatches_found": 0})
-            score_color = "🟢" if vis_metrics["score"] >= 90 else "🟡" if vis_metrics["score"] >= 70 else "🔴"
-            
-            strl.markdown("### 📊 Engine Visual Integrity Metrics")
-            met_c1, met_c2 = strl.columns(2)
-            with met_c1:
-                strl.metric(label=f"{score_color} Visual Regression Index Score", value=f"{vis_metrics['score']}/100")
-            with met_c2:
-                strl.metric(label="Detected Structural Pixel Layout Drift Anomalies", value=str(vis_metrics['mismatches_found']))
-
             bugs_list = active_scan_data.get("all_bugs", [])
             if isinstance(bugs_list, list) and len(bugs_list) > 0:
                 bugs_df = pd.DataFrame(bugs_list)
@@ -341,7 +363,8 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                             VaultController.write_records(vault_recs)
                             strl.toast(f"Updated status for {b_id}")
                             strl.rerun()
-                        strl.info(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
+                        strl.info(f"**Brief Summary:** {bug.get('brief_summary', 'N/A')}")
+                        strl.warning(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
                         strl.markdown(f"**Fix Recommendation:** `{bug.get('ai_fix', 'N/A')}`")
             else:
                 strl.success("Zero defect exceptions flagged for this run.")
@@ -392,7 +415,7 @@ jobs:
 
       - name: Install BugOptix Architecture Stack Dependencies
         run: |
-          pip install playwright httpx streamlit pandas Pillow
+          pip install playwright httpx streamlit pandas
           python -m playwright install chromium
 
       - name: Dispatch Headless Automated CLI Verification Scan & Quality Gate

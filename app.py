@@ -146,7 +146,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         pass
 
     async with async_playwright() as p:
-        # Cross-Browser Execution Setup Selection
         if target_browser == "Firefox":
             browser_type = p.firefox
         elif target_browser == "WebKit (Safari)":
@@ -165,7 +164,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             context = await browser.new_context(ignore_https_errors=True)
             page = await context.new_page()
 
-            # --- BROWSER CONSOLE ERRORS MONITORING ---
             def track_console(msg):
                 log_entry = {"type": msg.type, "text": msg.text, "location": current_route}
                 telemetry["console_logs"].append(log_entry)
@@ -178,7 +176,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                         "desc": f"Client script error caught during page initialization: {msg.text}"
                     })
 
-            # --- NETWORK WATERFALL ANALYSIS MONITORING ---
             def track_request(req):
                 req._start_time = time.perf_counter()
 
@@ -209,7 +206,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 response = await page.goto(current_route, wait_until="domcontentloaded", timeout=15000)
                 t1 = asyncio.get_event_loop().time()
 
-                # --- FUNCTIONAL AUTOMATION & END-TO-END TESTING ACTIONS ---
                 interactables = await page.query_selector_all("input[type='text'], input[type='search'], button, a")
                 for element in interactables[:4]:
                     try:
@@ -239,7 +235,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 if response:
                     headers = {k.lower(): v for k, v in response.headers.items()}
                     
-                    # --- OWASP TOP 10 TESTING CONTROLS ---
                     if "content-security-policy" not in headers:
                         telemetry["all_bugs"].append({
                             "bug_id": f"BUG-OWASP-A05-{hash(current_route)%10000}",
@@ -299,13 +294,11 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
 
         await browser.close()
 
-    # --- DETAILED ROOT CAUSE ANALYSIS MODEL ENGINE ---
     vault_records = VaultController.read_records()
     lifecycles = vault_records.get("lifecycle_states", {})
 
     for bug in telemetry["all_bugs"]:
         b_id = bug["bug_id"]
-        # DEFECT LIFECYCLE MANAGEMENT STATUS SETTLING
         bug["lifecycle_status"] = lifecycles.get(b_id, "Open")
 
         if "OWASP" in bug["module"]:
@@ -318,7 +311,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             bug["ai_conf"] = "93%"
         else:
             bug["ai_cause"] = "Environmental latency constraints caused browser automation tracking thresholds to slide."
-            # FIXED: Converted multi-line declaration to triple quotes to resolve the unescaped literal newline syntax error
             bug["ai_fix"] = """Enforce dynamic wait states rather than static processing delays:
 ```python
 await page.wait_for_selector('.target-element', timeout=5000)
@@ -386,12 +378,12 @@ with runner_tab:
                     strl.markdown(f"**Route Location:** `{bug['route_location']}`")
                     strl.markdown(f"**Short Brief Summary:** {bug['brief_summary']}")
                     
-                    # DEFECT LIFECYCLE MANAGEMENT MANAGEMENT BLOCK
+                    # FIXED: Added the explicit loop index '_idx' parameter injection to prevent duplicate key constraints
                     current_status = bug.get("lifecycle_status", "Open")
                     new_status = strl.selectbox(
                         f"Modify Lifecycle Governance State for {b_id}:", ["Open", "In-Progress", "Retest Verified", "Closed / Resolved"],
                         index=["Open", "In-Progress", "Retest Verified", "Closed / Resolved"].index(current_status),
-                        key=f"lifecycle_state_select_{b_id}"
+                        key=f"lifecycle_state_select_{b_id}_{idx}"
                     )
                     
                     if new_status != current_status:

@@ -23,7 +23,6 @@ def enforce_system_binaries():
     except Exception:
         pass
 
-# Avoid executing Streamlit UI configs when run as a standalone CLI gate
 if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
     enforce_system_binaries()
 
@@ -39,7 +38,12 @@ class VaultController:
         if os.path.exists(VAULT_FILE):
             try:
                 with open(VAULT_FILE, "r") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    if not isinstance(data, dict): data = {}
+                    if "scans" not in data: data["scans"] = []
+                    if "lifecycle_states" not in data: data["lifecycle_states"] = {}
+                    if "baseline_snapshots" not in data: data["baseline_snapshots"] = {}
+                    return data
             except:
                 pass
         return {"scans": [], "chat_history": [], "lifecycle_states": {}, "baseline_snapshots": {}}
@@ -72,7 +76,6 @@ async def smart_identify_and_fill_form(page, selector_type, credential_value):
 
 # --- GITHUB CI QUALITY GATE EVALUATOR & AUTOMATED COMMENTER ---
 def process_github_ci_quality_gate(scan_results: dict):
-    """Evaluates metrics and uses GitHub API tokens to comment on open PRs."""
     print("\n--- BUGOPTIX CI QUALITY GATE EVALUATOR RUNNING ---")
     all_bugs = scan_results.get("all_bugs", [])
     critical_bugs = [b for b in all_bugs if b.get("severity") == "Critical"]
@@ -80,7 +83,6 @@ def process_github_ci_quality_gate(scan_results: dict):
     print(f"Total Anomalies Located: {len(all_bugs)}")
     print(f"Critical System Defects: {len(critical_bugs)}")
     
-    # Build clean markdown output statement
     comment_body = f"## 🛡️ BugOptix Automated Quality Gate Audit Result\n"
     comment_body += f"- **Target URL Evaluated:** `{scan_results.get('url')}`\n"
     comment_body += f"- **Scan Completed At:** {scan_results.get('timestamp')}\n"
@@ -92,7 +94,7 @@ def process_github_ci_quality_gate(scan_results: dict):
         comment_body += "| Severity | Module Area | Issue Title | Target Location Route |\n"
         comment_body += "| :--- | :--- | :--- | :--- |\n"
         for b in all_bugs[:15]:
-            comment_body += f"| **{b['severity']}** | {b['module']} | {b['issue']} | `{b['route_location']}` |\n"
+            comment_body += f"| **{b.get('severity', 'Unknown')}** | {b.get('module', 'General')} | {b.get('issue', 'Exception')} | `{b.get('route_location', '/')}` |\n"
             
     gh_token = os.environ.get("GITHUB_TOKEN")
     gh_repo = os.environ.get("GITHUB_REPOSITORY")
@@ -102,25 +104,20 @@ def process_github_ci_quality_gate(scan_results: dict):
         try:
             with open(gh_event_path, "r") as f:
                 event_data = json.load(f)
-            
             pr_number = event_data.get("pull_request", {}).get("number")
             if pr_number:
-                print(f"Active Pull Request context found: PR #{pr_number}. Posting comment...")
                 api_url = f"https://api.github.com/repos/{gh_repo}/issues/{pr_number}/comments"
                 headers = {"Authorization": f"Bearer {gh_token}", "Accept": "application/vnd.github+json"}
-                response = httpx.post(api_url, json={"body": comment_body}, headers=headers, timeout=5.0)
-                print(f"GitHub API Response Status: {response.status_code}")
+                httpx.post(api_url, json={"body": comment_body}, headers=headers, timeout=5.0)
         except Exception as e:
             print(f"Failed to post automated GitHub PR Comment: {str(e)}")
             
     if critical_bugs:
-        print(f"\n❌ [PIPELINE FAILURE] Quality Gate Breached! {len(critical_bugs)} Critical defects found.")
         sys.exit(1)
     else:
-        print("\n✅ [PIPELINE SUCCESS] Quality Gate Passed.")
         sys.exit(0)
 
-# --- 20-IN-1 UNIFIED LIVE ASSESSMENT ENGINE ---
+# --- UNIFIED ASSESSMENT ENGINE ---
 async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_user: str = "", auth_pass: str = "", use_saved_session: bool = False) -> dict:
     start_time_stamp = datetime.now()
     telemetry = {
@@ -215,7 +212,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
 
     return telemetry
 
-# --- CLI ARBITRATION ENTRY ROUTE ---
+# --- CLI ENTRY ROUTE ---
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--ci-mode":
         os.environ["BUGOPTIX_CLI_MODE"] = "True"
@@ -246,45 +243,64 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                 res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser))
                 strl.session_state["active_scan"] = res_data
                 vault_recs = VaultController.read_records()
+                if "scans" not in vault_recs: vault_recs["scans"] = []
                 vault_recs["scans"].append(res_data)
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-        if strl.session_state.get("active_scan"):
-            scan = strl.session_state["active_scan"]
-            bugs_df = pd.DataFrame(scan["all_bugs"])
+        # SAFE ACCESS FIX: Uses .get() to prevent KeyError crashes
+        active_scan_data = strl.session_state.get("active_scan")
+        if active_scan_data:
+            bugs_list = active_scan_data.get("all_bugs", [])
+            bugs_df = pd.DataFrame(bugs_list)
             if not bugs_df.empty:
                 strl.markdown("### 🛑 Findings & Detailed Root Cause Analysis Reports")
                 vault_recs = VaultController.read_records()
                 
-                # FIXED LOOP: Uses explicit combinations of idx and bug_id to protect Streamlit widget states safely
                 for idx, bug in bugs_df.iterrows():
                     b_id = bug.get("bug_id", f"BUG-{idx}")
-                    current_status = vault_recs["lifecycle_states"].get(b_id, "Open")
+                    current_status = vault_recs.get("lifecycle_states", {}).get(b_id, "Open")
                     
-                    with strl.expander(f"[{bug['severity']}] {bug['module']} — {bug['issue']}"):
+                    with strl.expander(f"[{bug.get('severity', 'High')}] {bug.get('module', 'Core')} — {bug.get('issue', 'Exception')}"):
                         new_status = strl.selectbox(
                             f"Modify Governance State for {b_id}:", ["Open", "In-Progress", "Resolved", "Closed"],
                             index=["Open", "In-Progress", "Resolved", "Closed"].index(current_status),
                             key=f"status_select_{idx}_{b_id}"
                         )
                         if new_status != current_status:
+                            if "lifecycle_states" not in vault_recs: vault_recs["lifecycle_states"] = {}
                             vault_recs["lifecycle_states"][b_id] = new_status
                             VaultController.write_records(vault_recs)
                             strl.toast(f"Updated status for {b_id}")
                             strl.rerun()
-                        strl.info(f"**AI Cause Factor:** {bug['ai_cause']}")
-                        strl.markdown(f"**Fix Recommendation:** `{bug['ai_fix']}`")
+                        strl.info(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
+                        strl.markdown(f"**Fix Recommendation:** `{bug.get('ai_fix', 'N/A')}`")
+            else:
+                strl.success("Zero defect exceptions flagged for this run.")
 
     with tracking_tab:
         vault_recs = VaultController.read_records()
-        flattened_bugs = [{"ID": b.get("bug_id"), "Area": b.get("module"), "Issue": b.get("issue"), "Severity": b.get("severity"), "Status": vault_recs["lifecycle_states"].get(b.get("bug_id"), "Open"), "Route": b.get("route_location")} for s in vault_recs.get("scans", []) for b in s.get("all_bugs", [])]
-        if flattened_bugs: strl.dataframe(pd.DataFrame(flattened_bugs).drop_duplicates(subset=["ID"]), use_container_width=True, hide_index=True)
-        else: strl.info("Central tracking stores contain zero recorded open issues.")
+        flattened_bugs = []
+        for s in vault_recs.get("scans", []):
+            if isinstance(s, dict):
+                for b in s.get("all_bugs", []):
+                    if isinstance(b, dict):
+                        flattened_bugs.append({
+                            "ID": b.get("bug_id"), 
+                            "Area": b.get("module"), 
+                            "Issue": b.get("issue"), 
+                            "Severity": b.get("severity"), 
+                            "Status": vault_recs.get("lifecycle_states", {}).get(b.get("bug_id"), "Open"), 
+                            "Route": b.get("route_location")
+                        })
+        if flattened_bugs: 
+            strl.dataframe(pd.DataFrame(flattened_bugs).drop_duplicates(subset=["ID"]), use_container_width=True, hide_index=True)
+        else: 
+            strl.info("Central tracking stores contain zero recorded open issues.")
 
     with cicd_tab:
         strl.markdown("### 🔗 Continuous Integration Pipeline Automation Gate")
-        strl.info("Drop this production workflow config file directly into your repository at path `.github/workflows/bugoptix_audit.yml`. It will evaluate build status and comment on your pull requests automatically using your updated app.py execution engine.")
+        strl.info("Drop this workflow config file into your repository at `.github/workflows/bugoptix_audit.yml`:")
         strl.code("""
 name: BugOptix Enterprise CI Quality Gate
 on:

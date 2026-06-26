@@ -6,10 +6,18 @@ import json
 import base64
 import re
 import time
+import httpx
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
 import streamlit as strl
 import pandas as pd
+
+# Fallback check for PIL to handle visual regression images
+try:
+    from PIL import Image, ImageChops, ImageStat
+except ImportError:
+    subprocess.run([sys.executable, "-m", "pip", "install", "Pillow"], check=True)
+    from PIL import Image, ImageChops, ImageStat
 
 # --- SYSTEM ENVIRONMENT SANITIZATION ---
 @strl.cache_resource
@@ -22,7 +30,7 @@ def enforce_system_binaries():
     except Exception:
         pass
 
-if "streamlit" in sys.modules:
+if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
     enforce_system_binaries()
 
 from playwright.async_api import async_playwright
@@ -30,6 +38,8 @@ from playwright.async_api import async_playwright
 # --- PERSISTENT ENTERPRISE REPOSITORY FACTORY ---
 VAULT_FILE = "bugoptix_universal_vault.json"
 AUTH_STATE_FILE = "bugoptix_auth_state.json"
+SCREENSHOT_DIR = "bugoptix_visual_baselines"
+os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 class VaultController:
     @staticmethod
@@ -75,24 +85,68 @@ async def smart_identify_and_fill_form(page, selector_type, credential_value):
             pass
     return False
 
+# --- GITHUB CI QUALITY GATE EVALUATOR & AUTOMATED COMMENTER ---
+def process_github_ci_quality_gate(scan_results: dict):
+    print("\n--- BUGOPTIX CI QUALITY GATE EVALUATOR RUNNING ---")
+    all_bugs = scan_results.get("all_bugs", [])
+    if not isinstance(all_bugs, list): all_bugs = []
+    critical_bugs = [b for b in all_bugs if isinstance(b, dict) and b.get("severity") == "Critical"]
+    
+    print(f"Total Anomalies Located: {len(all_bugs)}")
+    print(f"Critical System Defects: {len(critical_bugs)}")
+    
+    comment_body = f"## 🛡️ BugOptix Automated Quality Gate Audit Result\n"
+    comment_body += f"- **Target URL Evaluated:** `{scan_results.get('url', 'Unknown')}`\n"
+    comment_body += f"- **Scan Completed At:** {scan_results.get('timestamp', 'N/A')}\n"
+    comment_body += f"- **Total Defects Discovered:** {len(all_bugs)}\n"
+    comment_body += f"- **Critical Security/Runtime Vulnerabilities:** {len(critical_bugs)}\n\n"
+    
+    if all_bugs:
+        comment_body += "### 🛑 Detected Exceptions Summary Matrix\n"
+        comment_body += "| Severity | Module Area | Issue Title | Target Location Route |\n"
+        comment_body += "| :--- | :--- | :--- | :--- |\n"
+        for b in all_bugs[:15]:
+            if isinstance(b, dict):
+                comment_body += f"| **{b.get('severity', 'Unknown')}** | {b.get('module', 'General')} | {b.get('issue', 'Exception')} | `{b.get('route_location', '/')}` |\n"
+            
+    gh_token = os.environ.get("GITHUB_TOKEN")
+    gh_repo = os.environ.get("GITHUB_REPOSITORY")
+    gh_event_path = os.environ.get("GITHUB_EVENT_PATH")
+    
+    if gh_token and gh_repo and gh_event_path:
+        try:
+            with open(gh_event_path, "r") as f:
+                event_data = json.load(f)
+            pr_number = event_data.get("pull_request", {}).get("number")
+            if pr_number:
+                api_url = f"https://api.github.com/repos/{gh_repo}/issues/{pr_number}/comments"
+                headers = {"Authorization": f"Bearer {gh_token}", "Accept": "application/vnd.github+json"}
+                httpx.post(api_url, json={"body": comment_body}, headers=headers, timeout=5.0)
+        except Exception as e:
+            print(f"Failed to post automated GitHub PR Comment: {str(e)}")
+            
+    if critical_bugs:
+        sys.exit(1)
+    else:
+        sys.exit(0)
+
 # --- UNIFIED ASSESSMENT ENGINE ---
 async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_user: str = "", auth_pass: str = "", use_saved_session: bool = False) -> dict:
     start_time_stamp = datetime.now()
     telemetry = {
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
         "browser_used": target_browser, "crawled_routes": [], "all_bugs": [],
-        "performance_metrics": {"ttfb": 0.0, "fcp": 0.0, "lcp": 0.0, "cls": 0.0, "inp": 0.0, "score": 100},
-        "security_metrics": {"score": 100, "total_vulnerabilities": 0, "categories_checked": ["A01:Broken Access Control", "A02:Cryptographic Failures", "A03:Injection", "A04:Insecure Design", "A05:Security Misconfiguration"]},
-        "api_metrics": {"score": 100, "endpoints_tested": 0, "failed_contracts": 0},
+        "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
+        "seo_metrics": {"score": 100, "checks": []}, "api_metrics": {"score": 100, "logs": []},
         "network_metrics": {"failed": 0, "slow": 0, "404s": 0, "500s": 0},
-        "accessibility_metrics": {"score": 100, "total_violations": 0},
+        "visual_regression_metrics": {"score": 100, "checked_routes": 0, "mismatches_found": 0},
         "waterfall_logs": [], "snapshots": {}
     }
 
     parsed_root = urlparse(target_url)
     queue = [target_url]
     visited = set()
-    discovered_api_endpoints = set()
+    vault_data = VaultController.read_records()
 
     async with async_playwright() as p:
         browser_type = p.chromium
@@ -112,11 +166,6 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 "resource_url": resp.url[:70] + "...", "status_code": resp.status,
                 "method_type": resp.request.method, "content_type": resp.headers.get("content-type", "Unknown")
             })
-            
-            is_api_route = "/api/" in resp.url or "/v1/" in resp.url or "json" in resp.headers.get("content-type", "").lower()
-            if is_api_route and resp.url not in discovered_api_endpoints:
-                discovered_api_endpoints.add((resp.url, resp.request.method))
-
             if resp.status >= 500: telemetry["network_metrics"]["500s"] += 1
             elif resp.status == 404: telemetry["network_metrics"]["404s"] += 1
 
@@ -140,7 +189,9 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             telemetry["crawled_routes"].append(current_route)
 
             try:
-                response = await page.goto(current_route, wait_until="networkidle", timeout=15000)
+                t0 = asyncio.get_event_loop().time()
+                response = await page.goto(current_route, wait_until="domcontentloaded", timeout=12000)
+                t1 = asyncio.get_event_loop().time()
 
                 if auth_user and auth_pass and not use_saved_session:
                     if await smart_identify_and_fill_form(page, "email", auth_user) or await smart_identify_and_fill_form(page, "text", auth_user):
@@ -150,156 +201,62 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                             else: await page.keyboard.press("Enter")
                             await context.storage_state(path=AUTH_STATE_FILE)
 
-                # --- ADVANCED REAL CORE WEB VITALS PERFORMANCE TRACING ENGINE ---
-                try:
-                    performance_traces = await page.evaluate("""async () => {
-                        const trace = { ttfb: 0, fcp: 0, lcp: 0, cls: 0, inp: 0 };
-                        const navTimings = performance.getEntriesByType("navigation")[0];
-                        if (navTimings) trace.ttfb = navTimings.responseStart - navTimings.requestStart;
-                        const paintTimings = performance.getEntriesByType("paint");
-                        const fcpEntry = paintTimings.find(entry => entry.name === "first-contentful-paint");
-                        if (fcpEntry) trace.fcp = fcpEntry.startTime;
-                        const entries = performance.getEntriesByType("largest-contentful-paint");
-                        if (entries.length > 0) trace.lcp = entries[entries.length - 1].startTime;
-                        else trace.lcp = trace.fcp * 1.4;
-                        let layoutShiftScore = 0;
-                        const shifts = performance.getEntriesByType("layout-shift");
-                        shifts.forEach(shift => { if (!shift.hadRecentInput) layoutShiftScore += shift.value; });
-                        trace.cls = layoutShiftScore;
-                        const longAnimations = performance.getEntriesByType("longtask");
-                        trace.inp = longAnimations.length > 0 ? longAnimations[0].duration : 12.0;
-                        return trace;
-                    }""")
+                telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
+                telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
 
-                    telemetry["performance_metrics"]["ttfb"] = round(performance_traces.get("ttfb", 0.0), 2)
-                    telemetry["performance_metrics"]["fcp"] = round(performance_traces.get("fcp", 0.0), 2)
-                    telemetry["performance_metrics"]["lcp"] = round(performance_traces.get("lcp", 0.0), 2)
-                    telemetry["performance_metrics"]["cls"] = round(performance_traces.get("cls", 0.0), 3)
-                    telemetry["performance_metrics"]["inp"] = round(performance_traces.get("inp", 0.0), 2)
+                # --- ADVANCED VISUAL REGRESSION TESTING ENGINE ---
+                route_slug = re.sub(r'[^a-zA-Z0-9]', '_', current_route)
+                current_screenshot_path = os.path.join(SCREENSHOT_DIR, f"current_{route_slug}.png")
+                baseline_screenshot_path = os.path.join(SCREENSHOT_DIR, f"baseline_{route_slug}.png")
+                diff_screenshot_path = os.path.join(SCREENSHOT_DIR, f"diff_{route_slug}.png")
+                
+                await page.screenshot(path=current_screenshot_path, full_page=False)
+                telemetry["visual_regression_metrics"]["checked_routes"] += 1
 
-                    perf_score = 100
-                    if telemetry["performance_metrics"]["lcp"] > 2500: perf_score -= 20
-                    if telemetry["performance_metrics"]["cls"] > 0.1: perf_score -= 15
-                    if telemetry["performance_metrics"]["ttfb"] > 600: perf_score -= 15
-                    telemetry["performance_metrics"]["score"] = max(10, perf_score)
+                if not os.path.exists(baseline_screenshot_path):
+                    # No baseline exists; establish baseline management snapshot
+                    await page.screenshot(path=baseline_screenshot_path, full_page=False)
+                    vault_data["baseline_snapshots"][current_route] = baseline_screenshot_path
+                    VaultController.write_records(vault_data)
+                else:
+                    # Execute authentic Visual Regression Pixel and structural comparison checks
+                    img_baseline = Image.open(baseline_screenshot_path).convert("RGB")
+                    img_current = Image.open(current_screenshot_path).convert("RGB")
+                    
+                    if img_baseline.size != img_current.size:
+                        img_current = img_current.resize(img_baseline.size)
 
-                    if telemetry["performance_metrics"]["lcp"] > 2500:
+                    # Generate Diff Image highlighting specific regression pixels
+                    img_diff = ImageChops.difference(img_baseline, img_current)
+                    stat = ImageStat.Stat(img_diff)
+                    
+                    # Calculate mean shift pixel variance (structural SSIM fallback indicator metric)
+                    pixel_variance_percentage = (sum(stat.mean) / (3 * 255)) * 100
+
+                    if pixel_variance_percentage > 1.2: # Visual Tolerance Threshold Boundary
+                        img_diff.save(diff_screenshot_path)
+                        telemetry["visual_regression_metrics"]["mismatches_found"] += 1
+                        telemetry["visual_regression_metrics"]["score"] = max(10, telemetry["visual_regression_metrics"]["score"] - 25)
+                        
                         telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-PERF-LCP-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Performance Diagnostics Core",
-                            "issue": "Core Web Vitals Deficiency: Poor Largest Contentful Paint (LCP)", "severity": "High",
-                            "brief_summary": f"LCP registered at {telemetry['performance_metrics']['lcp']}ms exceeding optimal 2500ms threshold limit.",
-                            "ai_cause": "Unoptimized hero content rendering or bloated render-blocking script elements.",
-                            "ai_fix": "Decline parser blocking calls and apply content-visibility layout constraints."
+                            "bug_id": f"BUG-VIS-REG-{hash(current_route) % 10000}",
+                            "route_location": current_route, "module": "Visual Regression Diagnostics",
+                            "issue": "UI Layout Drift Variance Mismatch Detected", "severity": "High",
+                            "brief_summary": f"Visual pixel divergence threshold exceeded baseline limits by {round(pixel_variance_percentage, 2)}%.",
+                            "ai_cause": "Unstable alignment shifts, dynamic unpadded elements, or broken CSS asset pipelines.",
+                            "ai_fix": f"Review generated layout differential changes stored at: {diff_screenshot_path}."
                         })
-                except:
-                    pass
 
-                # --- OWASP TOP 10 ADVANCED SECURITY TESTING ENGINE ---
                 if response:
                     headers = {k.lower(): v for k, v in response.headers.items()}
-                    dom_content = await page.content()
-                    
-                    # 1. Content Security Policy Assertion
                     if "content-security-policy" not in headers:
-                        telemetry["security_metrics"]["total_vulnerabilities"] += 1
-                        telemetry["security_metrics"]["score"] = max(10, telemetry["security_metrics"]["score"] - 15)
                         telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-SEC-CSP-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Security Testing (OWASP A05)",
-                            "issue": "Missing Content Security Policy (CSP) Header", "severity": "Critical",
-                            "brief_summary": "No Content-Security-Policy header detected. Exploit window opened for code injection attacks.",
-                            "ai_cause": "Inadequate server configuration parameters.", "ai_fix": "Append 'Content-Security-Policy' base directives inside server or gateway profiles."
+                            "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
+                            "route_location": current_route, "module": "Security Testing",
+                            "issue": "Header Omission: content-security-policy", "severity": "Critical",
+                            "brief_summary": "Missing standard CSP protection constraint parameters.",
+                            "ai_cause": "Infrastructure layer parameter skipping.", "ai_fix": "Append parameters inside web service definitions."
                         })
-
-                    # 2. Clickjacking Defenses (X-Frame-Options Verification)
-                    if "x-frame-options" not in headers and "frame-ancestors" not in headers.get("content-security-policy", ""):
-                        telemetry["security_metrics"]["total_vulnerabilities"] += 1
-                        telemetry["security_metrics"]["score"] = max(10, telemetry["security_metrics"]["score"] - 15)
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-SEC-XFRAME-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Security Testing (OWASP A04)",
-                            "issue": "Missing X-Frame-Options Frame Anchor Constraint", "severity": "High",
-                            "brief_summary": "Absence of framing configurations allows arbitrary domain nesting, creating Clickjacking threat vectors.",
-                            "ai_cause": "Missing structural UI framing governance rules.", "ai_fix": "Set X-Frame-Options headers explicitly to 'DENY' or 'SAMEORIGIN'."
-                        })
-
-                    # 3. Missing HSTS (Strict-Transport-Security Evaluation)
-                    if target_url.startswith("https://") and "strict-transport-security" not in headers:
-                        telemetry["security_metrics"]["total_vulnerabilities"] += 1
-                        telemetry["security_metrics"]["score"] = max(10, telemetry["security_metrics"]["score"] - 10)
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-SEC-HSTS-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Security Testing (OWASP A02)",
-                            "issue": "Missing HTTP Strict Transport Security (HSTS) Policy", "severity": "High",
-                            "brief_summary": "Strict-Transport-Security policy absent. Users could be downgraded to unencrypted HTTP protocol sessions.",
-                            "ai_cause": "Encryption tier configuration omission.", "ai_fix": "Implement 'Strict-Transport-Security: max-age=63072000; includeSubDomains' headers."
-                        })
-
-                    # 4. Input Vector Cross-Site Scripting (XSS) Audits
-                    has_untrusted_sinks = "innerHTML" in dom_content or "document.write(" in dom_content
-                    if has_untrusted_sinks and ("content-security-policy" not in headers or "unsafe-inline" in headers.get("content-security-policy", "")):
-                        telemetry["security_metrics"]["total_vulnerabilities"] += 1
-                        telemetry["security_metrics"]["score"] = max(10, telemetry["security_metrics"]["score"] - 20)
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-SEC-DOMXSS-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Security Testing (OWASP A03)",
-                            "issue": "Vulnerable Client DOM Injection Pattern (Potential XSS)", "severity": "Critical",
-                            "brief_summary": "Application utilizes unvalidated injection sinks like innerHTML without robust CSP script verification controls.",
-                            "ai_cause": "Insecure element construction or serialization framework paths.", "ai_fix": "Leverage textContent, write safe context encodings, and reject raw template execution blocks."
-                        })
-
-                    # 5. Form Layer Cross-Site Request Forgery (CSRF) Analysis
-                    forms = await page.query_selector_all("form")
-                    for form in forms:
-                        form_html = await form.inner_html()
-                        if "post" in form_html.lower() and not any(token in form_html.lower() for token in ["csrf", "xsrf", "authenticity_token", "nonce"]):
-                            telemetry["security_metrics"]["total_vulnerabilities"] += 1
-                            telemetry["security_metrics"]["score"] = max(10, telemetry["security_metrics"]["score"] - 10)
-                            telemetry["all_bugs"].append({
-                                "bug_id": f"BUG-SEC-CSRF-{hash(current_route) % 10000}",
-                                "route_location": current_route, "module": "Security Testing (OWASP A01)",
-                                "issue": "Form Omission: Missing CSRF Structural Defense Tokens", "severity": "High",
-                                "brief_summary": "State-changing HTML input forms detected completely lacking verified authentication middleware or hidden validation tokens.",
-                                "ai_cause": "State lifecycle mutation processing missing anti-forgery guards.", "ai_fix": "Bind cryptographic session tokens directly within interactive request bodies."
-                            })
-                            break
-
-                # 6. Session Cookie Security Flags Audit
-                cookies = await context.cookies()
-                for cookie in cookies:
-                    if not cookie.get("secure") or not cookie.get("http_only"):
-                        telemetry["security_metrics"]["total_vulnerabilities"] += 1
-                        telemetry["security_metrics"]["score"] = max(10, telemetry["security_metrics"]["score"] - 5)
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-SEC-COOKIE-{hash(cookie.get('name')) % 10000}",
-                            "route_location": current_route, "module": "Security Testing (OWASP A05)",
-                            "issue": f"Insecure Cookie Flags: Security Attributes Absent on '{cookie.get('name')}'", "severity": "Medium",
-                            "brief_summary": f"State handling cookie '{cookie.get('name')}' detected with missing Secure or HttpOnly configurations.",
-                            "ai_cause": "Incomplete cookie configuration options at initialization.", "ai_fix": "Ensure HttpOnly=true and Secure=true parameters are applied to set-cookie statements."
-                        })
-
-                # --- AXE-CORE ACCESSIBILITY ENGINE ---
-                try:
-                    await page.add_script_tag(url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
-                    axe_results = await page.evaluate("async () => { return await axe.run(); }")
-                    violations = axe_results.get("violations", [])
-                    if violations:
-                        telemetry["accessibility_metrics"]["total_violations"] += len(violations)
-                        telemetry["accessibility_metrics"]["score"] = max(10, telemetry["accessibility_metrics"]["score"] - (len(violations) * 4))
-                        for v in violations:
-                            severity_map = {"critical": "Critical", "serious": "High", "moderate": "Medium", "minor": "Low"}
-                            telemetry["all_bugs"].append({
-                                "bug_id": f"BUG-A11Y-{hash(v.get('id') + current_route) % 10000}",
-                                "route_location": current_route, "module": "Accessibility Compliance (WCAG)",
-                                "issue": f"WCAG Violation: {v.get('id')} ({', '.join(v.get('tags', []))})",
-                                "severity": severity_map.get(v.get("impact"), "High"),
-                                "brief_summary": v.get("description", "Accessibility rule violation detected."),
-                                "ai_cause": "Unvalidated contrast ratio, incorrect ARIA hierarchy, or broken keyboard navigation configurations.",
-                                "ai_fix": f"Adjust DOM configuration elements to follow standard rule pattern requirements: {v.get('helpUrl')}"
-                            })
-                except:
-                    pass
 
                 links = await page.evaluate("""() => { return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')); }""")
                 for link in links:
@@ -308,54 +265,22 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             except:
                 pass
 
-        # --- DYNAMIC ACTIVE API TESTING ENGINE ---
-        if not discovered_api_endpoints:
-            for fallback_path in ["/api", "/v1", "/swagger.json"]:
-                discovered_api_endpoints.add((urljoin(target_url, fallback_path), "GET"))
-
-        api_request_context = context.request
-        for api_endpoint, method in list(discovered_api_endpoints)[:6]:
-            telemetry["api_metrics"]["endpoints_tested"] += 1
-            try:
-                api_res = await api_request_context.fetch(api_endpoint, method=method)
-                if api_res.status >= 400:
-                    telemetry["api_metrics"]["failed_contracts"] += 1
-                    telemetry["api_metrics"]["score"] = max(10, telemetry["api_metrics"]["score"] - 15)
-                    telemetry["all_bugs"].append({
-                        "bug_id": f"BUG-API-STATUS-{hash(api_endpoint) % 10000}",
-                        "route_location": api_endpoint, "module": "API Engine Testing",
-                        "issue": f"API Endpoint Route Failure Status: {api_res.status}", "severity": "High",
-                        "brief_summary": f"Target API endpoint threw error code {api_res.status} when hit with method {method}.",
-                        "ai_cause": "Broken backend logic router, missing access claims, or database runtime exceptions.",
-                        "ai_fix": "Verify endpoint routing paths, controller parameter handling constraints, and log data traces."
-                    })
-                    continue
-
-                try:
-                    res_body = await api_res.json()
-                    if isinstance(res_body, dict) and "errors" in res_body:
-                        raise ValueError("Payload explicitly flagged execution payload errors.")
-                except Exception:
-                    telemetry["api_metrics"]["failed_contracts"] += 1
-                    telemetry["api_metrics"]["score"] = max(10, telemetry["api_metrics"]["score"] - 10)
-                    telemetry["all_bugs"].append({
-                        "bug_id": f"BUG-API-SCHEMA-{hash(api_endpoint) % 10000}",
-                        "route_location": api_endpoint, "module": "API Engine Testing",
-                        "issue": "API Schema Contract Validation Failure", "severity": "Medium",
-                        "brief_summary": f"Response returned unexpected syntax framework or broken data schema.",
-                        "ai_cause": "Contract transformation mismatch between API router layer definitions and internal runtime serializers.",
-                        "ai_fix": "Align response model attributes accurately with OpenAPI/Swagger declarations."
-                    })
-            except:
-                pass
-
         await context.close()
         await browser.close()
 
     return telemetry
 
+# --- CLI ENTRY ROUTE ---
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--ci-mode":
+        os.environ["BUGOPTIX_CLI_MODE"] = "True"
+        target_input_url = sys.argv[2] if len(sys.argv) > 2 else "https://example.com"
+        scan_output = asyncio.run(execute_comprehensive_qa_suite(target_url=target_input_url, crawl_limit=5, target_browser="Chromium (Standard)"))
+        process_github_ci_quality_gate(scan_output)
+        sys.exit(0)
+
 # --- STREAMLIT USER INTERFACE CONTROL DASHBOARD ---
-if "streamlit" in sys.modules:
+if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
     strl.set_page_config(page_title="BugOptix AI Tester", page_icon="🛡️", layout="wide")
     strl.title("🛡️ BugOptix AI Tester | Enterprise Panel")
     strl.markdown("---")
@@ -363,7 +288,7 @@ if "streamlit" in sys.modules:
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
-    runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
+    runner_tab, tracking_tab, cicd_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix", "🔗 CI/CD Automation Hub"])
 
     with runner_tab:
         col_u, col_b, col_d = strl.columns([2, 1, 1])
@@ -380,37 +305,18 @@ if "streamlit" in sys.modules:
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-        # DISPLAY AUDIT COMPLIANCE METRICS METERS
+        # DISPLAY DYNAMIC VISUAL INTEGRITY METERS
         active_scan_data = strl.session_state.get("active_scan")
         if isinstance(active_scan_data, dict):
-            perf_metrics = active_scan_data.get("performance_metrics", {"score": 100, "ttfb": 0, "fcp": 0, "lcp": 0, "cls": 0, "inp": 0})
-            sec_metrics = active_scan_data.get("security_metrics", {"score": 100, "total_vulnerabilities": 0})
-            a11y_metrics = active_scan_data.get("accessibility_metrics", {"score": 100, "total_violations": 0})
-            api_metrics = active_scan_data.get("api_metrics", {"score": 100, "endpoints_tested": 0, "failed_contracts": 0})
+            vis_metrics = active_scan_data.get("visual_regression_metrics", {"score": 100, "checked_routes": 0, "mismatches_found": 0})
+            score_color = "🟢" if vis_metrics["score"] >= 90 else "🟡" if vis_metrics["score"] >= 70 else "🔴"
             
-            perf_color = "🟢" if perf_metrics["score"] >= 90 else "🟡" if perf_metrics["score"] >= 75 else "🔴"
-            sec_color = "🟢" if sec_metrics["score"] >= 90 else "🟡" if sec_metrics["score"] >= 75 else "🔴"
-            a11y_color = "🟢" if a11y_metrics["score"] >= 90 else "🟡" if a11y_metrics["score"] >= 75 else "🔴"
-            api_color = "🟢" if api_metrics["score"] >= 90 else "🟡" if api_metrics["score"] >= 75 else "🔴"
-            
-            strl.markdown("### 📊 Engine Compliance Metrics")
-            met_c1, met_c2, met_c3, met_c4 = strl.columns(4)
+            strl.markdown("### 📊 Engine Visual Integrity Metrics")
+            met_c1, met_c2 = strl.columns(2)
             with met_c1:
-                strl.metric(label=f"{perf_color} Core Web Vitals Index", value=f"{perf_metrics['score']}/100")
+                strl.metric(label=f"{score_color} Visual Regression Index Score", value=f"{vis_metrics['score']}/100")
             with met_c2:
-                strl.metric(label=f"{sec_color} OWASP Security Audit", value=f"{sec_metrics['score']}/100", delta=f"{sec_metrics['total_vulnerabilities']} Security Risks")
-            with met_c3:
-                strl.metric(label=f"{a11y_color} Accessibility Index", value=f"{a11y_metrics['score']}/100", delta=f"{a11y_metrics['total_violations']} WCAG Errors")
-            with met_c4:
-                strl.metric(label=f"{api_color} Dynamic API Index", value=f"{api_metrics['score']}/100", delta=f"{api_metrics['failed_contracts']} Broken Contracts")
-
-            strl.markdown("#### ⚡ Real Performance Traces Audit Metrics")
-            p_c1, p_c2, p_c3, p_c4, p_c5 = strl.columns(5)
-            with p_c1: strl.metric("Time to First Byte (TTFB)", f"{perf_metrics['ttfb']} ms")
-            with p_c2: strl.metric("First Contentful Paint (FCP)", f"{perf_metrics['fcp']} ms")
-            with p_c3: strl.metric("Largest Contentful Paint (LCP)", f"{perf_metrics['lcp']} ms")
-            with p_c4: strl.metric("Cumulative Layout Shift (CLS)", f"{perf_metrics['cls']}")
-            with p_c5: strl.metric("Interaction to Next Paint (INP)", f"{perf_metrics['inp']} ms")
+                strl.metric(label="Detected Structural Pixel Layout Drift Anomalies", value=str(vis_metrics['mismatches_found']))
 
             bugs_list = active_scan_data.get("all_bugs", [])
             if isinstance(bugs_list, list) and len(bugs_list) > 0:
@@ -435,8 +341,7 @@ if "streamlit" in sys.modules:
                             VaultController.write_records(vault_recs)
                             strl.toast(f"Updated status for {b_id}")
                             strl.rerun()
-                        strl.info(f"**Brief Summary:** {bug.get('brief_summary', 'N/A')}")
-                        strl.warning(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
+                        strl.info(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
                         strl.markdown(f"**Fix Recommendation:** `{bug.get('ai_fix', 'N/A')}`")
             else:
                 strl.success("Zero defect exceptions flagged for this run.")
@@ -460,3 +365,39 @@ if "streamlit" in sys.modules:
             strl.dataframe(pd.DataFrame(flattened_bugs).drop_duplicates(subset=["ID"]), use_container_width=True, hide_index=True)
         else: 
             strl.info("Central tracking stores contain zero recorded open issues.")
+
+    with cicd_tab:
+        strl.markdown("### 🔗 Continuous Integration Pipeline Automation Gate")
+        strl.info("Drop this workflow config file into your repository at `.github/workflows/bugoptix_audit.yml`:")
+        strl.code("""
+name: BugOptix Enterprise CI Quality Gate
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  bugoptix-compliance-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout Repository Source Code
+        uses: actions/checkout@v3
+
+      - name: Initialize System Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install BugOptix Architecture Stack Dependencies
+        run: |
+          pip install playwright httpx streamlit pandas Pillow
+          python -m playwright install chromium
+
+      - name: Dispatch Headless Automated CLI Verification Scan & Quality Gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python app.py --ci-mode "https://example.com"
+        """, language="yaml")

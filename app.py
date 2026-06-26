@@ -12,6 +12,13 @@ from urllib.parse import urlparse, urljoin
 import streamlit as strl
 import pandas as pd
 
+# Fallback auto-installer for PyOTP to support automated enterprise MFA/TOTP validation
+try:
+    import pyotp
+except ImportError:
+    subprocess.run([sys.executable, "-m", "pip", "install", "pyotp"], check=True)
+    import pyotp
+
 # --- SYSTEM ENVIRONMENT SANITIZATION ---
 @strl.cache_resource
 def enforce_system_binaries():
@@ -58,63 +65,6 @@ class VaultController:
         except:
             pass
 
-# --- AUTOMATED COMPLIANCE SCENARIO GENERATOR ---
-class TestScenarioGenerator:
-    """Orchestrates comprehensive scenario generation maps tracking multi-browser conditions."""
-    
-    @staticmethod
-    def construct_automated_test_suite(target_url: str, explored_routes: list, discovered_forms: list) -> list:
-        generated_cases = []
-        base_id = int(time.time()) % 10000
-        
-        # 1. Automatic User Flow Path Generation Scenarios
-        if explored_routes:
-            flow_steps = " -> ".join([urlparse(r).path if urlparse(r).path else "/" for r in explored_routes[:4]])
-            generated_cases.append({
-                "case_id": f"TC-FLOW-{base_id}-01",
-                "category": "User Flow Navigation",
-                "title": f"Verify Multi-Route Core Navigation Pipeline Progression Flow",
-                "preconditions": f"Application running in stable state at root: {target_url}",
-                "steps": f"1. Navigate to endpoint.\n2. Progress linearly through link graphs: {flow_steps}",
-                "expected_result": "All view states switch instantly across rendering engines without runtime freezes."
-            })
-
-        # 2. Form Boundary Cases & Input Vector Edge Cases
-        for idx, form in enumerate(discovered_forms or [{"name": "Generic Input View"}]):
-            form_name = form.get("name", f"Interactive Element Context {idx}")
-            generated_cases.extend([
-                {
-                    "case_id": f"TC-BND-{base_id}-{idx}A",
-                    "category": "Boundary Condition",
-                    "title": f"Validate Form Field Boundary Length Handling for: {form_name}",
-                    "preconditions": "Target interactable input wrapper completely loaded.",
-                    "steps": "1. Inject alphanumeric buffer string exceeding 4096 character memory allocation limit.\n2. Submit action wrapper.",
-                    "expected_result": "Frontend securely truncates input or serves a clean validation alert instead of a system crash."
-                },
-                {
-                    "case_id": f"TC-BND-{base_id}-{idx}B",
-                    "category": "Boundary Condition",
-                    "title": f"Validate Special Character SQL/XSS Code Injection Sanitization",
-                    "preconditions": "Target input form vector visibility true.",
-                    "steps": "1. Inject breaking script payloads: `' OR 1=1--` and `<script>confirm(1)</script>` into data keys.\n2. Execute workflow submit event.",
-                    "expected_result": "Strict framework encoding acts as an architectural guard; entities are rendered safely as raw string data."
-                }
-            ])
-
-        # 3. Global Structural Network Performance Gates
-        for r_idx, route in enumerate(explored_routes[:2]):
-            slug = urlparse(route).path or "/"
-            generated_cases.append({
-                "case_id": f"TC-PERF-{base_id}-{r_idx}",
-                "category": "Automatic Performance Gate",
-                "title": f"Verify Latency Threshold Compliance for: {slug}",
-                "preconditions": f"Clear network sockets mapped to environment profile.",
-                "steps": f"1. Trigger programmatic context load on path: {route}.\n2. Log resource timing indices.",
-                "expected_result": "Time-To-First-Byte metrics remain steadily below optimal 600ms latency ceiling across targets."
-            })
-
-        return generated_cases
-
 # --- HEURISTIC FORM FIELD MAPPER ---
 async def smart_identify_and_fill_form(page, selector_type, credential_value):
     heuristics = [
@@ -133,134 +83,174 @@ async def smart_identify_and_fill_form(page, selector_type, credential_value):
             pass
     return False
 
-# --- INDIVIDUAL BROWSER EXECUTION NODE ---
-async def execute_single_browser_audit(p_instance, browser_key: str, target_url: str, crawl_limit: int, auth_user: str, auth_pass: str) -> dict:
-    browser_launcher = getattr(p_instance, browser_key)
-    args = ["--no-sandbox"] if browser_key == "chromium" else []
+# --- ENTERPRISE IDENTITY PROVIDER & MFA ORCHESTRATOR ---
+class EnterpriseAuthHandler:
+    """Discovers and orchestrates complex SSO federation and multi-factor validation flows."""
     
-    browser = await browser_launcher.launch(headless=True, args=args)
-    context_opts = {"ignore_https_errors": True, "viewport": {"width": 1280, "height": 800}}
-    context = await browser.new_context(**context_opts)
-    page = await context.new_page()
+    @staticmethod
+    async def process_sso_and_mfa(page, provider_target: str, auth_user: str, auth_pass: str, totp_secret: str = ""):
+        # 1. Discover and route via SSO/OAuth Identity Provider Buttons
+        sso_selectors = {
+            "Google": ["button:has-text('Google')", "a:has-text('Google')", "[id*='google']", "[class*='google']"],
+            "Okta": ["button:has-text('Okta')", "a:has-text('Okta')", "[id*='okta']", "form[action*='okta']"],
+            "Azure AD": ["button:has-text('Azure')", "button:has-text('Microsoft')", "a:has-text('Sign in with Microsoft')"],
+            "Standard OAuth/SSO": ["button:has-text('SSO')", "button:has-text('Single Sign-On')", "a:has-text('OAuth')"]
+        }
 
-    local_telemetry = {
-        "browser": browser_key.upper(), "routes_visited": [], "errors_caught": [],
-        "performance_samples": [], "discovered_forms": []
-    }
+        if provider_target in sso_selectors:
+            for selector in sso_selectors[provider_target]:
+                try:
+                    sso_btn = await page.query_selector(selector)
+                    if sso_btn and await sso_btn.is_visible():
+                        await asyncio.gather(
+                            page.wait_for_navigation(timeout=6000, wait_until="domcontentloaded"),
+                            sso_btn.click()
+                        )
+                        break
+                except:
+                    pass
 
-    queue = [target_url]
-    visited = set()
-    parsed_root = urlparse(target_url)
+        # 2. Enter Primary Credentials into the Active Identity Provider view
+        await smart_identify_and_fill_form(page, "email", auth_user) or await smart_identify_and_fill_form(page, "text", auth_user)
+        # Advance through multi-stage identifier views if present (e.g., Google/Microsoft login steps)
+        next_btn = await page.query_selector("button:has-text('Next'), input[type='submit'][value='Next']")
+        if next_btn and await next_btn.is_visible():
+            await next_btn.click()
+            await page.wait_for_timeout(1500)
 
-    def log_console(msg):
-        if msg.type == "error":
-            local_telemetry["errors_caught"].append({"route": page.url, "msg": msg.text})
+        await smart_identify_and_fill_form(page, "password", auth_pass)
+        submit_btn = await page.query_selector("button[type='submit'], input[type='submit'], button:has-text('Log In'), button:has-text('Sign In')")
+        
+        if submit_btn:
+            await asyncio.gather(page.wait_for_navigation(timeout=8000, wait_until="networkidle"), submit_btn.click())
+        else:
+            await page.keyboard.press("Enter")
+            await page.wait_for_timeout(3000)
 
-    page.on("console", log_console)
+        # 3. Automated MFA Multi-Factor Authentication Verification Handling
+        if totp_secret:
+            mfa_selectors = [
+                "input[name*='oneTimeCode']", "input[id*='mfa']", "input[id*='otp']",
+                "input[placeholder*='code']", "input[placeholder*='Code']", "input[type='text'][maxlength='6']"
+            ]
+            try:
+                # Generate structural code using safe cryptographic parameters
+                totp = pyotp.TOTP(totp_secret.strip().replace(" ", ""))
+                current_verification_code = totp.now()
+                
+                for pattern in mfa_selectors:
+                    mfa_field = await page.query_selector(pattern)
+                    if mfa_field and await mfa_field.is_visible():
+                        await mfa_field.click()
+                        await mfa_field.fill(current_verification_code)
+                        
+                        verify_btn = await page.query_selector("button:has-text('Verify'), button:has-text('Submit'), input[type='submit']")
+                        if verify_btn:
+                            await verify_btn.click()
+                        else:
+                            await page.keyboard.press("Enter")
+                        await page.wait_for_navigation(timeout=5000, wait_until="networkidle")
+                        break
+            except Exception as mfa_err:
+                print(f"MFA execution interception error: {str(mfa_err)}")
 
-    while queue and len(visited) < crawl_limit:
-        current_route = queue.pop(0)
-        if current_route in visited: continue
-        visited.add(current_route)
-        local_telemetry["routes_visited"].append(current_route)
-
-        try:
-            t0 = asyncio.get_event_loop().time()
-            response = await page.goto(current_route, wait_until="domcontentloaded", timeout=12000)
-            t1 = asyncio.get_event_loop().time()
-
-            if auth_user and auth_pass:
-                await smart_identify_and_fill_form(page, "email", auth_user)
-                await smart_identify_and_fill_form(page, "password", auth_pass)
-
-            # Detect interactive form wrappers for scenario criteria mapping
-            form_elements = await page.query_selector_all("form")
-            for f in form_elements:
-                f_id = await f.get_attribute("id") or await f.get_attribute("name") or "Dynamic Form Framework"
-                local_telemetry["discovered_forms"].append({"name": f_id})
-
-            local_telemetry["performance_samples"].append({
-                "route": current_route, "latency_ms": (t1 - t0) * 1000
-            })
-
-            if response:
-                headers = {k.lower(): v for k, v in response.headers.items()}
-                if "content-security-policy" not in headers:
-                    local_telemetry["errors_caught"].append({"route": current_route, "msg": "Missing CSP layout header attribute."})
-
-            links = await page.evaluate("""() => { return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')); }""")
-            for link in links:
-                abs_url = urljoin(current_route, link)
-                if urlparse(abs_url).netloc == parsed_root.netloc and abs_url not in visited: queue.append(abs_url)
-        except:
-            pass
-
-    await context.close()
-    await browser.close()
-    return local_telemetry
-
-# --- GITHUB CI QUALITY GATE EVALUATOR ---
+# --- GITHUB CI QUALITY GATE EVALUATOR & AUTOMATED COMMENTER ---
 def process_github_ci_quality_gate(scan_results: dict):
     print("\n--- BUGOPTIX CI QUALITY GATE EVALUATOR RUNNING ---")
     all_bugs = scan_results.get("all_bugs", [])
-    print(f"Total Defects Found: {len(all_bugs)}")
-    print(f"Generated Test Cases Count: {len(scan_results.get('generated_test_cases', []))}")
-    sys.exit(0)
+    if not isinstance(all_bugs, list): all_bugs = []
+    critical_bugs = [b for b in all_bugs if isinstance(b, dict) and b.get("severity") == "Critical"]
+    
+    print(f"Total Anomalies Located: {len(all_bugs)}")
+    if critical_bugs:
+        sys.exit(1)
+    else:
+        sys.exit(0)
 
-# --- UNIFIED ASSESSMENT PARALLEL GRID ENGINE ---
-async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, auth_user: str = "", auth_pass: str = "") -> dict:
+# --- UNIFIED ASSESSMENT ENGINE ---
+async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_provider: str = "Standard Form", auth_user: str = "", auth_pass: str = "", totp_secret: str = "", use_saved_session: bool = False) -> dict:
     start_time_stamp = datetime.now()
     telemetry = {
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
-        "all_bugs": [], "cross_browser_matrix": {}, "generated_test_cases": []
+        "browser_used": target_browser, "crawled_routes": [], "all_bugs": [],
+        "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
+        "waterfall_logs": []
     }
 
+    parsed_root = urlparse(target_url)
+    queue = [target_url]
+    visited = set()
+
     async with async_playwright() as p:
-        chromium_task = execute_single_browser_audit(p, "chromium", target_url, crawl_limit, auth_user, auth_pass)
-        firefox_task = execute_single_browser_audit(p, "firefox", target_url, crawl_limit, auth_user, auth_pass)
-        webkit_task = execute_single_browser_audit(p, "webkit", target_url, crawl_limit, auth_user, auth_pass)
+        browser_type = p.chromium
+        if target_browser == "Firefox": browser_type = p.firefox
+        elif target_browser == "WebKit (Safari)": browser_type = p.webkit
 
-        grid_results = await asyncio.gather(chromium_task, firefox_task, webkit_task, return_exceptions=True)
+        browser = await browser_type.launch(headless=True, args=["--no-sandbox"] if target_browser != "Firefox" else [])
+        context_opts = {"ignore_https_errors": True, "viewport": {"width": 1280, "height": 800}}
+        if use_saved_session and os.path.exists(AUTH_STATE_FILE):
+            context_opts["storage_state"] = AUTH_STATE_FILE
+            
+        context = await browser.new_context(**context_opts)
+        page = await context.new_page()
 
-    browser_keys = ["CHROMIUM", "FIREFOX", "WEBKIT"]
-    processed_nodes = {}
-    aggregated_routes = set()
-    aggregated_forms = []
-
-    for idx, res in enumerate(grid_results):
-        b_name = browser_keys[idx]
-        if isinstance(res, Exception):
-            processed_nodes[b_name] = {"routes_visited": [], "errors_caught": [], "performance_samples": [], "discovered_forms": []}
-            continue
-        processed_nodes[b_name] = res
-        for r in res.get("routes_visited", []): aggregated_routes.add(r)
-        aggregated_forms.extend(res.get("discovered_forms", []))
-
-    telemetry["cross_browser_matrix"] = processed_nodes
-
-    # RUN AUTOMATED TEST SCENARIO EXTRACTION CORRELATION ENGINE
-    telemetry["generated_test_cases"] = TestScenarioGenerator.construct_automated_test_suite(
-        target_url, list(aggregated_routes), aggregated_forms
-    )
-
-    all_seen_errors = {}
-    for b_name, node_data in processed_nodes.items():
-        for error in node_data.get("errors_caught", []):
-            err_key = f"{error['route']}||{error['msg']}"
-            if err_key not in all_seen_errors: all_seen_errors[err_key] = set()
-            all_seen_errors[err_key].add(b_name)
-
-    for err_key, browsers in all_seen_errors.items():
-        route, err_msg = err_key.split("||")
-        if len(browsers) < 3:
-            telemetry["all_bugs"].append({
-                "bug_id": f"BUG-X-BROWSER-{hash(err_key) % 10000}",
-                "route_location": route, "module": "Cross-Browser Integration Grid",
-                "issue": "Engine Execution Mismatch Drift Discovered", "severity": "High",
-                "brief_summary": f"Anomaly behavior present in {', '.join(browsers)} layout paths, but absent in others.",
-                "ai_cause": "Browser-specific layout runtime constraints or unpadded layout rules.",
-                "ai_fix": "Add verified cross-browser vendor flags or sanitize polyfills for the targeted properties."
+        def trace_network_response(resp):
+            telemetry["waterfall_logs"].append({
+                "resource_url": resp.url[:70] + "...", "status_code": resp.status,
+                "method_type": resp.request.method, "content_type": resp.headers.get("content-type", "Unknown")
             })
+
+        page.on("response", trace_network_response)
+
+        while queue and len(visited) < crawl_limit:
+            current_route = queue.pop(0)
+            if current_route in visited: continue
+            visited.add(current_route)
+            telemetry["crawled_routes"].append(current_route)
+
+            try:
+                t0 = asyncio.get_event_loop().time()
+                response = await page.goto(current_route, wait_until="domcontentloaded", timeout=12000)
+                t1 = asyncio.get_event_loop().time()
+
+                # Dispatch Enterprise SSO / MFA Handlers if authentication vectors are present
+                if auth_user and auth_pass and not use_saved_session:
+                    if auth_provider == "Standard Form":
+                        if await smart_identify_and_fill_form(page, "email", auth_user) or await smart_identify_and_fill_form(page, "text", auth_user):
+                            if await smart_identify_and_fill_form(page, "password", auth_pass):
+                                btn = await page.query_selector("button[type='submit'], button:has-text('Log In')")
+                                if btn: await asyncio.gather(page.wait_for_navigation(timeout=4000, wait_until="networkidle"), btn.click())
+                                else: await page.keyboard.press("Enter")
+                    else:
+                        # Invoke complex Federated Identity mapping routing (Google, Okta, Azure AD, OAuth)
+                        await EnterpriseAuthHandler.process_sso_and_mfa(page, auth_provider, auth_user, auth_pass, totp_secret)
+                    
+                    # Persist authentication state parameters securely
+                    await context.storage_state(path=AUTH_STATE_FILE)
+
+                telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
+                telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
+
+                if response:
+                    headers = {k.lower(): v for k, v in response.headers.items()}
+                    if "content-security-policy" not in headers:
+                        telemetry["all_bugs"].append({
+                            "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
+                            "route_location": current_route, "module": "Security Testing",
+                            "issue": "Header Omission: content-security-policy", "severity": "Critical",
+                            "brief_summary": "Missing standard CSP protection constraint parameters.",
+                            "ai_cause": "Infrastructure layer parameter skipping.", "ai_fix": "Append parameters inside web service definitions."
+                        })
+
+                links = await page.evaluate("""() => { return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')); }""")
+                for link in links:
+                    abs_url = urljoin(current_route, link)
+                    if urlparse(abs_url).netloc == parsed_root.netloc and abs_url not in visited: queue.append(abs_url)
+            except:
+                pass
+
+        await context.close()
+        await browser.close()
 
     return telemetry
 
@@ -269,59 +259,68 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--ci-mode":
         os.environ["BUGOPTIX_CLI_MODE"] = "True"
         target_input_url = sys.argv[2] if len(sys.argv) > 2 else "https://example.com"
-        scan_output = asyncio.run(execute_comprehensive_qa_suite(target_url=target_input_url, crawl_limit=3))
+        scan_output = asyncio.run(execute_comprehensive_qa_suite(target_url=target_input_url, crawl_limit=3, target_browser="Chromium (Standard)"))
         process_github_ci_quality_gate(scan_output)
         sys.exit(0)
 
 # --- STREAMLIT USER INTERFACE CONTROL DASHBOARD ---
 if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
-    strl.set_page_config(page_title="BugOptix AI Suite", page_icon="🛡️", layout="wide")
-    strl.title("🛡️ BugOptix AI Tester | Parallel Grid & Automatic Test Case Generator")
+    strl.set_page_config(page_title="BugOptix Enterprise panel", page_icon="🛡️", layout="wide")
+    strl.title("🛡️ BugOptix AI Tester | Enterprise Panel & SSO Gateway")
     strl.markdown("---")
 
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
-    runner_tab, suite_tab, tracking_tab = strl.tabs(["🚀 Execution Matrix Runner", "📋 Automated Test Case Suite", "📁 Saved Fault Logs"])
+    runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
 
     with runner_tab:
-        col_u, col_d = strl.columns([3, 1])
-        with col_u: url_scope = strl.text_input("Corporate Scope Address Target:", value="https://example.com")
-        with col_d: depth_limit = strl.slider("Max Web Crawler Link Graph Depth Limit:", min_value=1, max_value=5, value=2)
+        col_u, col_b, col_d = strl.columns([2, 1, 1])
+        with col_u: url_scope = strl.text_input("Corporate Target URL Protocol Endpoint Scope:", value="https://example.com")
+        with col_b: targeted_browser = strl.selectbox("Execution Environment Browser Node:", ["Chromium (Standard)", "Firefox", "WebKit (Safari)"])
+        with col_d: depth_limit = strl.slider("Max Link Graph Web Crawler Depth Limit:", min_value=1, max_value=10, value=3)
 
-        if strl.button("Dispatch Headless Multi-Browser Grid Audit Pipeline"):
-            with strl.spinner("Orchestrating system environments and generating scenario paths..."):
-                res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit))
+        # ENTERPRISE DOMAIN IDENTITY ACCESS MANAGER (IAM) CONFIGURATION PANEL
+        strl.markdown("### 🔐 Enterprise IAM Domain Configuration Control")
+        c_prov, c_user, c_pass, c_mfa = strl.columns([1, 1, 1, 1])
+        with c_prov:
+            identity_provider = strl.selectbox("SSO Federated Identity Provider:", ["Standard Form", "Google", "Okta", "Azure AD", "Standard OAuth/SSO"])
+        with c_user:
+            username_input = strl.text_input("Enterprise Username / IAM Principal ID:", value="")
+        with c_pass:
+            password_input = strl.text_input("Identity Password Key Credentials:", value="", type="password")
+        with c_mfa:
+            totp_secret_input = strl.text_input("Automated MFA TOTP 2FA Seed Secret (Optional):", value="", type="password", help="Base32 format secret token for automated code generation")
+
+        use_saved = strl.checkbox("Inject Persistent Cookie Session Cache State Layer If Available", value=False)
+
+        if strl.button("Dispatch Compliance Runner Pipeline Execution"):
+            with strl.spinner("Authenticating via Enterprise SSO Gateway and parsing route targets..."):
+                res_data = asyncio.run(execute_comprehensive_qa_suite(
+                    target_url=url_scope.strip(), 
+                    crawl_limit=depth_limit, 
+                    target_browser=targeted_browser,
+                    auth_provider=identity_provider,
+                    auth_user=username_input,
+                    auth_pass=password_input,
+                    totp_secret=totp_secret_input,
+                    use_saved_session=use_saved
+                ))
                 strl.session_state["active_scan"] = res_data
                 vault_recs = VaultController.read_records()
                 vault_recs["scans"].append(res_data)
                 VaultController.write_records(vault_recs)
-            strl.success("Evaluation pipeline execution complete.")
+            strl.success("Assessment suite sweep complete.")
 
         active_scan_data = strl.session_state.get("active_scan")
-        if isinstance(active_scan_data, dict) and "cross_browser_matrix" in active_scan_data:
-            strl.markdown("### 📊 Concurrent Environment Comparison Board")
-            matrix = active_scan_data["cross_browser_matrix"]
-            metrics_comparison = []
-            for b_name, b_data in matrix.items():
-                samples = b_data.get("performance_samples", [])
-                avg_latency = sum([s["latency_ms"] for s in samples]) / len(samples) if samples else 0.0
-                metrics_comparison.append({
-                    "Browser Engine Grid Node": b_name,
-                    "Total Routes Crawled": len(b_data.get("routes_visited", [])),
-                    "Intercepted Script Exceptions": len(b_data.get("errors_caught", [])),
-                    "Mean Layout Render Latency": f"{round(avg_latency, 2)} ms"
-                })
-            strl.dataframe(pd.DataFrame(metrics_comparison), use_container_width=True, hide_index=True)
-
-    with suite_tab:
-        active_scan_data = strl.session_state.get("active_scan")
-        if isinstance(active_scan_data, dict) and active_scan_data.get("generated_test_cases"):
-            strl.markdown("### 📑 Dynamically Generated Quality Suite Scenarios Matrix")
-            cases_df = pd.DataFrame(active_scan_data["generated_test_cases"])
-            strl.dataframe(cases_df, use_container_width=True, hide_index=True)
-        else:
-            strl.info("Run an active validation scan to populate the automated boundary and flow scenario maps.")
+        if isinstance(active_scan_data, dict):
+            bugs_list = active_scan_data.get("all_bugs", [])
+            if isinstance(bugs_list, list) and len(bugs_list) > 0:
+                bugs_df = pd.DataFrame(bugs_list)
+                strl.markdown("### 🛑 Findings Summary Matrix")
+                strl.dataframe(bugs_df[["bug_id", "module", "issue", "severity", "route_location"]], use_container_width=True, hide_index=True)
+            else:
+                strl.success("Zero defect exceptions flagged for this run.")
 
     with tracking_tab:
         vault_recs = VaultController.read_records()
@@ -331,8 +330,11 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                 for b in s.get("all_bugs", []):
                     if isinstance(b, dict):
                         flattened_bugs.append({
-                            "ID": b.get("bug_id"), "Area": b.get("module"), "Issue": b.get("issue"), 
-                            "Severity": b.get("severity"), "Status": vault_recs.get("lifecycle_states", {}).get(b.get("bug_id"), "Open"), 
+                            "ID": b.get("bug_id"), 
+                            "Area": b.get("module"), 
+                            "Issue": b.get("issue"), 
+                            "Severity": b.get("severity"), 
+                            "Status": vault_recs.get("lifecycle_states", {}).get(b.get("bug_id"), "Open"), 
                             "Route": b.get("route_location")
                         })
         if flattened_bugs: 

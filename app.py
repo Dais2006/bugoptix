@@ -22,6 +22,7 @@ def enforce_system_binaries():
     except Exception:
         pass
 
+# Initialize system dependencies specifically for standard Streamlit operation
 if "streamlit" in sys.modules:
     enforce_system_binaries()
 
@@ -180,7 +181,7 @@ if "streamlit" in sys.modules:
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
-    # ONLY INITIALIZE THE TARGETED DASHBOARD TABS HERE
+    # Standard presentation structure containing purely core tracking panels
     runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
 
     with runner_tab:

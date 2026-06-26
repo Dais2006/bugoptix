@@ -27,5 +27,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python bugoptix_app.py --ci-mode "https://example.com"
-        
+          python app.py --ci-mode "https://your-testing-target.com"

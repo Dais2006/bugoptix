@@ -32,13 +32,12 @@ AUTH_STATE_FILE = "bugoptix_auth_state.json"
 class VaultController:
     @staticmethod
     def read_records() -> dict:
-        default_structure = {"scans": [], "chat_history": [], "lifecycle_states": {}, "baseline_snapshots": {}}
+        default_structure = {"scans": [], "lifecycle_states": {}}
         if os.path.exists(VAULT_FILE):
             try:
                 with open(VAULT_FILE, "r") as f:
                     data = json.load(f)
-                    if not isinstance(data, dict): return default_structure
-                    return data
+                    return data if isinstance(data, dict) else default_structure
             except: pass
         return default_structure
 
@@ -49,47 +48,12 @@ class VaultController:
                 json.dump(data, f, indent=4)
         except: pass
 
-# --- HEURISTIC FORM FIELD MAPPER ---
-async def smart_identify_and_fill_form(page, selector_type, credential_value):
-    heuristics = [f"input[type='{selector_type}']", f"input[name*='{selector_type}']"]
-    for pattern in heuristics:
-        try:
-            element = await page.query_selector(pattern)
-            if element and await element.is_visible():
-                await element.fill(credential_value)
-                return True
-        except: pass
-    return False
-
-# --- GITHUB CI QUALITY GATE ---
-def process_github_ci_quality_gate(scan_results: dict):
-    all_bugs = scan_results.get("all_bugs", [])
-    critical_bugs = [b for b in all_bugs if b.get("severity") == "Critical"]
-    
-    comment_body = f"## 🛡️ BugOptix Audit Result\nTotal Defects: {len(all_bugs)}"
-    
-    gh_token = os.environ.get("GITHUB_TOKEN")
-    gh_repo = os.environ.get("GITHUB_REPOSITORY")
-    gh_event_path = os.environ.get("GITHUB_EVENT_PATH")
-    
-    if gh_token and gh_repo and gh_event_path:
-        try:
-            with open(gh_event_path, "r") as f:
-                event_data = json.load(f)
-            pr_number = event_data.get("pull_request", {}).get("number")
-            if pr_number:
-                api_url = f"https://api.github.com/repos/{gh_repo}/issues/{pr_number}/comments"
-                headers = {"Authorization": f"Bearer {gh_token}", "Accept": "application/vnd.github+json"}
-                httpx.post(api_url, json={"body": comment_body}, headers=headers, timeout=5.0)
-        except: pass
-            
-    sys.exit(1 if critical_bugs else 0)
-
 # --- UNIFIED ASSESSMENT ENGINE ---
 async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str) -> dict:
     telemetry = {"url": target_url, "all_bugs": [], "crawled_routes": []}
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser_type = p.chromium
+        browser = await browser_type.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
         try:
@@ -104,29 +68,26 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
     strl.set_page_config(page_title="BugOptix AI Tester", layout="wide")
     strl.title("🛡️ BugOptix AI Tester | Enterprise Panel")
 
-    runner_tab, tracking_tab, cicd_tab = strl.tabs(["🚀 Runner", "📋 Matrix", "🔗 CI/CD"])
+    # Only two tabs remain: Runner and Matrix
+    runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
 
-    with cicd_tab:
-        strl.markdown("### 🔗 Continuous Integration Pipeline Automation Gate")
-        strl.info("Add this configuration to `.github/workflows/bugoptix_audit.yml`:")
-        strl.code("""
-name: BugOptix Enterprise CI Quality Gate
-on: [pull_request]
-jobs:
-  bugoptix-compliance-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - name: Install Dependencies
-        run: |
-          pip install playwright httpx streamlit pandas
-          python -m playwright install chromium
-      - name: Run Audit
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python app.py --ci-mode "https://example.com"
-        """, language="yaml")
+    with runner_tab:
+        url_scope = strl.text_input("Target URL:", value="https://example.com")
+        targeted_browser = strl.selectbox("Browser:", ["Chromium (Standard)"])
+        depth_limit = strl.slider("Crawler Depth:", min_value=1, max_value=5, value=1)
+
+        if strl.button("Dispatch Automated Scan"):
+            with strl.spinner("Running evaluation..."):
+                res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser))
+                vault_recs = VaultController.read_records()
+                vault_recs["scans"].append(res_data)
+                VaultController.write_records(vault_recs)
+            strl.success("Assessment complete.")
+
+    with tracking_tab:
+        vault_recs = VaultController.read_records()
+        if vault_recs.get("scans"):
+            strl.write("Recorded Scans:")
+            strl.json(vault_recs["scans"])
+        else:
+            strl.info("No recorded scans available.")

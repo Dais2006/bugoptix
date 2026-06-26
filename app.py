@@ -12,13 +12,6 @@ from urllib.parse import urlparse, urljoin
 import streamlit as strl
 import pandas as pd
 
-# Fallback auto-installer for PyOTP to support automated enterprise MFA/TOTP validation
-try:
-    import pyotp
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "pyotp"], check=True)
-    import pyotp
-
 # --- SYSTEM ENVIRONMENT SANITIZATION ---
 @strl.cache_resource
 def enforce_system_binaries():
@@ -65,101 +58,6 @@ class VaultController:
         except:
             pass
 
-# --- ENTERPRISE INTERACTIVE EXPORT INTEGRATION STRATEGY ---
-class EnterpriseIssueExporter:
-    """Provides uniform async interfaces to sync localized bugs directly to enterprise ticket tracking hubs."""
-
-    @staticmethod
-    async def export_to_jira(base_url: str, email: str, api_token: str, project_key: str, bug: dict) -> tuple[bool, str]:
-        """Creates a ticket on Jira Cloud/On-Premises systems via REST API v3."""
-        target_endpoint = f"{base_url.rstrip('/')}/rest/api/3/issue"
-        auth_string = base64.b64encode(f"{email}:{api_token}".encode()).decode()
-        headers = {"Authorization": f"Basic {auth_string}", "Content-Type": "application/json"}
-        
-        payload = {
-            "fields": {
-                "project": {"key": project_key},
-                "summary": f"[BugOptix] {bug.get('issue', 'Exception')} at {bug.get('route_location', '/')}",
-                "description": {
-                    "type": "doc", "version": 1,
-                    "content": [
-                        {"type": "paragraph", "content": [
-                            {"type": "text", "text": f"Severity: {bug.get('severity', 'High')}\nModule: {bug.get('module', 'Core')}\n\nSummary:\n{bug.get('brief_summary', 'N/A')}\n\nAI Root Cause:\n{bug.get('ai_cause', 'N/A')}\n\nSuggested Fix Code:\n{bug.get('ai_fix', 'N/A')}"}
-                        ]}
-                    ]
-                },
-                "issuetype": {"name": "Bug"}
-            }
-        }
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
-                if res.status_code in [200, 201]:
-                    return True, res.json().get("key", "Success")
-                return False, f"HTTP Error: {res.status_code} - {res.text}"
-        except Exception as e:
-            return False, str(e)
-
-    @staticmethod
-    async def export_to_azure_devops(org: str, project: str, personal_access_token: str, bug: dict) -> tuple[bool, str]:
-        """Creates a Work Item on Azure DevOps boards utilizing json-patch payload architecture."""
-        target_endpoint = f"https://dev.azure.com/{org}/{project}/_apis/wit/workitems/$Bug?api-version=7.1-preview.3"
-        auth_string = base64.b64encode(f":{personal_access_token}".encode()).decode()
-        headers = {"Authorization": f"Basic {auth_string}", "Content-Type": "application/json-patch+json"}
-        
-        desc = f"<b>Module Scope:</b> {bug.get('module')}<br><b>Route:</b> {bug.get('route_location')}<br><br><b>AI Diagnostics:</b> {bug.get('ai_cause')}<br><br><b>Code Resolution:</b> <code>{bug.get('ai_fix')}</code>"
-        payload = [
-            {"op": "add", "path": "/fields/System.Title", "value": f"[BugOptix] {bug.get('issue')}"},
-            {"op": "add", "path": "/fields/System.Description", "value": desc},
-            {"op": "add", "path": "/fields/Microsoft.VSTS.Common.Severity", "value": "2 - High" if bug.get("severity") == "High" else "3 - Medium"}
-        ]
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
-                if res.status_code in [200, 201]:
-                    return True, f"ID: {res.json().get('id')}"
-                return False, f"Error: {res.status_code}"
-        except Exception as e:
-            return False, str(e)
-
-    @staticmethod
-    async def export_to_github_issues(repo_owner: str, repo_name: str, access_token: str, bug: dict) -> tuple[bool, str]:
-        """Dispatches automated Issue records into standard GitHub code repositories."""
-        target_endpoint = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues"
-        headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github+json"}
-        
-        body_content = f"### 🛡️ BugOptix Defect Analysis Report\n- **Target Route:** `{bug.get('route_location')}`\n- **Defect Module Cluster:** {bug.get('module')}\n- **Calculated Severity:** **{bug.get('severity')}**\n\n#### 🔍 AI Architectural Root Cause Analysis\n> {bug.get('ai_cause')}\n\n#### 🛠️ Automation Code Resolution Patch Recommendation\n```python\n{bug.get('ai_fix')}\n```"
-        payload = {"title": f"[BugOptix Trace] {bug.get('issue')}", "body": body_content, "labels": ["bug", "automated-qa"]}
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
-                if res.status_code in [200, 201]:
-                    return True, f"Issue #{res.json().get('number')}"
-                return False, f"GitHub Error: {res.status_code}"
-        except Exception as e:
-            return False, str(e)
-
-    @staticmethod
-    async def export_to_servicenow(instance_subdomain: str, user_id: str, password: str, bug: dict) -> tuple[bool, str]:
-        """Injects Incident profiles inside cloud ServiceNow IT service catalogs."""
-        target_endpoint = f"https://{instance_subdomain}.service-now.com/api/now/table/incident"
-        auth_string = base64.b64encode(f"{user_id}:{password}".encode()).decode()
-        headers = {"Authorization": f"Basic {auth_string}", "Content-Type": "application/json", "Accept": "application/json"}
-        
-        short_desc = f"[BugOptix] Structural exception logged during run on module {bug.get('module')}"
-        long_desc = f"Route URL Path: {bug.get('route_location')}\nSeverity Group: {bug.get('severity')}\n\nAI Root Cause Explanation:\n{bug.get('ai_cause')}\n\nActionable Engineering Resolution Fix Commands:\n{bug.get('ai_fix')}"
-        payload = {"short_description": short_desc, "description": long_desc, "urgency": "1" if bug.get("severity") == "Critical" else "2", "severity": "1"}
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
-                if res.status_code in [200, 201]:
-                    return True, res.json().get("result", {}).get("number", "Incident Logged")
-                return False, f"ServiceNow Refused: {res.status_code}"
-        except Exception as e:
-            return False, str(e)
-
 # --- HEURISTIC FORM FIELD MAPPER ---
 async def smart_identify_and_fill_form(page, selector_type, credential_value):
     heuristics = [
@@ -178,6 +76,94 @@ async def smart_identify_and_fill_form(page, selector_type, credential_value):
             pass
     return False
 
+# --- GITHUB CI QUALITY GATE EVALUATOR & AUTOMATED COMMENTER ---
+def process_github_ci_quality_gate(scan_results: dict):
+    print("\n--- BUGOPTIX CI QUALITY GATE EVALUATOR RUNNING ---")
+    all_bugs = scan_results.get("all_bugs", [])
+    if not isinstance(all_bugs, list): all_bugs = []
+    
+    critical_bugs = [b for b in all_bugs if isinstance(b, dict) and b.get("severity") == "Critical"]
+    
+    # Extract calculated quality dimension indices
+    security_score = scan_results.get("security_score", 100)
+    accessibility_score = scan_results.get("accessibility_score", 100)
+    performance_score = scan_results.get("performance_score", 100)
+    
+    print(f"Total Anomalies Located: {len(all_bugs)}")
+    print(f"Critical System Defects: {len(critical_bugs)}")
+    print(f"Security Compliance Score: {security_score}/100")
+    print(f"Accessibility Score: {accessibility_score}/100")
+    print(f"Performance Score: {performance_score}/100")
+    
+    # Evaluate Quality Gate Thresholds
+    gate_failed = False
+    failure_reasons = []
+    
+    if len(critical_bugs) > 0:
+        gate_failed = True
+        failure_reasons.append(f"Blocked: Found {len(critical_bugs)} Critical Vulnerability bugs.")
+    if security_score < 80:
+        gate_failed = True
+        failure_reasons.append(f"Blocked: Security compliance level ({security_score}) fell below the mandatory 80% ceiling.")
+    if accessibility_score < 90:
+        gate_failed = True
+        failure_reasons.append(f"Blocked: Accessibility audit score ({accessibility_score}) fell below the required 90% UX standard.")
+    if performance_score < 85:
+        gate_failed = True
+        failure_reasons.append(f"Blocked: Engine overall speed performance metric ({performance_score}) fell below the 85% efficiency ceiling.")
+
+    comment_body = f"## 🛡️ BugOptix Automated Quality Gate Audit Result\n"
+    comment_body += f"- **Target URL Evaluated:** `{scan_results.get('url', 'Unknown')}`\n"
+    comment_body += f"- **Scan Completed At:** {scan_results.get('timestamp', 'N/A')}\n"
+    comment_body += f"- **Gate Build Status:** {'❌ FAILED' if gate_failed else '✅ PASSED'}\n\n"
+    
+    comment_body += "### 📊 Quality Assurance Gate Performance Index Matrix\n"
+    comment_body += f"| Metrics Evaluated | Observed Score / Value | Target Status Requirements |\n"
+    comment_body += f"| :--- | :---: | :--- |\n"
+    comment_body += f"| Critical Defects | {len(critical_bugs)} | Fail Build if > 0 |\n"
+    comment_body += f"| Security Metrics | {security_score}% | Fail Build if < 80% |\n"
+    comment_body += f"| Accessibility UX | {accessibility_score}% | Fail Build if < 90% |\n"
+    comment_body += f"| Performance Gates | {performance_score}% | Fail Build if < 85% |\n\n"
+
+    if gate_failed:
+        comment_body += "### 🚨 Quality Compliance Rule Non-Conformance Reasons:\n"
+        for reason in failure_reasons:
+            comment_body += f"- {reason}\n"
+        comment_body += "\n"
+
+    if all_bugs:
+        comment_body += "### 🛑 Detected Exceptions Summary Matrix\n"
+        comment_body += "| Severity | Module Area | Issue Title | Target Location Route |\n"
+        comment_body += "| :--- | :--- | :--- | :--- |\n"
+        for b in all_bugs[:15]:
+            if isinstance(b, dict):
+                comment_body += f"| **{b.get('severity', 'Unknown')}** | {b.get('module', 'General')} | {b.get('issue', 'Exception')} | `{b.get('route_location', '/')}` |\n"
+            
+    gh_token = os.environ.get("GITHUB_TOKEN")
+    gh_repo = os.environ.get("GITHUB_REPOSITORY")
+    gh_event_path = os.environ.get("GITHUB_EVENT_PATH")
+    
+    if gh_token and gh_repo and gh_event_path:
+        try:
+            with open(gh_event_path, "r") as f:
+                event_data = json.load(f)
+            pr_number = event_data.get("pull_request", {}).get("number")
+            if pr_number:
+                api_url = f"https://api.github.com/repos/{gh_repo}/issues/{pr_number}/comments"
+                headers = {"Authorization": f"Bearer {gh_token}", "Accept": "application/vnd.github+json"}
+                httpx.post(api_url, json={"body": comment_body}, headers=headers, timeout=5.0)
+        except Exception as e:
+            print(f"Failed to post automated GitHub PR Comment: {str(e)}")
+            
+    if gate_failed:
+        print("\n❌ QUALITY GATE COMPLIANCE FAILURE: Aborting pipeline runner.")
+        for reason in failure_reasons:
+            print(f" - {reason}")
+        sys.exit(1)
+    else:
+        print("\n✅ QUALITY GATE PASSED: Environment rules meet system policies.")
+        sys.exit(0)
+
 # --- UNIFIED ASSESSMENT ENGINE ---
 async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_user: str = "", auth_pass: str = "", use_saved_session: bool = False) -> dict:
     start_time_stamp = datetime.now()
@@ -185,12 +171,19 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
         "browser_used": target_browser, "crawled_routes": [], "all_bugs": [],
         "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
-        "waterfall_logs": []
+        "seo_metrics": {"score": 100, "checks": []}, "api_metrics": {"score": 100, "logs": []},
+        "network_metrics": {"failed": 0, "slow": 0, "404s": 0, "500s": 0},
+        "waterfall_logs": [], "snapshots": {},
+        "security_score": 100, "accessibility_score": 100, "performance_score": 100
     }
 
     parsed_root = urlparse(target_url)
     queue = [target_url]
     visited = set()
+
+    # Metrics heuristics tracking states
+    total_checks_run = 0
+    accessibility_failures = 0
 
     async with async_playwright() as p:
         browser_type = p.chromium
@@ -205,17 +198,25 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         context = await browser.new_context(**context_opts)
         page = await context.new_page()
 
+        def trace_network_response(resp):
+            telemetry["waterfall_logs"].append({
+                "resource_url": resp.url[:70] + "...", "status_code": resp.status,
+                "method_type": resp.request.method, "content_type": resp.headers.get("content-type", "Unknown")
+            })
+            if resp.status >= 500: telemetry["network_metrics"]["500s"] += 1
+            elif resp.status == 404: telemetry["network_metrics"]["404s"] += 1
+
         def trace_client_console(msg):
             if msg.type == "error":
                 telemetry["all_bugs"].append({
                     "bug_id": f"BUG-JS-ERR-{hash(msg.text) % 10000}",
                     "route_location": page.url, "module": "Client Engine Testing",
                     "issue": "Client-Side Frontend Runtime Crash Exception", "severity": "High",
-                    "brief_summary": f"Active unhandled JavaScript exception thrown: {msg.text}",
-                    "ai_cause": "Object binding or array index reference out of memory tracking bounds.",
-                    "ai_fix": "Inject framework conditional safe-navigation bindings before executing property access operations."
+                    "brief_summary": "Active unhandled JavaScript exception thrown.",
+                    "ai_cause": "Object reference fault logic loop.", "ai_fix": "Wrap operational layers in catch handles."
                 })
 
+        page.on("response", trace_network_response)
         page.on("console", trace_client_console)
 
         while queue and len(visited) < crawl_limit:
@@ -237,19 +238,39 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                             else: await page.keyboard.press("Enter")
                             await context.storage_state(path=AUTH_STATE_FILE)
 
-                telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
-                telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
+                # Track basic layout timing performance parameters
+                latency_ms = (t1 - t0) * 1000
+                telemetry["performance_metrics"]["ttfb"] = latency_ms
+                telemetry["performance_metrics"]["fcp"] = latency_ms * 0.6
+                
+                # Dynamic calculation mapping for the Performance Score
+                if latency_ms > 3000:
+                    telemetry["performance_score"] = max(40, telemetry["performance_score"] - 15)
+                elif latency_ms > 1500:
+                    telemetry["performance_score"] = max(50, telemetry["performance_score"] - 5)
 
-                if response and "content-security-policy" not in {k.lower(): v for k, v in response.headers.items()}:
-                    telemetry["all_bugs"].append({
-                        "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
-                        "route_location": current_route, "module": "Security Testing",
-                        "issue": "Header Omission: content-security-policy", "severity": "Critical",
-                        "brief_summary": "Missing standard CSP protection constraint parameters.",
-                        "ai_cause": "Infrastructure reverse-proxy layer parameters omitting cross-site framework constraints.",
-                        "ai_fix": "Add appropriate rule blocks inside web gateway headers: 'Content-Security-Policy: default-src 'self''"
-                    })
+                if response:
+                    headers = {k.lower(): v for k, v in response.headers.items()}
+                    if "content-security-policy" not in headers:
+                        telemetry["security_score"] = max(0, telemetry["security_score"] - 25)
+                        telemetry["all_bugs"].append({
+                            "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
+                            "route_location": current_route, "module": "Security Testing",
+                            "issue": "Header Omission: content-security-policy", "severity": "Critical",
+                            "brief_summary": "Missing standard CSP protection constraint parameters.",
+                            "ai_cause": "Infrastructure layer parameter skipping.", "ai_fix": "Append parameters inside web service definitions."
+                        })
+                    if "x-frame-options" not in headers:
+                        telemetry["security_score"] = max(0, telemetry["security_score"] - 10)
 
+                # Accessibility (a11y) standard validation heuristics (e.g., image alt tag checking)
+                images = await page.query_selector_all("img")
+                for img in images:
+                    total_checks_run += 1
+                    alt_attr = await img.get_attribute("alt")
+                    if not alt_attr or alt_attr.strip() == "":
+                        accessibility_failures += 1
+                        
                 links = await page.evaluate("""() => { return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')); }""")
                 for link in links:
                     abs_url = urljoin(current_route, link)
@@ -260,30 +281,39 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         await context.close()
         await browser.close()
 
+    # Normalize accessibility index
+    if total_checks_run > 0:
+        telemetry["accessibility_score"] = int(((total_checks_run - accessibility_failures) / total_checks_run) * 100)
+    else:
+         telemetry["accessibility_score"] = 95 # Base defaults if no graphics assets exist
+
     return telemetry
 
 # --- CLI ENTRY ROUTE ---
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--ci-mode":
         os.environ["BUGOPTIX_CLI_MODE"] = "True"
+        target_input_url = sys.argv[2] if len(sys.argv) > 2 else "https://example.com"
+        scan_output = asyncio.run(execute_comprehensive_qa_suite(target_url=target_input_url, crawl_limit=5, target_browser="Chromium (Standard)"))
+        process_github_ci_quality_gate(scan_output)
         sys.exit(0)
 
 # --- STREAMLIT USER INTERFACE CONTROL DASHBOARD ---
 if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
-    strl.set_page_config(page_title="BugOptix Defect Exporter", page_icon="🛡️", layout="wide")
-    strl.title("🛡️ BugOptix AI Tester | Enterprise Panel & Defect Tracking Sync Hub")
+    strl.set_page_config(page_title="BugOptix AI Tester", page_icon="🛡️", layout="wide")
+    strl.title("🛡️ BugOptix AI Tester | Enterprise Panel")
     strl.markdown("---")
 
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
-    runner_tab, export_tab, tracking_tab = strl.tabs(["🚀 Automated Suite Test Runner", "📤 Enterprise Ticket Exporter", "📋 Defect Lifecycle Matrix"])
+    runner_tab, tracking_tab, cicd_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix", "🔗 CI/CD Automation Hub"])
 
     with runner_tab:
         col_u, col_b, col_d = strl.columns([2, 1, 1])
         with col_u: url_scope = strl.text_input("Corporate Target URL Protocol Endpoint Address Scope Target:", value="https://example.com")
         with col_b: targeted_browser = strl.selectbox("Select Execution Environment Browser Type:", ["Chromium (Standard)", "Firefox"])
-        with col_d: depth_limit = strl.slider("Max Link Link Graph Web Crawler Depth Limit:", min_value=1, max_value=10, value=2)
+        with col_d: depth_limit = strl.slider("Max Link Link Graph Web Crawler Depth Limit:", min_value=1, max_value=10, value=3)
 
         if strl.button("Dispatch Complete Automated Compliance Pipeline Run"):
             with strl.spinner("Running system evaluations across frames..."):
@@ -294,62 +324,41 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-    with export_tab:
-        strl.markdown("### 📤 Sync Discovered Vulnerabilities directly to ALM Systems")
         active_scan_data = strl.session_state.get("active_scan")
-        
-        if not active_scan_data or not active_scan_data.get("all_bugs"):
-            strl.info("No active defect logs found in session memory. Run an environment analysis scan first.")
-        else:
-            bugs_to_export = active_scan_data["all_bugs"]
-            target_platform = strl.selectbox("Choose Target Enterprise System Architecture:", ["Jira Cloud", "Azure DevOps Boards", "GitHub Issues", "ServiceNow ITSM"])
-            
-            # Formulate dynamic configuration parameters based on platform choice
-            if target_platform == "Jira Cloud":
-                c1, c2, c3, c4 = strl.columns(4)
-                with c1: j_url = strl.text_input("Jira Site Base URL:", "https://your-domain.atlassian.net")
-                with c2: j_user = strl.text_input("Account Email ID:")
-                with c3: j_token = strl.text_input("Atlassian API Token:", type="password")
-                with c4: j_key = strl.text_input("Project Key:", "PROJ")
-                
-            elif target_platform == "Azure DevOps Boards":
-                c1, c2, c3 = strl.columns(3)
-                with c1: az_org = strl.text_input("DevOps Organization Name:")
-                with c2: az_proj = strl.text_input("Target Project Name:")
-                with c3: az_pat = strl.text_input("Personal Access Token (PAT):", type="password")
-                
-            elif target_platform == "GitHub Issues":
-                c1, c2, c3 = strl.columns(3)
-                with c1: gh_owner = strl.text_input("Repository Owner Name/Organization:")
-                with c2: gh_repo = strl.text_input("Repository Name:")
-                with c3: gh_pat = strl.text_input("GitHub Personal Access Token:", type="password")
-                
-            elif target_platform == "ServiceNow ITSM":
-                c1, c2, c3 = strl.columns(3)
-                with c1: sn_sub = strl.text_input("Instance Subdomain Profile Key:")
-                with c2: sn_user = strl.text_input("ServiceNow User Principal ID:")
-                with c3: sn_pass = strl.text_input("Basic Account Password Authorization String:", type="password")
+        if isinstance(active_scan_data, dict):
+            # Display localized summary metrics matrix cards
+            c_sec, c_acc, c_perf = strl.columns(3)
+            with c_sec: strl.metric("Security Score", f"{active_scan_data.get('security_score')}%", delta="-20%" if active_scan_data.get('security_score', 100) < 80 else "Stable")
+            with c_acc: strl.metric("Accessibility Score", f"{active_scan_data.get('accessibility_score')}%", delta="-10%" if active_scan_data.get('accessibility_score', 100) < 90 else "Stable")
+            with c_perf: strl.metric("Performance Gate Score", f"{active_scan_data.get('performance_score')}%", delta="-15%" if active_scan_data.get('performance_score', 100) < 85 else "Stable")
 
-            selected_bug_idx = strl.selectbox("Select Target Bug Log to Sync:", range(len(bugs_to_export)), format_func=lambda i: f"[{bugs_to_export[i].get('severity')}] {bugs_to_export[i].get('issue')} ({bugs_to_export[i].get('bug_id')})")
-            
-            if strl.button("Push Selected Log Data to Enterprise Tracking Endpoint"):
-                bug_payload = bugs_to_export[selected_bug_idx]
-                success, reference_id = False, ""
+            bugs_list = active_scan_data.get("all_bugs", [])
+            if isinstance(bugs_list, list) and len(bugs_list) > 0:
+                bugs_df = pd.DataFrame(bugs_list)
+                strl.markdown("### 🛑 Findings & Detailed Root Cause Analysis Reports")
+                vault_recs = VaultController.read_records()
                 
-                with strl.spinner("Opening secure REST network socket and synchronizing properties..."):
-                    if target_platform == "Jira Cloud":
-                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_jira(j_url, j_user, j_token, j_key, bug_payload))
-                    elif target_platform == "Azure DevOps Boards":
-                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_azure_devops(az_org, az_proj, az_pat, bug_payload))
-                    elif target_platform == "GitHub Issues":
-                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_github_issues(gh_owner, gh_repo, gh_pat, bug_payload))
-                    elif target_platform == "ServiceNow ITSM":
-                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_servicenow(sn_sub, sn_user, sn_pass, bug_payload))
-                
-                if success:
-                    strl.success(f"Successfully created external defect entry! Tracker Reference Reference: **{reference_id}**")
-                else:
-                    strl.error(f"Platform connection or routing validation failure: {reference_id}")
+                for idx, bug in bugs_df.iterrows():
+                    if not isinstance(bug, dict): 
+                        bug = bug.to_dict()
+                    b_id = bug.get("bug_id", f"BUG-{idx}")
+                    current_status = vault_recs.get("lifecycle_states", {}).get(b_id, "Open")
+                    
+                    with strl.expander(f"[{bug.get('severity', 'High')}] {bug.get('module', 'Core')} — {bug.get('issue', 'Exception')}"):
+                        new_status = strl.selectbox(
+                            f"Modify Governance State for {b_id}:", ["Open", "In-Progress", "Resolved", "Closed"],
+                            index=["Open", "In-Progress", "Resolved", "Closed"].index(current_status),
+                            key=f"status_select_{idx}_{b_id}"
+                        )
+                        if new_status != current_status:
+                            vault_recs["lifecycle_states"][b_id] = new_status
+                            VaultController.write_records(vault_recs)
+                            strl.toast(f"Updated status for {b_id}")
+                            strl.rerun()
+                        strl.info(f"**AI Cause Factor:** {bug.get('ai_cause', 'N/A')}")
+                        strl.markdown(f"**Fix Recommendation:** `{bug.get('ai_fix', 'N/A')}`")
+            else:
+                strl.success("Zero defect exceptions flagged for this run.")
 
     with tracking_tab:
         vault_recs = VaultController.read_records()
@@ -370,3 +379,39 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
             strl.dataframe(pd.DataFrame(flattened_bugs).drop_duplicates(subset=["ID"]), use_container_width=True, hide_index=True)
         else: 
             strl.info("Central tracking stores contain zero recorded open issues.")
+
+    with cicd_tab:
+        strl.markdown("### 🔗 Continuous Integration Pipeline Automation Gate")
+        strl.info("Drop this workflow config file into your repository at `.github/workflows/bugoptix_audit.yml`:")
+        strl.code("""
+name: BugOptix Enterprise CI Quality Gate
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  bugoptix-compliance-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout Repository Source Code
+        uses: actions/checkout@v3
+
+      - name: Initialize System Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install BugOptix Architecture Stack Dependencies
+        run: |
+          pip install playwright httpx streamlit pandas
+          python -m playwright install chromium
+
+      - name: Dispatch Headless Automated CLI Verification Scan & Quality Gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python app.py --ci-mode "https://example.com"
+        """, language="yaml")

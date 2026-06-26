@@ -15,11 +15,12 @@ import pandas as pd
 # --- SYSTEM ENVIRONMENT SANITIZATION ---
 @strl.cache_resource
 def enforce_system_binaries():
-    """Validates and ensures the presence of headless browser runtimes in the environment."""
+    """Validates and ensures the presence of headless browser runtimes in the environment for all targets."""
     try:
         expected_bin_path = os.path.expanduser("~/.cache/ms-playwright")
         if not os.path.exists(expected_bin_path):
-            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+            # Install all browsers (Chromium, Firefox, WebKit) so the user options don't crash
+            subprocess.run([sys.executable, "-m", "playwright", "install"], check=True)
     except Exception:
         pass
 
@@ -103,11 +104,11 @@ if "active_scan" not in strl.session_state:
 
 
 # --- 20-IN-1 UNIFIED LIVE ASSESSMENT ENGINE ---
-async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_headers: str = None, storage_state_json: str = None) -> dict:
+async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, device_mode: str, auth_headers: str = None, storage_state_json: str = None) -> dict:
     start_time_stamp = datetime.now()
     telemetry = {
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
-        "browser_used": target_browser, "crawled_routes": [], "all_bugs": [],
+        "browser_used": target_browser, "device_scanned": device_mode, "crawled_routes": [], "all_bugs": [],
         "performance_metrics": {"fcp": 0, "lcp": 0, "tbt": 0, "cls": 0, "ttfb": 0},
         "seo_metrics": {"score": 100, "checks": []}, "api_metrics": {"score": 100, "logs": []},
         "network_metrics": {"failed": 0, "slow": 0, "404s": 0, "500s": 0},
@@ -128,11 +129,13 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         pass
 
     async with async_playwright() as p:
-        browser_type = p.chromium
+        # Dynamic browser initialization mapping routing parameters correctly
         if target_browser == "Firefox":
             browser_type = p.firefox
         elif target_browser == "WebKit (Safari)":
             browser_type = p.webkit
+        else:
+            browser_type = p.chromium
 
         browser = await browser_type.launch(headless=True, args=["--no-sandbox"] if target_browser != "Firefox" else [])
 
@@ -143,6 +146,29 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             telemetry["crawled_routes"].append(current_route)
 
             context_args = {"ignore_https_errors": True}
+            
+            # Inject Device Specific Emulation Configurations Matrices
+            if device_mode == "iOS (iPhone)":
+                context_args.update({
+                    "viewport": {"width": 393, "height": 852},
+                    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+                    "is_mobile": True,
+                    "has_touch": True
+                })
+            elif device_mode == "Android":
+                context_args.update({
+                    "viewport": {"width": 412, "height": 915},
+                    "user_agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36",
+                    "is_mobile": True,
+                    "has_touch": True
+                })
+            else: # PC Mode
+                context_args.update({
+                    "viewport": {"width": 1440, "height": 900},
+                    "is_mobile": False,
+                    "has_touch": False
+                })
+
             if storage_state_json:
                 try:
                     context_args["storage_state"] = json.loads(storage_state_json)
@@ -204,7 +230,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                         if h_name not in headers:
                             telemetry["all_bugs"].append({
                                 "bug_id": f"BUG-SEC-{hash(current_route + h_name) % 10000}",
-                                "route_location": current_route, "module": "Security Testing",
+                                "route_location": current_route, "module": f"Security Testing ({device_mode})",
                                 "issue": f"Header Omission: {h_name}",
                                 "severity": sev, "brief_summary": brief, "desc": desc,
                                 "requirement_id": req_id,
@@ -215,7 +241,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                     if "AIzaSy" in content_blob or "sk_live_" in content_blob:
                         telemetry["all_bugs"].append({
                             "bug_id": f"BUG-AUTH-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Security Testing",
+                            "route_location": current_route, "module": f"Security Testing ({device_mode})",
                             "issue": "Exposed Cloud API Access Token Keys",
                             "severity": "Critical", "brief_summary": "Exposed credentials in source markup.",
                             "desc": "Live application source files contain raw cloud service keys.",
@@ -230,7 +256,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                         for violation in axe_res.get("violations", []):
                             telemetry["all_bugs"].append({
                                 "bug_id": f"BUG-A11Y-{hash(current_route + violation['id']) % 10000}",
-                                "route_location": current_route, "module": "Accessibility Testing",
+                                "route_location": current_route, "module": f"Accessibility Testing ({device_mode})",
                                 "issue": f"WCAG: {violation['id'].upper()}",
                                 "severity": "Medium" if violation["impact"] == "moderate" else "High",
                                 "brief_summary": f"WCAG rule validation criteria fail: {violation['id']}",
@@ -250,7 +276,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                     for item in raw_a11y:
                         telemetry["all_bugs"].append({
                             "bug_id": f"BUG-A11Y-RAW-{hash(current_route + item['i']) % 10000}",
-                            "route_location": current_route, "module": "Accessibility Testing", "issue": item["i"],
+                            "route_location": current_route, "module": f"Accessibility Testing ({device_mode})", "issue": item["i"],
                             "severity": item["s"],
                             "brief_summary": item["b"],
                             "desc": "DOM structure lacks required screen-reader properties.",
@@ -258,39 +284,34 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                             "reproduction": "1. Traverse DOM structure.\n2. Validate element parameters."
                         })
 
-                viewports = [("Mobile", 375, 667), ("Tablet", 768, 1024), ("Desktop", 1920, 1080)]
-                for vp_name, w, h in viewports:
-                    await page.set_viewport_size({"width": w, "height": h})
-                    await page.wait_for_timeout(200)
-
-                    overlaps = await page.evaluate("""() => {
-                        let collisions = 0;
-                        let els = Array.from(document.querySelectorAll('button, input, a')).slice(0, 10);
-                        for(let i=0; i<els.length; i++) {
-                            let r1 = els[i].getBoundingClientRect();
-                            for(let j=i+1; j<els.length; j++) {
-                                let r2 = els[j].getBoundingClientRect();
-                                if(!(r1.right <= r2.left || r1.left >= r2.right || r1.bottom <= r2.top || r1.top >= r2.bottom)) {
-                                    collisions++;
-                                }
+                # Adaptive Responsive UI Viewport Collisions checks
+                overlaps = await page.evaluate("""() => {
+                    let collisions = 0;
+                    let els = Array.from(document.querySelectorAll('button, input, a')).slice(0, 10);
+                    for(let i=0; i<els.length; i++) {
+                        let r1 = els[i].getBoundingClientRect();
+                        for(let j=i+1; j<els.length; j++) {
+                            let r2 = els[j].getBoundingClientRect();
+                            if(!(r1.right <= r2.left || r1.left >= r2.right || r1.bottom <= r2.top || r1.top >= r2.bottom)) {
+                                collisions++;
                             }
                         }
-                        return collisions;
-                    }""")
-                    if overlaps > 0:
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-RESP-{hash(current_route + vp_name) % 10000}",
-                            "route_location": current_route, "module": "Responsive Testing",
-                            "issue": f"Layout Compression Overflow ({vp_name})",
-                            "severity": "Low",
-                            "brief_summary": f"Visual overlap detected on resolution breakpoint {vp_name}.",
-                            "desc": "Structural coordinate boundaries collide on specific viewport target ranges.",
-                            "requirement_id": "REQ-UI-01",
-                            "reproduction": f"1. Emulate resolution to {w}x{h}.\n2. Evaluate node element box models.\n3. Catch boundary intersection."
-                        })
+                    }
+                    return collisions;
+                }""")
+                if overlaps > 0:
+                    telemetry["all_bugs"].append({
+                        "bug_id": f"BUG-RESP-{hash(current_route + device_mode) % 10000}",
+                        "route_location": current_route, "module": f"Responsive Testing ({device_mode})",
+                        "issue": f"Layout Compression Overflow ({device_mode})",
+                        "severity": "Low",
+                        "brief_summary": f"Visual overlap detected on resolution checkpoint emulation for {device_mode}.",
+                        "desc": "Structural coordinate boundaries collide on specific viewport target device profiles.",
+                        "requirement_id": "REQ-UI-01",
+                        "reproduction": f"1. Emulate resolution profile to match {device_mode}.\n2. Evaluate node element box models.\n3. Catch boundary intersection."
+                    })
 
                 if current_route == target_url:
-                    await page.set_viewport_size({"width": 1280, "height": 800})
                     img_bytes = await page.screenshot(full_page=False)
                     telemetry["snapshots"]["baseline"] = base64.b64encode(img_bytes).decode("utf-8")
                     telemetry["visual_diff_pct"] = 0 if len(telemetry["all_bugs"]) == 0 else 12.4
@@ -345,7 +366,7 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             {"endpoint": target_url, "latency": "0 ms", "response_code": "CONNECTION TIMEOUT", "schema": str(api_err)})
 
     telemetry["generated_test_cases"] = [
-        {"Test Case ID": "TC-AUTH-01", "Requirement ID": "REQ-AUTH-01", "Scenario": "Verify authentication handling barriers behind OAuth2 endpoints", "Expected Result": "Secure sessions preserve authentication tokens safely."},
+        {"Test Case ID": "TC-AUTH-01", "Requirement ID": "REQ-AUTH-01", "Scenario": f"Verify authentication handling barriers behind OAuth2 endpoints emulation on {device_mode}", "Expected Result": "Secure sessions preserve authentication tokens safely."},
         {"Test Case ID": "TC-SEC-01", "Requirement ID": "REQ-SEC-01", "Scenario": f"Verify transport security configuration profiles for {target_url}", "Expected Result": "Headers map Content-Security-Policy security variables."},
         {"Test Case ID": "TC-ACC-02", "Requirement ID": "REQ-A11Y-01", "Scenario": f"Verify WCAG compliance element nodes for target domain route profiles", "Expected Result": "All target system asset element images specify standard structural alt tags."}
     ]
@@ -385,7 +406,7 @@ with strl.sidebar:
     storage_state_str = None
     if use_oauth:
         custom_hdrs = strl.text_area("Extra HTTP Request Auth Headers (JSON)", value='{"Authorization": "Bearer YOUR_ACCESS_TOKEN_HERE"}')
-        storage_state_str = strl.text_area("Presisted Auth State Cookies / LocalStorage Contexts (JSON)", value='{"cookies": [], "origins": []}')
+        storage_state_str = strl.text_area("Persisted Auth State Cookies / LocalStorage Contexts (JSON)", value='{"cookies": [], "origins": []}')
 
     strl.markdown("---")
     strl.markdown("### 🤖 Ask BugOptix AI Assistant")
@@ -406,20 +427,23 @@ runner_tab, traceability_tab, reports_tab, integrations_tab = strl.tabs(
     ["🚀 Quality Suite Test Runner", "📊 Requirements Traceability Matrix", "📥 Report Generation Export Hub", "🔗 Production CI/CD Integrations Link"])
 
 with runner_tab:
-    col_u, col_b, col_d = strl.columns([2, 1, 1])
+    col_u, col_b, col_dev, col_d = strl.columns([2, 1, 1, 1])
     with col_u:
         url_scope = strl.text_input("Corporate Target URL Protocol Endpoint Address Scope Target:",
                                     value="https://example.com")
     with col_b:
         targeted_browser = strl.selectbox("Select Target Native Platform Execution Environment Browser Type:",
-                                          ["Chromium (Standard)", "Firefox", "WebKit (Safari)"])
+                                          ["Chrome", "Firefox", "WebKit (Safari)"])
+    with col_dev:
+        targeted_device = strl.selectbox("Device Profile Scanning Matrix Emulator Emulation Mode:",
+                                         ["PC (Desktop Grid)", "iOS (iPhone)", "Android"])
     with col_d:
         depth_limit = strl.slider("Max Link Graph Automated Web Crawler Depth Limit:", min_value=1, max_value=5,
                                   value=2)
 
     if strl.button("Dispatch Complete 20-in-1 Automated Compliance Pipeline Run"):
         with strl.spinner("Orchestrating live testing engines across multi-viewport browser frames..."):
-            res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser, custom_hdrs, storage_state_str))
+            res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser, targeted_device, custom_hdrs, storage_state_str))
             strl.session_state["active_scan"] = res_data
 
             vault_recs = VaultController.read_records()
@@ -434,13 +458,13 @@ with runner_tab:
         bugs_df = pd.DataFrame(scan["all_bugs"])
 
         crit_c = len(bugs_df[bugs_df["severity"] == "Critical"]) if not bugs_df.empty else 0
-        sec_c = len(bugs_df[bugs_df["module"] == "Security Testing"]) if not bugs_df.empty else 0
+        sec_c = len(bugs_df[bugs_df["module"].str.contains("Security")]) if not bugs_df.empty else 0
 
         sec_score = max(15, 100 - (sec_c * 15))
         a11y_score = max(15, 100 - (
-                    len(bugs_df[bugs_df["module"] == "Accessibility Testing"]) * 10)) if not bugs_df.empty else 100
+                    len(bugs_df[bugs_df["module"].str.contains("Accessibility")]) * 10)) if not bugs_df.empty else 100
         ui_score = max(15, 100 - (
-                    len(bugs_df[bugs_df["module"] == "Responsive Testing"]) * 12)) if not bugs_df.empty else 100
+                    len(bugs_df[bugs_df["module"].str.contains("Responsive")]) * 12)) if not bugs_df.empty else 100
         perf_score = 92 if sec_c == 0 else 78
 
         overall_quality_score = (sec_score * 0.4) + (perf_score * 0.3) + (a11y_score * 0.15) + (ui_score * 0.15)
@@ -462,6 +486,7 @@ with runner_tab:
             strl.write(f"* **Total Logged Findings Exceptions Count:** {len(scan['all_bugs'])}")
             strl.write(f"* **Automated Quality Verification Duration:** {scan['test_duration_secs']:.2f} seconds")
             strl.write(f"* **Target Infrastructure Browser Frame Checked:** {scan['browser_used']}")
+            strl.write(f"* **Emulated Hardware Matrix Scan Target Line:** {scan.get('device_scanned', 'PC')}")
             strl.metric("Calculated AI Framework Quality Grade Score Value",
                         f"{overall_quality_score:.1f}/100 (Grade: {grade_index})")
 
@@ -488,7 +513,6 @@ with runner_tab:
             for idx, bug in bugs_df.iterrows():
                 b_id = bug.get("bug_id", f"BUG-{idx}")
                 with strl.expander(f"[{bug['severity']}] {bug['module']} — {bug['issue']}"):
-                    # Expanded comprehensive reporting layout details
                     strl.markdown(f"#### 🏷️ Bug Area / Category Module: `{bug['module']}`")
                     strl.markdown(f"#### 🔗 Targeted Bug Route URL Link: [{bug['route_location']}]({bug['route_location']})")
                     
@@ -497,7 +521,6 @@ with runner_tab:
                     strl.markdown(f"**📖 Detailed Technical Insight:** {bug['desc']}")
                     strl.markdown(f"**🎯 Linked Target Corporate Requirement:** `{bug.get('requirement_id', 'General Quality Target')}`")
                     
-                    # Human Override interactive element
                     current_status = bug.get("status_override", "Valid Defect")
                     chosen_override = strl.selectbox(
                         f"Manual Verification Override Status (Human-In-The-Loop Feedback Engine) for {b_id}:",
@@ -513,7 +536,6 @@ with runner_tab:
                         vault_recs["human_feedback"][b_id] = chosen_override
                         VaultController.write_records(vault_recs)
                         
-                        # Apply local update parameters & trigger live optimization toast
                         scan["all_bugs"][idx]["status_override"] = chosen_override
                         strl.session_state["active_scan"] = scan
                         strl.toast(f"AI Reinforcement Optimized! Updated {b_id} status to {chosen_override}.", icon="🤖")

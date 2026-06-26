@@ -128,7 +128,7 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
                     });
                 }""")
                 
-                # --- CODE RESOLUTION: BOUNDARY LOGIC VALIDATOR ---
+                # --- BOUNDARY LOGIC VALIDATOR ---
                 validated_structures = []
                 for field in form_elements:
                     fn = field["name"].lower()
@@ -161,7 +161,7 @@ async def perform_deep_audit(url: str, depth: str, selector: str, profile: str) 
     return results
 
 
-# --- FUNCTIONAL SOLUTION: NATIVE BROWSER PDF CONVERTER ENGINE ---
+# --- NATIVE BROWSER PDF CONVERTER ENGINE ---
 def generate_pdf_report(report_text, target_url, audit_title):
     html_content = f"""
     <html>
@@ -216,7 +216,8 @@ API_KEY = ui_key_input.strip() if ui_key_input.strip() else os.environ.get("GEMI
 
 col1, col2 = strl.columns([2, 1])
 with col1:
-    target_url = strl.text_input("Target Application URL Endpoint:", value="https://zgcollege.wakinedu.com/erp/admission")
+    # UPDATED: 'value' property is now empty by default to prevent hardcoded inputs from showing up.
+    target_url = strl.text_input("Target Application URL Endpoint:", value="", placeholder="https://example.com/erp/admission")
 with col2:
     scan_depth = strl.selectbox("Operational Audit Depth", ["Surface UI Content Validation", "Full Matrix Diagnostic Sweep"])
 
@@ -286,10 +287,10 @@ if strl.button("🚀 Execute Comprehensive Deep Diagnostic Scan"):
                         response = client.models.generate_content(model=selected_model, contents=system_analysis_prompt)
                         response_text = response.text
                     except Exception as e:
-                        # --- CODE RESOLUTION: 429 RATE LIMIT INTERCEPTOR ---
+                        # --- 429 RATE LIMIT INTERCEPTOR BLOCK ---
                         if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                             strl.warning("⏳ Free tier Pro quota exhausted. Automatically backing off for 40 seconds to reset...")
-                            time.sleep(42) # Safe window delay execution pause
+                            time.sleep(42) 
                             try:
                                 response = client.models.generate_content(model=selected_model, contents=system_analysis_prompt)
                                 response_text = response.text

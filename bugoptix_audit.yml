@@ -1,0 +1,30 @@
+name: BugOptix Enterprise CI Quality Gate
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  bugoptix-compliance-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout Repository Source Code
+        uses: actions/checkout@v3
+
+      - name: Initialize System Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install BugOptix Architecture Stack Dependencies
+        run: |
+          pip install playwright httpx streamlit pandas
+          python -m playwright install chromium
+
+      - name: Dispatch Headless Automated CLI Verification Scan & Quality Gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python bugoptix_app.py --ci-mode "https://your-testing-target.com"

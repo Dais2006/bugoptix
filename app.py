@@ -318,9 +318,11 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
             bug["ai_conf"] = "93%"
         else:
             bug["ai_cause"] = "Environmental latency constraints caused browser automation tracking thresholds to slide."
-            bug["ai_fix"] = "Enforce dynamic wait states rather than static processing delays:\n```python
+            # FIXED: Converted multi-line declaration to triple quotes to resolve the unescaped literal newline syntax error
+            bug["ai_fix"] = """Enforce dynamic wait states rather than static processing delays:
+```python
 await page.wait_for_selector('.target-element', timeout=5000)
-```"
+```"""
             bug["ai_conf"] = "88%"
 
     telemetry["generated_test_cases"] = [

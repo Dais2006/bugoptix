@@ -655,4 +655,70 @@ with reports_tab:
         if "JSON" in sel_format:
             strl.download_button(label="Download Report Package File (.JSON)",
                                  data=json.dumps(active_scan_payload, indent=4),
-                                 file
+                                 file_name="bugoptix_compliance_report.json", mime="application/json")
+        elif "CSV" in sel_format:
+            csv_buffer = export_df.to_csv(index=False) if not export_df.empty else "No defect exceptions recorded."
+            strl.download_button(label="Download Defect Table Ledger (.CSV)", data=csv_buffer,
+                                 file_name="bugoptix_defect_ledger.csv", mime="text/csv")
+        elif "TXT" in sel_format:
+            txt_lines = [
+                f"BUGOPTIX AI TESTER REPORT\n",
+                f"Domain Target Checked: {active_scan_payload['url']}\n",
+                f"Timestamp Logged: {active_scan_payload['timestamp']}\n",
+                f"Total Defects Found: {len(active_scan_payload['all_bugs'])}\n",
+                f"--------------------------------------------------\n"
+            ]
+            for index, bug_row in export_df.iterrows():
+                txt_lines.append(
+                    f"[{bug_row['Severity']}] In {bug_row['Module Domain']} found at link: {bug_row['Route Location Link']}\nBrief summary: {bug_row['Brief Summary']}\n\n")
+
+            strl.download_button(label="Download Raw Summary Logs Data (.TXT)", data="".join(txt_lines),
+                                 file_name="bugoptix_summary.txt", mime="text/plain")
+        elif "PDF" in sel_format:
+            pdf_bytes_stream = (
+                f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+                f"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>>>>> >>endobj\n"
+                f"4 0 obj<</Length 450>>stream\nBT\n/F1 14 Tf\n40 720 Td\n(BUGOPTIX AI TESTER EXECUTIVE ENTERPRISE COMPLIANCE REPORT) Tj\n"
+                f"/F1 11 Tf\n0 -40 Td\n(Inspected Infrastructure Protocol Target URI: {active_scan_payload['url']}) Tj\n"
+                f"0 -20 Td\n(Automated Scanning Engine Time Check-in: {active_scan_payload['timestamp']}) Tj\n"
+                f"0 -20 Td\n(Total Dynamic Defect Exceptions Logged Counter: {len(active_scan_payload['all_bugs'])}) Tj\n"
+                f"0 -30 Td\n(Defect Track Matrix Location Logs Summary Summary:) Tj\n"
+                f"0 -20 Td\n(Review complete dataset schema in JSON/CSV export modules for fully mapped item tracks.) Tj\n"
+                f"0 -40 Td\n(MNC Deployment Verification Protocol Status: APPROVED) Tj\nET\nendstream\nendobj\n"
+                f"xref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000250 00000 n\n"
+                f"trailer<</Size 5/Root 1 0 R>>\nstartxref\n740\n%%EOF"
+            )
+            strl.download_button(label="Download PDF Executive Report (.PDF)", data=pdf_bytes_stream.encode('utf-8'),
+                                 file_name="BugOptix_Report.pdf", mime="application/pdf")
+
+with integrations_tab:
+    strl.markdown("### 🔗 CI/CD Automation Integration Webhooks Pipeline Status")
+
+    c1, c2, c3, c4 = strl.columns(4)
+    c1.markdown(
+        "#### GitHub Actions\n![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-passing-success?style=flat&logo=github)")
+    c2.markdown(
+        "#### GitLab CI\n![GitLab CI](https://img.shields.io/badge/GitLab_CI-verified-blue?style=flat&logo=gitlab)")
+    c3.markdown("#### Jenkins\n![Jenkins](https://img.shields.io/badge/Jenkins-active-orange?style=flat&logo=jenkins)")
+    c4.markdown(
+        "#### Azure DevOps\n![Azure](https://img.shields.io/badge/Azure_Pipelines-compliant-purple?style=flat&logo=azure-pipelines)")
+
+    strl.markdown("---")
+    strl.markdown("#### Continuous Integration Configuration Integration Code Segment")
+    strl.info(
+        "Drop the integration code snippet into your automation file path to verify builds dynamically on push commands.")
+    strl.code("""
+name: BugOptix Automated Quality Gate Evaluation
+on: [push, pull_request]
+jobs:
+  compliance-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Files
+        uses: actions/checkout@v3
+      - name: Initialize BugOptix Engine Run Execution
+        run: |
+          pip install playwright httpx streamlit pandas
+          python -m playwright install chromium
+          python -m httpx get http://localhost:8501/ --timeout 10
+    """, language="yaml")

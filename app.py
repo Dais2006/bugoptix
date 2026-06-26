@@ -180,6 +180,7 @@ if "streamlit" in sys.modules:
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
+    # ONLY INITIALIZE THE TARGETED DASHBOARD TABS HERE
     runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
 
     with runner_tab:

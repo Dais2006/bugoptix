@@ -98,7 +98,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
     crawl_queue = [target_url]
     visited_routes = set()
     
-    # Load stable, open-source compliance engine mirrors dynamically
     axe_core_cdn = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js"
     axe_script_content = ""
     try:
@@ -124,12 +123,10 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
             page = await context.new_page()
             
             try:
-                # 1. LIVE PERFORMANCE TIMELINES MAPPER
                 start_clock = asyncio.get_event_loop().time()
                 response = await page.goto(current_route, wait_until="domcontentloaded", timeout=15000)
                 end_clock = asyncio.get_event_loop().time()
                 
-                # Fetch navigation runtime arrays natively from browser core execution streams
                 navigation_timings = await page.evaluate("""() => {
                     const [timing] = performance.getEntriesByType('navigation');
                     if (timing) {
@@ -149,7 +146,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                     "status_index": "OPTIMAL" if ttfb_calc < 250 else "NEEDS REFLECTION OPTIMIZATION"
                 })
 
-                # 2. DETERMINISTIC REAL SECURITY TRANSPORT AUDITING
                 if response:
                     headers = {k.lower(): v for k, v in response.headers.items()}
                     
@@ -169,7 +165,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                             "desc": "Access-Control-Allow-Origin defines an unrestricted structural wildcard (*), risking access leak zones."
                         })
                         
-                    # Mixed Content DOM Ingestion Scans
                     mixed_assets = await page.evaluate("""() => {
                         return Array.from(document.querySelectorAll('img, script, link'))
                                     .map(el => el.src || el.href)
@@ -181,7 +176,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                             "desc": f"Secure TLS scope loaded an unencrypted HTTP cleartext target footprint asset: {asset}"
                         })
 
-                # Cookie Cryptographic Security Audits
                 active_cookies = await context.cookies()
                 for cookie in active_cookies:
                     if not cookie.get("httpOnly") or not cookie.get("secure"):
@@ -190,7 +184,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                             "desc": f"Identity buffer cookie target '{cookie['name']}' misses HttpOnly or Secure verification strings."
                         })
 
-                # 3. REAL INJECTION ACCESSIBILITY ENGINE (AXE-CORE METHODOLOGY)
                 if axe_script_content:
                     await page.evaluate(axe_script_content)
                     axe_results = await page.evaluate("async () => { return await axe.run(); }")
@@ -202,7 +195,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                             "tag": vio["help"]
                         })
                 else:
-                    # Native high-performance alternate assertion fallback matrix
                     native_flaws = await page.evaluate("""() => {
                         let anomalies = [];
                         document.querySelectorAll('img:not([alt])').forEach(el => {
@@ -216,7 +208,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                     for flaw in native_flaws:
                         telemetry["accessibility_flaws"].append({"route": current_route, **flaw})
 
-                # 4. TRUE MULTI-VIEWPORT LAYOUT BOUNDING OVERLAP DETECTOR
                 for viewport_config in responsive_viewports:
                     w, h = viewport_config["width"], viewport_config["height"]
                     await page.set_viewport_size({"width": w, "height": h})
@@ -252,7 +243,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                         screenshot_buffer = await page.screenshot(full_page=False)
                         telemetry["snapshots"]["desktop_root"] = base64.b64encode(screenshot_buffer).decode("utf-8")
 
-                # Spider crawler linkage extraction
                 extracted_hrefs = await page.evaluate("""() => {
                     return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href'));
                 }""")
@@ -268,7 +258,6 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
                 
         await browser.close()
     
-    # 5. DYNAMIC MATHEMATICAL COMPLIANCE SCORE MATRIX CALCULATION
     telemetry["metrics"]["security"] = max(5, 100 - (len(telemetry["security_alerts"]) * 12))
     telemetry["metrics"]["accessibility"] = max(5, 100 - (len(telemetry["accessibility_flaws"]) * 8))
     telemetry["metrics"]["ui_ux"] = max(5, 100 - (len(telemetry["ui_layout_bugs"]) * 15))
@@ -295,6 +284,10 @@ with runner_tab:
         {"name": "Mobile responsive", "width": 375, "height": 667}
     ]
 
+    # Persistent placeholder to capture the latest telemetry within this interactive session context
+    if "current_scan_result" not in strl.session_state:
+        strl.session_state["current_scan_result"] = None
+
     if strl.button("Dispatch Production Quality Gate Task Block"):
         with strl.spinner("Inverting live script payloads and evaluating target infrastructure tracks..."):
             audit_result = asyncio.run(execute_enterprise_core_sweep(url_input.strip(), spider_limit, viewport_matrix))
@@ -303,43 +296,105 @@ with runner_tab:
             vault_records["scans"].append(audit_result)
             VaultController.write_records(vault_records)
             strl.session_state["vault"] = vault_records
+            strl.session_state["current_scan_result"] = audit_result
             
         strl.success("Assessment complete. Live findings extracted below.")
+
+    # Render results dynamic container blocks if a scan payload exists
+    if strl.session_state["current_scan_result"]:
+        active_res = strl.session_state["current_scan_result"]
         
-        # Display Live Actionable Results Layout
+        # Display Live Actionable Results Metrics
         sec_col, acc_col, ui_col, perf_col = strl.columns(4)
         with sec_col:
-            score = audit_result["metrics"]["security"]
+            score = active_res["metrics"]["security"]
             cls = "score-high" if score > 80 else ("score-mid" if score > 50 else "score-low")
             strl.markdown(f"<div class='metric-card'><h4>Security Matrix</h4><p class='{cls}'>{score}/100</p></div>", unsafe_allow_html=True)
         with acc_col:
-            score = audit_result["metrics"]["accessibility"]
+            score = active_res["metrics"]["accessibility"]
             cls = "score-high" if score > 80 else ("score-mid" if score > 50 else "score-low")
             strl.markdown(f"<div class='metric-card'><h4>Accessibility WCAG</h4><p class='{cls}'>{score}/100</p></div>", unsafe_allow_html=True)
         with ui_col:
-            score = audit_result["metrics"]["ui_ux"]
+            score = active_res["metrics"]["ui_ux"]
             cls = "score-high" if score > 80 else ("score-mid" if score > 50 else "score-low")
             strl.markdown(f"<div class='metric-card'><h4>UI/UX Layout</h4><p class='{cls}'>{score}/100</p></div>", unsafe_allow_html=True)
         with perf_col:
-            score = audit_result["metrics"]["performance"]
+            score = active_res["metrics"]["performance"]
             cls = "score-high" if score > 80 else ("score-mid" if score > 50 else "score-low")
             strl.markdown(f"<div class='metric-card'><h4>Performance Index</h4><p class='{cls}'>{score}/100</p></div>", unsafe_allow_html=True)
 
-        if audit_result["security_alerts"]:
+        if active_res["security_alerts"]:
             strl.error("⚠️ Real Security Compliance Threats Identified:")
-            strl.dataframe(pd.DataFrame(audit_result["security_alerts"]), use_container_width=True)
+            strl.dataframe(pd.DataFrame(active_res["security_alerts"]), use_container_width=True)
 
-        if audit_result["accessibility_flaws"]:
+        if active_res["accessibility_flaws"]:
             strl.warning("♿ Real Accessibility Compliance Violations Logged:")
-            strl.dataframe(pd.DataFrame(audit_result["accessibility_flaws"]), use_container_width=True)
+            strl.dataframe(pd.DataFrame(active_res["accessibility_flaws"]), use_container_width=True)
             
-        if audit_result["performance_logs"]:
+        if active_res["performance_logs"]:
             strl.info("⚡ Real Execution Performance Matrix Timeline:")
-            strl.dataframe(pd.DataFrame(audit_result["performance_logs"]), use_container_width=True)
+            strl.dataframe(pd.DataFrame(active_res["performance_logs"]), use_container_width=True)
 
-        if audit_result["snapshots"].get("desktop_root"):
+        if active_res["snapshots"].get("desktop_root"):
             strl.markdown("### 📸 Captured Visual Validation Checkpoint View")
-            strl.image(base64.b64decode(audit_result["snapshots"]["desktop_root"]), use_container_width=True)
+            strl.image(base64.b64decode(active_res["snapshots"]["desktop_root"]), use_container_width=True)
+
+        # --- NEW 10/10 REVISIONS: MULTI-FORMAT REPORT GENERATOR INTERFACE ---
+        strl.markdown("---")
+        strl.markdown("### 📥 Export Compliance Reports Suite")
+        
+        form_col, down_col = strl.columns([2, 1])
+        with form_col:
+            export_format = strl.selectbox("Select Target Document Export Format Profile:", ["JSON Raw Blueprint Data", "TXT ASCII Summary Layout", "PDF Executive Compliance Document", "JPEG Structural Interface Snapshot"])
+        
+        with down_col:
+            strl.markdown("<br>", unsafe_allow_html=True) # Align block layout properly
+            
+            if "JSON" in export_format:
+                json_data = json.dumps(active_res, indent=4)
+                strl.download_button(label="Download report (.JSON)", data=json_data, file_name=f"bugoptix_report_{int(datetime.now().timestamp())}.json", mime="application/json")
+                
+            elif "TXT" in export_format:
+                txt_summary = (
+                    f"==================================================\n"
+                    f"     BUGOPTIX AI TESTER EXECUTIVE REPORT SUMMARY   \n"
+                    f"==================================================\n"
+                    f"Target Endpoint Scan Domain: {active_res['url']}\n"
+                    f"Execution Engine Check-in: {active_res['timestamp']}\n\n"
+                    f"--- CORE GATE COMPLIANCE INDEX METRICS ---\n"
+                    f"  * Security Footprint Domain Index: {active_res['metrics']['security']}/100\n"
+                    f"  * Accessibility Compliance Index: {active_res['metrics']['accessibility']}/100\n"
+                    f"  * UI/UX Interface Boundary Index: {active_res['metrics']['ui_ux']}/100\n"
+                    f"  * Performance System Latency Index: {active_res['metrics']['performance']}/100\n\n"
+                    f"Total System Vulnerabilities Flagged: {len(active_res['security_alerts'])}\n"
+                    f"Total WCAG Accessibility Violations: {len(active_res['accessibility_flaws'])}\n"
+                    f"==================================================\n"
+                )
+                strl.download_button(label="Download report (.TXT)", data=txt_summary, file_name=f"bugoptix_report_{int(datetime.now().timestamp())}.txt", mime="text/plain")
+                
+            elif "PDF" in export_format:
+                # Generates an internal clean schema file byte array wrapper directly
+                pdf_summary_layout = (
+                    f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+                    f"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>>>>> >>endobj\n"
+                    f"4 0 obj<</Length 350>>stream\nBT\n/F1 16 Tf\n50 700 Td\n(BUGOPTIX AI TESTER COMPLIANCE AUDIT REPORT) Tj\n"
+                    f"/F1 12 Tf\n0 -30 Td\n(Target Scan URL Scope: {active_res['url']}) Tj\n"
+                    f"0 -20 Td\n(Security Score Matrix: {active_res['metrics']['security']}/100) Tj\n"
+                    f"0 -20 Td\n(Accessibility Compliance Rating: {active_res['metrics']['accessibility']}/100) Tj\n"
+                    f"0 -20 Td\n(UI/UX Intersections Delta: {active_res['metrics']['ui_ux']}/100) Tj\n"
+                    f"0 -20 Td\n(Performance Index: {active_res['metrics']['performance']}/100) Tj\n"
+                    f"0 -30 Td\n(MNC Quality Gate Assessment Complete Verification State Verified.) Tj\nET\nendstream\nendobj\n"
+                    f"xref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000250 00000 n\n"
+                    f"trailer<</Size 5/Root 1 0 R>>\nstartxref\n650\n%%EOF"
+                )
+                strl.download_button(label="Download report (.PDF)", data=pdf_summary_layout.encode('utf-8'), file_name=f"bugoptix_report_{int(datetime.now().timestamp())}.pdf", mime="application/pdf")
+                
+            elif "JPEG" in export_format:
+                if active_res["snapshots"].get("desktop_root"):
+                    raw_jpg_bytes = base64.b64decode(active_res["snapshots"]["desktop_root"])
+                    strl.download_button(label="Download interface snapshot (.JPEG)", data=raw_jpg_bytes, file_name=f"bugoptix_snapshot_{int(datetime.now().timestamp())}.jpeg", mime="image/jpeg")
+                else:
+                    strl.info("No active viewport snapshot buffer was captured during the scan to export.")
 
 with metrics_tab:
     history_logs = strl.session_state["vault"]["scans"]

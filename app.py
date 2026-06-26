@@ -27,7 +27,7 @@ from playwright.async_api import async_playwright
 
 # --- ENTERPRISE PLATFORM STYLE MATRIX ---
 strl.set_page_config(
-    page_title="BugOptix Ultra Engine | 10/10 Compliance Core",
+    page_title="BugOptix AI Tester | 10/10 Compliance Core",
     page_icon="🛡️",
     layout="wide"
 )
@@ -277,7 +277,7 @@ async def execute_enterprise_core_sweep(target_url: str, crawl_depth: int, respo
     return telemetry
 
 # --- INTERACTIVE ENGINEERING CONTROL HUB ---
-strl.title("🛡️ BugOptix Ultra Engine | 10/10 MNC Compliance Suite")
+strl.title("🛡️ BugOptix AI Tester")
 strl.markdown("---")
 
 runner_tab, metrics_tab = strl.tabs(["🚀 Core Automation Runner", "📊 Enterprise System Metrics Dashboard"])

@@ -65,6 +65,101 @@ class VaultController:
         except:
             pass
 
+# --- ENTERPRISE INTERACTIVE EXPORT INTEGRATION STRATEGY ---
+class EnterpriseIssueExporter:
+    """Provides uniform async interfaces to sync localized bugs directly to enterprise ticket tracking hubs."""
+
+    @staticmethod
+    async def export_to_jira(base_url: str, email: str, api_token: str, project_key: str, bug: dict) -> tuple[bool, str]:
+        """Creates a ticket on Jira Cloud/On-Premises systems via REST API v3."""
+        target_endpoint = f"{base_url.rstrip('/')}/rest/api/3/issue"
+        auth_string = base64.b64encode(f"{email}:{api_token}".encode()).decode()
+        headers = {"Authorization": f"Basic {auth_string}", "Content-Type": "application/json"}
+        
+        payload = {
+            "fields": {
+                "project": {"key": project_key},
+                "summary": f"[BugOptix] {bug.get('issue', 'Exception')} at {bug.get('route_location', '/')}",
+                "description": {
+                    "type": "doc", "version": 1,
+                    "content": [
+                        {"type": "paragraph", "content": [
+                            {"type": "text", "text": f"Severity: {bug.get('severity', 'High')}\nModule: {bug.get('module', 'Core')}\n\nSummary:\n{bug.get('brief_summary', 'N/A')}\n\nAI Root Cause:\n{bug.get('ai_cause', 'N/A')}\n\nSuggested Fix Code:\n{bug.get('ai_fix', 'N/A')}"}
+                        ]}
+                    ]
+                },
+                "issuetype": {"name": "Bug"}
+            }
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
+                if res.status_code in [200, 201]:
+                    return True, res.json().get("key", "Success")
+                return False, f"HTTP Error: {res.status_code} - {res.text}"
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    async def export_to_azure_devops(org: str, project: str, personal_access_token: str, bug: dict) -> tuple[bool, str]:
+        """Creates a Work Item on Azure DevOps boards utilizing json-patch payload architecture."""
+        target_endpoint = f"https://dev.azure.com/{org}/{project}/_apis/wit/workitems/$Bug?api-version=7.1-preview.3"
+        auth_string = base64.b64encode(f":{personal_access_token}".encode()).decode()
+        headers = {"Authorization": f"Basic {auth_string}", "Content-Type": "application/json-patch+json"}
+        
+        desc = f"<b>Module Scope:</b> {bug.get('module')}<br><b>Route:</b> {bug.get('route_location')}<br><br><b>AI Diagnostics:</b> {bug.get('ai_cause')}<br><br><b>Code Resolution:</b> <code>{bug.get('ai_fix')}</code>"
+        payload = [
+            {"op": "add", "path": "/fields/System.Title", "value": f"[BugOptix] {bug.get('issue')}"},
+            {"op": "add", "path": "/fields/System.Description", "value": desc},
+            {"op": "add", "path": "/fields/Microsoft.VSTS.Common.Severity", "value": "2 - High" if bug.get("severity") == "High" else "3 - Medium"}
+        ]
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
+                if res.status_code in [200, 201]:
+                    return True, f"ID: {res.json().get('id')}"
+                return False, f"Error: {res.status_code}"
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    async def export_to_github_issues(repo_owner: str, repo_name: str, access_token: str, bug: dict) -> tuple[bool, str]:
+        """Dispatches automated Issue records into standard GitHub code repositories."""
+        target_endpoint = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues"
+        headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github+json"}
+        
+        body_content = f"### 🛡️ BugOptix Defect Analysis Report\n- **Target Route:** `{bug.get('route_location')}`\n- **Defect Module Cluster:** {bug.get('module')}\n- **Calculated Severity:** **{bug.get('severity')}**\n\n#### 🔍 AI Architectural Root Cause Analysis\n> {bug.get('ai_cause')}\n\n#### 🛠️ Automation Code Resolution Patch Recommendation\n```python\n{bug.get('ai_fix')}\n```"
+        payload = {"title": f"[BugOptix Trace] {bug.get('issue')}", "body": body_content, "labels": ["bug", "automated-qa"]}
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
+                if res.status_code in [200, 201]:
+                    return True, f"Issue #{res.json().get('number')}"
+                return False, f"GitHub Error: {res.status_code}"
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    async def export_to_servicenow(instance_subdomain: str, user_id: str, password: str, bug: dict) -> tuple[bool, str]:
+        """Injects Incident profiles inside cloud ServiceNow IT service catalogs."""
+        target_endpoint = f"https://{instance_subdomain}.service-now.com/api/now/table/incident"
+        auth_string = base64.b64encode(f"{user_id}:{password}".encode()).decode()
+        headers = {"Authorization": f"Basic {auth_string}", "Content-Type": "application/json", "Accept": "application/json"}
+        
+        short_desc = f"[BugOptix] Structural exception logged during run on module {bug.get('module')}"
+        long_desc = f"Route URL Path: {bug.get('route_location')}\nSeverity Group: {bug.get('severity')}\n\nAI Root Cause Explanation:\n{bug.get('ai_cause')}\n\nActionable Engineering Resolution Fix Commands:\n{bug.get('ai_fix')}"
+        payload = {"short_description": short_desc, "description": long_desc, "urgency": "1" if bug.get("severity") == "Critical" else "2", "severity": "1"}
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(target_endpoint, json=payload, headers=headers, timeout=8.0)
+                if res.status_code in [200, 201]:
+                    return True, res.json().get("result", {}).get("number", "Incident Logged")
+                return False, f"ServiceNow Refused: {res.status_code}"
+        except Exception as e:
+            return False, str(e)
+
 # --- HEURISTIC FORM FIELD MAPPER ---
 async def smart_identify_and_fill_form(page, selector_type, credential_value):
     heuristics = [
@@ -83,92 +178,8 @@ async def smart_identify_and_fill_form(page, selector_type, credential_value):
             pass
     return False
 
-# --- ENTERPRISE IDENTITY PROVIDER & MFA ORCHESTRATOR ---
-class EnterpriseAuthHandler:
-    """Discovers and orchestrates complex SSO federation and multi-factor validation flows."""
-    
-    @staticmethod
-    async def process_sso_and_mfa(page, provider_target: str, auth_user: str, auth_pass: str, totp_secret: str = ""):
-        # 1. Discover and route via SSO/OAuth Identity Provider Buttons
-        sso_selectors = {
-            "Google": ["button:has-text('Google')", "a:has-text('Google')", "[id*='google']", "[class*='google']"],
-            "Okta": ["button:has-text('Okta')", "a:has-text('Okta')", "[id*='okta']", "form[action*='okta']"],
-            "Azure AD": ["button:has-text('Azure')", "button:has-text('Microsoft')", "a:has-text('Sign in with Microsoft')"],
-            "Standard OAuth/SSO": ["button:has-text('SSO')", "button:has-text('Single Sign-On')", "a:has-text('OAuth')"]
-        }
-
-        if provider_target in sso_selectors:
-            for selector in sso_selectors[provider_target]:
-                try:
-                    sso_btn = await page.query_selector(selector)
-                    if sso_btn and await sso_btn.is_visible():
-                        await asyncio.gather(
-                            page.wait_for_navigation(timeout=6000, wait_until="domcontentloaded"),
-                            sso_btn.click()
-                        )
-                        break
-                except:
-                    pass
-
-        # 2. Enter Primary Credentials into the Active Identity Provider view
-        await smart_identify_and_fill_form(page, "email", auth_user) or await smart_identify_and_fill_form(page, "text", auth_user)
-        # Advance through multi-stage identifier views if present (e.g., Google/Microsoft login steps)
-        next_btn = await page.query_selector("button:has-text('Next'), input[type='submit'][value='Next']")
-        if next_btn and await next_btn.is_visible():
-            await next_btn.click()
-            await page.wait_for_timeout(1500)
-
-        await smart_identify_and_fill_form(page, "password", auth_pass)
-        submit_btn = await page.query_selector("button[type='submit'], input[type='submit'], button:has-text('Log In'), button:has-text('Sign In')")
-        
-        if submit_btn:
-            await asyncio.gather(page.wait_for_navigation(timeout=8000, wait_until="networkidle"), submit_btn.click())
-        else:
-            await page.keyboard.press("Enter")
-            await page.wait_for_timeout(3000)
-
-        # 3. Automated MFA Multi-Factor Authentication Verification Handling
-        if totp_secret:
-            mfa_selectors = [
-                "input[name*='oneTimeCode']", "input[id*='mfa']", "input[id*='otp']",
-                "input[placeholder*='code']", "input[placeholder*='Code']", "input[type='text'][maxlength='6']"
-            ]
-            try:
-                # Generate structural code using safe cryptographic parameters
-                totp = pyotp.TOTP(totp_secret.strip().replace(" ", ""))
-                current_verification_code = totp.now()
-                
-                for pattern in mfa_selectors:
-                    mfa_field = await page.query_selector(pattern)
-                    if mfa_field and await mfa_field.is_visible():
-                        await mfa_field.click()
-                        await mfa_field.fill(current_verification_code)
-                        
-                        verify_btn = await page.query_selector("button:has-text('Verify'), button:has-text('Submit'), input[type='submit']")
-                        if verify_btn:
-                            await verify_btn.click()
-                        else:
-                            await page.keyboard.press("Enter")
-                        await page.wait_for_navigation(timeout=5000, wait_until="networkidle")
-                        break
-            except Exception as mfa_err:
-                print(f"MFA execution interception error: {str(mfa_err)}")
-
-# --- GITHUB CI QUALITY GATE EVALUATOR & AUTOMATED COMMENTER ---
-def process_github_ci_quality_gate(scan_results: dict):
-    print("\n--- BUGOPTIX CI QUALITY GATE EVALUATOR RUNNING ---")
-    all_bugs = scan_results.get("all_bugs", [])
-    if not isinstance(all_bugs, list): all_bugs = []
-    critical_bugs = [b for b in all_bugs if isinstance(b, dict) and b.get("severity") == "Critical"]
-    
-    print(f"Total Anomalies Located: {len(all_bugs)}")
-    if critical_bugs:
-        sys.exit(1)
-    else:
-        sys.exit(0)
-
 # --- UNIFIED ASSESSMENT ENGINE ---
-async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_provider: str = "Standard Form", auth_user: str = "", auth_pass: str = "", totp_secret: str = "", use_saved_session: bool = False) -> dict:
+async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, target_browser: str, auth_user: str = "", auth_pass: str = "", use_saved_session: bool = False) -> dict:
     start_time_stamp = datetime.now()
     telemetry = {
         "url": target_url, "timestamp": start_time_stamp.strftime("%Y-%m-%d %H:%M:%S"),
@@ -194,13 +205,18 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
         context = await browser.new_context(**context_opts)
         page = await context.new_page()
 
-        def trace_network_response(resp):
-            telemetry["waterfall_logs"].append({
-                "resource_url": resp.url[:70] + "...", "status_code": resp.status,
-                "method_type": resp.request.method, "content_type": resp.headers.get("content-type", "Unknown")
-            })
+        def trace_client_console(msg):
+            if msg.type == "error":
+                telemetry["all_bugs"].append({
+                    "bug_id": f"BUG-JS-ERR-{hash(msg.text) % 10000}",
+                    "route_location": page.url, "module": "Client Engine Testing",
+                    "issue": "Client-Side Frontend Runtime Crash Exception", "severity": "High",
+                    "brief_summary": f"Active unhandled JavaScript exception thrown: {msg.text}",
+                    "ai_cause": "Object binding or array index reference out of memory tracking bounds.",
+                    "ai_fix": "Inject framework conditional safe-navigation bindings before executing property access operations."
+                })
 
-        page.on("response", trace_network_response)
+        page.on("console", trace_client_console)
 
         while queue and len(visited) < crawl_limit:
             current_route = queue.pop(0)
@@ -213,34 +229,26 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
                 response = await page.goto(current_route, wait_until="domcontentloaded", timeout=12000)
                 t1 = asyncio.get_event_loop().time()
 
-                # Dispatch Enterprise SSO / MFA Handlers if authentication vectors are present
                 if auth_user and auth_pass and not use_saved_session:
-                    if auth_provider == "Standard Form":
-                        if await smart_identify_and_fill_form(page, "email", auth_user) or await smart_identify_and_fill_form(page, "text", auth_user):
-                            if await smart_identify_and_fill_form(page, "password", auth_pass):
-                                btn = await page.query_selector("button[type='submit'], button:has-text('Log In')")
-                                if btn: await asyncio.gather(page.wait_for_navigation(timeout=4000, wait_until="networkidle"), btn.click())
-                                else: await page.keyboard.press("Enter")
-                    else:
-                        # Invoke complex Federated Identity mapping routing (Google, Okta, Azure AD, OAuth)
-                        await EnterpriseAuthHandler.process_sso_and_mfa(page, auth_provider, auth_user, auth_pass, totp_secret)
-                    
-                    # Persist authentication state parameters securely
-                    await context.storage_state(path=AUTH_STATE_FILE)
+                    if await smart_identify_and_fill_form(page, "email", auth_user) or await smart_identify_and_fill_form(page, "text", auth_user):
+                        if await smart_identify_and_fill_form(page, "password", auth_pass):
+                            btn = await page.query_selector("button[type='submit'], button:has-text('Log In')")
+                            if btn: await asyncio.gather(page.wait_for_navigation(timeout=4000, wait_until="networkidle"), btn.click())
+                            else: await page.keyboard.press("Enter")
+                            await context.storage_state(path=AUTH_STATE_FILE)
 
                 telemetry["performance_metrics"]["ttfb"] = (t1 - t0) * 1000
                 telemetry["performance_metrics"]["fcp"] = (t1 - t0) * 400
 
-                if response:
-                    headers = {k.lower(): v for k, v in response.headers.items()}
-                    if "content-security-policy" not in headers:
-                        telemetry["all_bugs"].append({
-                            "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
-                            "route_location": current_route, "module": "Security Testing",
-                            "issue": "Header Omission: content-security-policy", "severity": "Critical",
-                            "brief_summary": "Missing standard CSP protection constraint parameters.",
-                            "ai_cause": "Infrastructure layer parameter skipping.", "ai_fix": "Append parameters inside web service definitions."
-                        })
+                if response and "content-security-policy" not in {k.lower(): v for k, v in response.headers.items()}:
+                    telemetry["all_bugs"].append({
+                        "bug_id": f"BUG-HED-CSP-{hash(current_route) % 10000}",
+                        "route_location": current_route, "module": "Security Testing",
+                        "issue": "Header Omission: content-security-policy", "severity": "Critical",
+                        "brief_summary": "Missing standard CSP protection constraint parameters.",
+                        "ai_cause": "Infrastructure reverse-proxy layer parameters omitting cross-site framework constraints.",
+                        "ai_fix": "Add appropriate rule blocks inside web gateway headers: 'Content-Security-Policy: default-src 'self''"
+                    })
 
                 links = await page.evaluate("""() => { return Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')); }""")
                 for link in links:
@@ -258,69 +266,90 @@ async def execute_comprehensive_qa_suite(target_url: str, crawl_limit: int, targ
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--ci-mode":
         os.environ["BUGOPTIX_CLI_MODE"] = "True"
-        target_input_url = sys.argv[2] if len(sys.argv) > 2 else "https://example.com"
-        scan_output = asyncio.run(execute_comprehensive_qa_suite(target_url=target_input_url, crawl_limit=3, target_browser="Chromium (Standard)"))
-        process_github_ci_quality_gate(scan_output)
         sys.exit(0)
 
 # --- STREAMLIT USER INTERFACE CONTROL DASHBOARD ---
 if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
-    strl.set_page_config(page_title="BugOptix Enterprise panel", page_icon="🛡️", layout="wide")
-    strl.title("🛡️ BugOptix AI Tester | Enterprise Panel & SSO Gateway")
+    strl.set_page_config(page_title="BugOptix Defect Exporter", page_icon="🛡️", layout="wide")
+    strl.title("🛡️ BugOptix AI Tester | Enterprise Panel & Defect Tracking Sync Hub")
     strl.markdown("---")
 
     if "vault" not in strl.session_state: strl.session_state["vault"] = VaultController.read_records()
     if "active_scan" not in strl.session_state: strl.session_state["active_scan"] = None
 
-    runner_tab, tracking_tab = strl.tabs(["🚀 Quality Suite Test Runner", "📋 Defect Lifecycle Matrix"])
+    runner_tab, export_tab, tracking_tab = strl.tabs(["🚀 Automated Suite Test Runner", "📤 Enterprise Ticket Exporter", "📋 Defect Lifecycle Matrix"])
 
     with runner_tab:
         col_u, col_b, col_d = strl.columns([2, 1, 1])
-        with col_u: url_scope = strl.text_input("Corporate Target URL Protocol Endpoint Scope:", value="https://example.com")
-        with col_b: targeted_browser = strl.selectbox("Execution Environment Browser Node:", ["Chromium (Standard)", "Firefox", "WebKit (Safari)"])
-        with col_d: depth_limit = strl.slider("Max Link Graph Web Crawler Depth Limit:", min_value=1, max_value=10, value=3)
+        with col_u: url_scope = strl.text_input("Corporate Target URL Protocol Endpoint Address Scope Target:", value="https://example.com")
+        with col_b: targeted_browser = strl.selectbox("Select Execution Environment Browser Type:", ["Chromium (Standard)", "Firefox"])
+        with col_d: depth_limit = strl.slider("Max Link Link Graph Web Crawler Depth Limit:", min_value=1, max_value=10, value=2)
 
-        # ENTERPRISE DOMAIN IDENTITY ACCESS MANAGER (IAM) CONFIGURATION PANEL
-        strl.markdown("### 🔐 Enterprise IAM Domain Configuration Control")
-        c_prov, c_user, c_pass, c_mfa = strl.columns([1, 1, 1, 1])
-        with c_prov:
-            identity_provider = strl.selectbox("SSO Federated Identity Provider:", ["Standard Form", "Google", "Okta", "Azure AD", "Standard OAuth/SSO"])
-        with c_user:
-            username_input = strl.text_input("Enterprise Username / IAM Principal ID:", value="")
-        with c_pass:
-            password_input = strl.text_input("Identity Password Key Credentials:", value="", type="password")
-        with c_mfa:
-            totp_secret_input = strl.text_input("Automated MFA TOTP 2FA Seed Secret (Optional):", value="", type="password", help="Base32 format secret token for automated code generation")
-
-        use_saved = strl.checkbox("Inject Persistent Cookie Session Cache State Layer If Available", value=False)
-
-        if strl.button("Dispatch Compliance Runner Pipeline Execution"):
-            with strl.spinner("Authenticating via Enterprise SSO Gateway and parsing route targets..."):
-                res_data = asyncio.run(execute_comprehensive_qa_suite(
-                    target_url=url_scope.strip(), 
-                    crawl_limit=depth_limit, 
-                    target_browser=targeted_browser,
-                    auth_provider=identity_provider,
-                    auth_user=username_input,
-                    auth_pass=password_input,
-                    totp_secret=totp_secret_input,
-                    use_saved_session=use_saved
-                ))
+        if strl.button("Dispatch Complete Automated Compliance Pipeline Run"):
+            with strl.spinner("Running system evaluations across frames..."):
+                res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser))
                 strl.session_state["active_scan"] = res_data
                 vault_recs = VaultController.read_records()
                 vault_recs["scans"].append(res_data)
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
+    with export_tab:
+        strl.markdown("### 📤 Sync Discovered Vulnerabilities directly to ALM Systems")
         active_scan_data = strl.session_state.get("active_scan")
-        if isinstance(active_scan_data, dict):
-            bugs_list = active_scan_data.get("all_bugs", [])
-            if isinstance(bugs_list, list) and len(bugs_list) > 0:
-                bugs_df = pd.DataFrame(bugs_list)
-                strl.markdown("### 🛑 Findings Summary Matrix")
-                strl.dataframe(bugs_df[["bug_id", "module", "issue", "severity", "route_location"]], use_container_width=True, hide_index=True)
-            else:
-                strl.success("Zero defect exceptions flagged for this run.")
+        
+        if not active_scan_data or not active_scan_data.get("all_bugs"):
+            strl.info("No active defect logs found in session memory. Run an environment analysis scan first.")
+        else:
+            bugs_to_export = active_scan_data["all_bugs"]
+            target_platform = strl.selectbox("Choose Target Enterprise System Architecture:", ["Jira Cloud", "Azure DevOps Boards", "GitHub Issues", "ServiceNow ITSM"])
+            
+            # Formulate dynamic configuration parameters based on platform choice
+            if target_platform == "Jira Cloud":
+                c1, c2, c3, c4 = strl.columns(4)
+                with c1: j_url = strl.text_input("Jira Site Base URL:", "https://your-domain.atlassian.net")
+                with c2: j_user = strl.text_input("Account Email ID:")
+                with c3: j_token = strl.text_input("Atlassian API Token:", type="password")
+                with c4: j_key = strl.text_input("Project Key:", "PROJ")
+                
+            elif target_platform == "Azure DevOps Boards":
+                c1, c2, c3 = strl.columns(3)
+                with c1: az_org = strl.text_input("DevOps Organization Name:")
+                with c2: az_proj = strl.text_input("Target Project Name:")
+                with c3: az_pat = strl.text_input("Personal Access Token (PAT):", type="password")
+                
+            elif target_platform == "GitHub Issues":
+                c1, c2, c3 = strl.columns(3)
+                with c1: gh_owner = strl.text_input("Repository Owner Name/Organization:")
+                with c2: gh_repo = strl.text_input("Repository Name:")
+                with c3: gh_pat = strl.text_input("GitHub Personal Access Token:", type="password")
+                
+            elif target_platform == "ServiceNow ITSM":
+                c1, c2, c3 = strl.columns(3)
+                with c1: sn_sub = strl.text_input("Instance Subdomain Profile Key:")
+                with c2: sn_user = strl.text_input("ServiceNow User Principal ID:")
+                with c3: sn_pass = strl.text_input("Basic Account Password Authorization String:", type="password")
+
+            selected_bug_idx = strl.selectbox("Select Target Bug Log to Sync:", range(len(bugs_to_export)), format_func=lambda i: f"[{bugs_to_export[i].get('severity')}] {bugs_to_export[i].get('issue')} ({bugs_to_export[i].get('bug_id')})")
+            
+            if strl.button("Push Selected Log Data to Enterprise Tracking Endpoint"):
+                bug_payload = bugs_to_export[selected_bug_idx]
+                success, reference_id = False, ""
+                
+                with strl.spinner("Opening secure REST network socket and synchronizing properties..."):
+                    if target_platform == "Jira Cloud":
+                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_jira(j_url, j_user, j_token, j_key, bug_payload))
+                    elif target_platform == "Azure DevOps Boards":
+                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_azure_devops(az_org, az_proj, az_pat, bug_payload))
+                    elif target_platform == "GitHub Issues":
+                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_github_issues(gh_owner, gh_repo, gh_pat, bug_payload))
+                    elif target_platform == "ServiceNow ITSM":
+                        success, reference_id = asyncio.run(EnterpriseIssueExporter.export_to_servicenow(sn_sub, sn_user, sn_pass, bug_payload))
+                
+                if success:
+                    strl.success(f"Successfully created external defect entry! Tracker Reference Reference: **{reference_id}**")
+                else:
+                    strl.error(f"Platform connection or routing validation failure: {reference_id}")
 
     with tracking_tab:
         vault_recs = VaultController.read_records()

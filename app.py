@@ -35,18 +35,21 @@ AUTH_STATE_FILE = "bugoptix_auth_state.json"
 class VaultController:
     @staticmethod
     def read_records() -> dict:
+        default_structure = {"scans": [], "chat_history": [], "lifecycle_states": {}, "baseline_snapshots": {}}
         if os.path.exists(VAULT_FILE):
             try:
                 with open(VAULT_FILE, "r") as f:
                     data = json.load(f)
-                    if not isinstance(data, dict): data = {}
-                    if "scans" not in data: data["scans"] = []
-                    if "lifecycle_states" not in data: data["lifecycle_states"] = {}
-                    if "baseline_snapshots" not in data: data["baseline_snapshots"] = {}
+                    if not isinstance(data, dict): 
+                        return default_structure
+                    # Secure every nested key parameter to prevent tracking load exceptions
+                    if "scans" not in data or not isinstance(data["scans"], list): data["scans"] = []
+                    if "lifecycle_states" not in data or not isinstance(data["lifecycle_states"], dict): data["lifecycle_states"] = {}
+                    if "baseline_snapshots" not in data or not isinstance(data["baseline_snapshots"], dict): data["baseline_snapshots"] = {}
                     return data
             except:
                 pass
-        return {"scans": [], "chat_history": [], "lifecycle_states": {}, "baseline_snapshots": {}}
+        return default_structure
 
     @staticmethod
     def write_records(data: dict):
@@ -78,14 +81,15 @@ async def smart_identify_and_fill_form(page, selector_type, credential_value):
 def process_github_ci_quality_gate(scan_results: dict):
     print("\n--- BUGOPTIX CI QUALITY GATE EVALUATOR RUNNING ---")
     all_bugs = scan_results.get("all_bugs", [])
-    critical_bugs = [b for b in all_bugs if b.get("severity") == "Critical"]
+    if not isinstance(all_bugs, list): all_bugs = []
+    critical_bugs = [b for b in all_bugs if isinstance(b, dict) and b.get("severity") == "Critical"]
     
     print(f"Total Anomalies Located: {len(all_bugs)}")
     print(f"Critical System Defects: {len(critical_bugs)}")
     
     comment_body = f"## 🛡️ BugOptix Automated Quality Gate Audit Result\n"
-    comment_body += f"- **Target URL Evaluated:** `{scan_results.get('url')}`\n"
-    comment_body += f"- **Scan Completed At:** {scan_results.get('timestamp')}\n"
+    comment_body += f"- **Target URL Evaluated:** `{scan_results.get('url', 'Unknown')}`\n"
+    comment_body += f"- **Scan Completed At:** {scan_results.get('timestamp', 'N/A')}\n"
     comment_body += f"- **Total Defects Discovered:** {len(all_bugs)}\n"
     comment_body += f"- **Critical Security/Runtime Vulnerabilities:** {len(critical_bugs)}\n\n"
     
@@ -94,7 +98,8 @@ def process_github_ci_quality_gate(scan_results: dict):
         comment_body += "| Severity | Module Area | Issue Title | Target Location Route |\n"
         comment_body += "| :--- | :--- | :--- | :--- |\n"
         for b in all_bugs[:15]:
-            comment_body += f"| **{b.get('severity', 'Unknown')}** | {b.get('module', 'General')} | {b.get('issue', 'Exception')} | `{b.get('route_location', '/')}` |\n"
+            if isinstance(b, dict):
+                comment_body += f"| **{b.get('severity', 'Unknown')}** | {b.get('module', 'General')} | {b.get('issue', 'Exception')} | `{b.get('route_location', '/')}` |\n"
             
     gh_token = os.environ.get("GITHUB_TOKEN")
     gh_repo = os.environ.get("GITHUB_REPOSITORY")
@@ -243,21 +248,23 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                 res_data = asyncio.run(execute_comprehensive_qa_suite(url_scope.strip(), depth_limit, targeted_browser))
                 strl.session_state["active_scan"] = res_data
                 vault_recs = VaultController.read_records()
-                if "scans" not in vault_recs: vault_recs["scans"] = []
                 vault_recs["scans"].append(res_data)
                 VaultController.write_records(vault_recs)
             strl.success("Assessment suite sweep complete.")
 
-        # SAFE ACCESS FIX: Uses .get() to prevent KeyError crashes
+        # DEFENSIVE EVALUATION RE-ENGINEERING
         active_scan_data = strl.session_state.get("active_scan")
-        if active_scan_data:
+        if isinstance(active_scan_data, dict):
             bugs_list = active_scan_data.get("all_bugs", [])
-            bugs_df = pd.DataFrame(bugs_list)
-            if not bugs_df.empty:
+            if isinstance(bugs_list, list) and len(bugs_list) > 0:
+                bugs_df = pd.DataFrame(bugs_list)
                 strl.markdown("### 🛑 Findings & Detailed Root Cause Analysis Reports")
                 vault_recs = VaultController.read_records()
                 
                 for idx, bug in bugs_df.iterrows():
+                    if not isinstance(bug, dict): 
+                        # Handle type transformations if dataframe parsing yields series
+                        bug = bug.to_dict()
                     b_id = bug.get("bug_id", f"BUG-{idx}")
                     current_status = vault_recs.get("lifecycle_states", {}).get(b_id, "Open")
                     
@@ -268,7 +275,6 @@ if "streamlit" in sys.modules and not os.environ.get("BUGOPTIX_CLI_MODE"):
                             key=f"status_select_{idx}_{b_id}"
                         )
                         if new_status != current_status:
-                            if "lifecycle_states" not in vault_recs: vault_recs["lifecycle_states"] = {}
                             vault_recs["lifecycle_states"][b_id] = new_status
                             VaultController.write_records(vault_recs)
                             strl.toast(f"Updated status for {b_id}")

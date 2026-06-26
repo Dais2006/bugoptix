@@ -355,14 +355,14 @@ with app_views[2]:
     with workspace_left:
         strl.markdown("#### Log New Defect Action Ticket")
         ticket_title_def = strl.text_input("Bug Defect Target Identifier Summary Name:", value="Missing CSP and Transport Security Directives across Gateway Router Configurations")
-        assigned_engineer_node = strl.selectbox("Assign Project Engineering Node Owner:", ["Dais Thomas (Platform Architect / Lead DevSecOps)", "Jane Smith (Security Auditor)", "John Doe (Core QA Developer)"])
+        assigned_engineer_node = strl.selectbox("Assign Project Engineering Node Owner:", ["Platform Lead / Core DevSecOps Architect", "Senior Security Compliance Auditor", "Core QA Automation Engineer"])
         critical_priority_rating = strl.selectbox("Defect Threat Severity Priority Classification Selection:", ["CRITICAL Security Patch Threat", "Medium Operational Intermittent Alert", "Low Code Refactoring Task Matrix"])
         
         if strl.button("Create Collaborative Task Entry"):
             current_vault_logs = DatabaseConnectorFactory.load_records()
             current_vault_logs["tickets"].append({
                 "Ticket ID Key": f"OPTIX-{len(current_vault_logs['tickets']) + 9012}",
-                "Defect Summary Name Summary": ticket_title_def,
+                "Defect System Title Name Summary": ticket_title_def,
                 "Assigned Engineer Node": assigned_engineer_node,
                 "Priority Threshold Classification": critical_priority_rating,
                 "Current Kanban Pipeline Status": "In Progress Pipeline"

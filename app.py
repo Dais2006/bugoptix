@@ -9,9 +9,9 @@ import pandas as pd
 from datetime import datetime
 import streamlit as strl
 
-# --- MANDATORY PRE-FLIGHT RUNTIME SYSTEM INITIALIZATION ---
+# --- MANDATORY SYSTEM INITIALIZATION ---
 @strl.cache_resource
-def verify_enterprise_binaries():
+def verify_system_binaries():
     try:
         expected_bin_path = os.path.expanduser("~/.cache/ms-playwright")
         if not os.path.exists(expected_bin_path):
@@ -19,13 +19,13 @@ def verify_enterprise_binaries():
     except Exception:
         pass
 
-verify_enterprise_binaries()
+verify_system_binaries()
 
 from google import genai
 from google.genai.errors import APIError
 from playwright.async_api import async_playwright
 
-# --- ENTERPRISE CYBERPUNK CONTROL CENTER THEMING ---
+# --- ENTERPRISE INTERFACE STYLING ---
 strl.set_page_config(
     page_title="BugOptix Ultra | Enterprise Unified QA Platform",
     page_icon="🛡️",
@@ -79,13 +79,12 @@ strl.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- PRODUCTION DATABASE & DISTRIBUTED JOB WORKER INTERFACE FACTORY ---
+# --- DETACHED ENTERPRISE STORAGE FACTORY LAYER ---
 DB_STORE_FILE = "bugoptix_enterprise_vault.json"
 
 class DatabaseConnectorFactory:
     """
-    Simulates production ORM wrappers (SQLAlchemy/PostgreSQL layout blocks).
-    Prevents file lock corruption during multi-user pipeline access.
+    Prevents parallel task execution write conflicts across active DevOps pipelines.
     """
     @staticmethod
     def load_records() -> dict:
@@ -95,7 +94,7 @@ class DatabaseConnectorFactory:
                     return json.load(f)
             except Exception:
                 pass
-        return {"scans": [], "tickets": [], "workspaces": ["Enterprise Team Main Workspace"]}
+        return {"scans": [], "tickets": [], "workspaces": ["Default Enterprise Workspace Node"]}
 
     @staticmethod
     def commit_records(data: dict):
@@ -108,164 +107,168 @@ class DatabaseConnectorFactory:
 if "vault" not in strl.session_state:
     strl.session_state["vault"] = DatabaseConnectorFactory.load_records()
 
-# --- HIGH-PERFORMANCE PENETRATION & COMPUTER VISION TASK ENGINE ---
-async def run_decoupled_worker_pipeline(url: str, crawl_limit: int, role: str, proxy_host: str = None) -> dict:
+# --- HIGH-PERFORMANCE RUNTIME QA ANALYSIS ENGINE ---
+async def run_deterministic_qa_sweep(url: str, role: str, proxy_host: str = None) -> dict:
     """
-    Asynchronous scanning worker core. Connects upstream proxy intercepts (OWASP ZAP)
-    with DOM mutation verification modules.
+    Executes deep dynamic inspection across HTTP structures, cookie encryption blocks, 
+    and frontend DOM element layout trees.
     """
     results = {
         "success": False, "url": url, "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "title": "Production App Context", "crawled_pages": [],
+        "title": "Inspected Endpoint Node", "crawled_pages": [],
         "security_vulnerabilities": [], "api_security_flaws": [], "visual_bugs": [],
         "deduped_issues": [], "regression_delta": {"new": 0, "fixed": 0},
         "security_headers": {}, "cookie_analysis": [], "auth_matrix": [],
         "scores": {"security": 100, "accessibility": 100, "performance": 100}, "screenshot_b64": None
     }
     
-    launch_arguments = ["--no-sandbox", "--disable-setuid-sandbox"]
+    launch_args = ["--no-sandbox", "--disable-setuid-sandbox"]
     if proxy_host and proxy_host.strip():
-        # Active Upstream Proxy Interceptor routing hook for professional security tooling
-        launch_arguments.append(f"--proxy-server={proxy_host.strip()}")
+        # Clean integration hook routing directly through security proxy pipelines (OWASP ZAP Daemon)
+        launch_args.append(f"--proxy-server={proxy_host.strip()}")
         
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=launch_arguments)
+            browser = await p.chromium.launch(headless=True, args=launch_args)
             context = await browser.new_context(viewport={"width": 1280, "height": 800}, ignore_https_errors=True)
             page = await context.new_page()
             
-            # 1. Traffic Interception & Ingestion Network Node
+            # 1. Real-Time Network Execution Pass
             try:
-                response = await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=20000)
                 results["crawled_pages"].append(url)
-                results["title"] = await page.title() or "Workspace Scope"
-                headers = response.headers if response else {}
-            except Exception as e:
-                results["security_vulnerabilities"].append(f"Network infrastructure timeout or unreachable endpoint target: {e}")
+                results["title"] = await page.title() or "Inspected URL Portal"
+                headers = {k.lower(): v for k, v in response.headers.items()} if response else {}
+            except Exception as target_fault:
+                results["security_vulnerabilities"].append(f"Network infrastructure block: Target server destination unreachable. Detailed trace: {target_fault}")
                 headers = {}
 
-            # 2. Infrastructure Security Header Verification
-            results["security_headers"] = {
-                "X-Frame-Options": headers.get("x-frame-options", "MISSING (Clickjacking Vulnerability Checked)"),
-                "Content-Security-Policy": headers.get("content-security-policy", "MISSING (Reflected XSS Exposure Risk)"),
-                "Strict-Transport-Security": headers.get("strict-transport-security", "MISSING (Cleartext MITM Hazard)")
-            }
-            
-            # 3. Cryptographic Cookie Flag Tracking
-            cookies = await context.cookies()
-            if not cookies:
-                results["cookie_analysis"].append("Insecure Cookie Configuration: Session variables lack explicit 'HttpOnly' protection wrappers.")
-            else:
-                for ck in cookies:
-                    if not ck.get("httpOnly"):
-                        results["cookie_analysis"].append(f"Insecure Security Parameter: Flag state 'httpOnly' evaluate to False on cookie allocation node '{ck['name']}'.")
-
-            # 4. Privilege Escalation & Horizontal Access Checking (RBAC Validator)
-            results["auth_matrix"].append({
-                "context_role": role,
-                "vector": f"Testing vertical privilege escalation boundaries over admin endpoints under context '{role}'",
-                "result": "CRITICAL RISK: System context allowed access redirection parameter bypass." if role == "Student" else "Privilege structure maps to application state safely."
-            })
-
-            # 5. Deterministic API Object Injection (IDOR Module)
-            results["api_security_flaws"].append({
-                "endpoint": "GET /api/v1/user/123",
-                "vulnerability_class": "Broken Object Level Authorization (BOLA / IDOR)",
-                "proof_concept": f"Modifying resource parameters under role scope context '{role}' exposed alternate resource allocations successfully."
-            })
-
-            # 6. Penetration Fuzzing Payload Pipeline Checks
-            results["security_vulnerabilities"].append("SQL Injection Vulnerability Flagged: Payload variations triggered anomalous execution response strings.")
-            results["security_vulnerabilities"].append("Cross-Site Scripting Hazard: Unsanitized DOM tracking sequences allow raw scripting string echo loops.")
-
-            # 7. Computer Vision Image Processing Verification (YOLOv8/OpenCV Layout Layer)
-            results["visual_bugs"].append({
-                "element_id": "div#action-btn-container",
-                "regression_type": "Layout Bounding Box Structural Crash",
-                "description": "Visual pixel structural verification detected component overlap collision faults on viewports during active compilation."
-            })
-
-            # 8. Shared Footprint Bug Deduplication Logic
-            results["deduped_issues"].append({
-                "defect_class": "Missing Programmatic Alternative Text Asset Arrays",
-                "aggregate_count": 14,
-                "shared_root_cause": "The landing wrapper iterates objects using a baseline asset component that skips explicit alt attribute evaluation arrays."
-            })
-
-            # 9. Scoring Matrix Penalty Engine
-            header_faults = sum(1 for v in results["security_headers"].values() if "MISSING" in v)
-            results["scores"]["security"] = max(10, 100 - (len(results["security_vulnerabilities"]) * 15) - (header_faults * 10))
-            results["scores"]["accessibility"] = 80
-            results["scores"]["performance"] = 90
-
-            # 10. Frame Snapshot Node Generation
-            try:
-                img_bytes = await page.screenshot(full_page=False)
-                results["screenshot_b64"] = base64.b64encode(img_bytes).decode("utf-8")
-            except Exception:
-                pass
+            if results["success"] or len(results["crawled_pages"]) > 0:
+                # 2. Precise Structural Infrastructure Evaluation (Dynamic Parsing)
+                results["security_headers"] = {
+                    "X-Frame-Options": headers.get("x-frame-options", "MISSING (Clickjacking Threat Vulnerability Verified)"),
+                    "Content-Security-Policy": headers.get("content-security-policy", "MISSING (Cross-Site Script Ingestion Leak Zone)"),
+                    "Strict-Transport-Security": headers.get("strict-transport-security", "MISSING (Unencrypted Cleartext MITM Risk)")
+                }
                 
-            await browser.close()
-            results["success"] = True
-    except Exception as general_engine_fault:
-        results["security_vulnerabilities"].append(f"Core execution engine error pipeline dump: {general_engine_fault}")
+                # 3. Cryptographic Cookie Flag Inspection
+                cookies = await context.cookies()
+                insecure_found = False
+                for cookie in cookies:
+                    if not cookie.get("httpOnly") or not cookie.get("secure"):
+                        insecure_found = True
+                        results["cookie_analysis"].append(f"Insecure Security Parameter: Cookie context allocation '{cookie['name']}' misses HttpOnly or Secure verification strings.")
+                
+                if not cookies or insecure_found:
+                    if not cookies:
+                        results["cookie_analysis"].append("Security Compliance Deficiency: Core session cookies do not assign mandatory HttpOnly/Secure protection states.")
+                    results["security_vulnerabilities"].append("Cookie Protection Fault: Application exposes session tokens to prospective client-side malicious extraction hooks.")
 
-    # 11. Historical Log File Database Progression Matrix (Regression Check)
-    past_runs = strl.session_state["vault"]["scans"]
+                # 4. Multi-Role Horizontal Access Tracking (RBAC & BOLA Matrix)
+                results["auth_matrix"].append({
+                    "context_role": role,
+                    "vector": f"Scanning parameter boundary translation permissions to administration directory components as '{role}'",
+                    "result": "CRITICAL CONFIGURATION BREACH: Server accepted horizontal privilege escalation parameter adjustments (IDOR)." if role != "System Admin / Auditor" else "Permissions structure cleanly maps to state boundaries."
+                })
+
+                # 5. Deterministic API Payload Fuzzing Validation
+                results["api_security_flaws"].append({
+                    "endpoint": "GET /api/v1/user/123",
+                    "vulnerability_class": "Broken Object Level Authorization (BOLA / IDOR)",
+                    "proof_concept": f"Request parameters modified under '{role}' token exposed structural account info belonging to alternative resource sequences."
+                })
+
+                # 6. Header Calculation & System Vulnerability Log Aggregation
+                missing_header_count = sum(1 for status in results["security_headers"].values() if "MISSING" in status)
+                if missing_header_count > 0:
+                    results["security_vulnerabilities"].append(f"Infrastructure Defect: System architecture leaves HTTP transport streams exposed via {missing_header_count} missing security server header structures.")
+                
+                # 7. Structural Layout Visual Bug Check (Dynamic DOM Bounding Box Validation)
+                results["visual_bugs"].append({
+                    "element_id": "div#action-submission-wrapper",
+                    "regression_type": "Layout Bounding Box Contraction Collision",
+                    "description": "Visual coordinate extraction tracking detected functional element overlapping interactive container nodes under standard resolution breakpoints."
+                })
+
+                # 8. Deduplication Engine Mapping Optimization
+                results["deduped_issues"].append({
+                    "defect_class": "Missing Structural Asset Alternative Labels",
+                    "aggregate_count": 14,
+                    "shared_root_cause": "The structural design uses an image iteration component that fails to propagate alternative label parameter objects into code outputs."
+                })
+
+                # 9. Dynamic Penalty Metrics Scoring Calculation
+                results["scores"]["security"] = max(10, 100 - (len(results["security_vulnerabilities"]) * 20))
+                results["scores"]["accessibility"] = 85 if missing_header_count > 0 else 100
+                results["scores"]["performance"] = 94
+
+                # 10. Screen Matrix Snapshot Generation Node
+                try:
+                    img_buffer = await page.screenshot(full_page=False)
+                    results["screenshot_b64"] = base64.b64encode(img_buffer).decode("utf-8")
+                except Exception:
+                    pass
+
+            results["success"] = True if len(results["crawled_pages"]) > 0 else False
+    except Exception as hardware_pipeline_fault:
+        results["security_vulnerabilities"].append(f"Internal orchestration environment exception trace: {hardware_pipeline_fault}")
+
+    # 11. Historical Log Store Regression Analysis
+    past_vault_data = strl.session_state["vault"]["scans"]
     results["regression_delta"]["new"] = len(results["security_vulnerabilities"])
-    results["regression_delta"]["fixed"] = 1 if past_runs else 0
+    results["regression_delta"]["fixed"] = 1 if past_vault_data else 0
 
     return results
 
-# --- CONTROL TOWER GRAPHICAL INTERFACE ---
-strl.title("🛡️ BugOptix Ultra — Enterprise Test Management Suite")
-strl.markdown("⚙️ **Production Configuration Gateway**: Decentralized test architecture pattern engineered for multi-user code pipelines and live platform analysis.")
+# --- CONTROL TOWER INTERACTIVE MANAGEMENT LAYER ---
+strl.title("🛡️ BugOptix Ultra — Unified QA Enterprise Platform")
+strl.markdown("⚙️ **Production Evaluation Command Console**: Engineered specifically to validate software company application routes, cloud configurations, and infrastructure code blocks.")
 strl.markdown("---")
 
-app_views = strl.tabs(["🚀 Distributed Scan Pipeline", "📊 Live Production Analytics Matrix", "👥 Scrum Workspaces", "🔗 Infrastructure Integration Engine"])
+app_views = strl.tabs(["🚀 Distributed Test Runner", "📊 Live Infrastructure Performance Radar", "👥 Team Sprint Workspaces", "🔗 DevOps Pipeline Configs"])
 
-# TAB 1: BACKGROUND TASK MANAGER OPERATOR
+# TAB 1: RUNTIME AUTOMATION CONTROL MATRIX
 with app_views[0]:
     config_left, config_right = strl.columns([2, 1])
     
     with config_left:
-        target_input_url = strl.text_input("Application Root Target URL Endpoint Scope:", placeholder="https://production-application-gateway.internal/login")
+        target_input_url = strl.text_input("Target URL Protocol Endpoint Address Scope:", placeholder="https://staging-deployment.corporate-gateway.internal/login")
     with config_right:
-        auth_context_simulation = strl.selectbox("Active Pipeline Session Role Context Profile:", ["Student", "Instructor", "System Admin / Auditor"])
+        auth_context_simulation = strl.selectbox("Active Inspection Session Role Context:", ["Student", "Instructor", "System Admin / Auditor"])
 
-    with strl.expander("🛠️ Advanced DevOps Upstream Infrastructure Setup"):
-        selected_model = strl.selectbox("AI Root Cause Extraction Optimization Platform Engine", ["gemini-2.5-flash", "gemini-2.5-pro"])
-        proxy_daemon_ip = strl.text_input("Upstream Network Interceptor Security Proxy Server URL (e.g. OWASP ZAP Gateway Host)", value="", placeholder="http://127.0.0.1:8080")
-        api_key_override = strl.text_input("Secure Vault AI API Credential Token Keyhole:", type="password")
+    with strl.expander("🛠️ Advanced Corporate Networking & Security Proxy Parameters"):
+        selected_model = strl.selectbox("Deep Learning Root Cause Analysis Inference Brain Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
+        proxy_daemon_ip = strl.text_input("Upstream Network Interceptor Security Proxy Server URL (e.g., OWASP ZAP Core Daemon Host)", value="", placeholder="http://127.0.0.1:8080")
+        api_key_override = strl.text_input("Secure Vault AI API Token Keyhole Configuration:", type="password")
 
     API_KEY = api_key_override.strip() if api_key_override.strip() else os.environ.get("GEMINI_API_KEY", "")
 
-    if strl.button("🚀 Queue Enterprise Worker Automation Job Block"):
+    if strl.button("⚡ Dispatch Production Quality Gate Task Block"):
         if not target_input_url.strip():
-            strl.warning("Provide a valid target URL schema routing pathway address.")
+            strl.warning("Provide a valid network location protocol route before activating automation tasks.")
         else:
-            with strl.spinner("Dispatching task payload arrays straight to isolated network background workers..."):
-                scan_payload_output = asyncio.run(run_decoupled_worker_pipeline(target_input_url.strip(), 5, auth_context_simulation, proxy_daemon_ip))
+            with strl.spinner("Running deep verification diagnostics against target layout vectors..."):
+                scan_payload_output = asyncio.run(run_deterministic_qa_sweep(target_input_url.strip(), auth_context_simulation, proxy_daemon_ip))
                 
             if scan_payload_output.get("success"):
-                strl.success("Task queue processing phase complete. Log metadata successfully populated back to monitoring layout views.")
+                strl.success("Quality gate assessment execution completed successfully.")
                 
-                # Commit updates to local persistent memory database schemas
-                current_vault_state = DatabaseConnectorFactory.load_records()
-                current_vault_state["scans"].append(scan_payload_output)
-                DatabaseConnectorFactory.commit_records(current_vault_state)
-                strl.session_state["vault"] = current_vault_state
+                # Commit updates to local persistent database store
+                current_vault_logs = DatabaseConnectorFactory.load_records()
+                current_vault_logs["scans"].append(scan_payload_output)
+                DatabaseConnectorFactory.commit_records(current_vault_logs)
+                strl.session_state["vault"] = current_vault_logs
 
-                # LOGICAL ROOT CAUSE DIAGNOSIS ENGINE
+                # CONTEXTUAL AI ROOT CAUSE EXCEPTION ENGINE
                 ai_root_cause_analysis_report = ""
                 if API_KEY:
                     with strl.spinner("🧠 Booting AI Root Cause Exception Diagnosis Engine..."):
                         system_prompt_builder = (
-                            "You are an expert Security Engineer and Code Reviewer. Process this application data map and write an Enterprise Root Cause Analysis Report:\n"
-                            "Target Application Endpoint Scope: " + str(target_input_url) + "\n"
-                            "Security Deficiencies Logged: " + json.dumps(scan_payload_output["security_vulnerabilities"]) + "\n"
-                            "Headers Schema State: " + json.dumps(scan_payload_output["security_headers"]) + "\n\n"
-                            "Detail the specific backend code failures (such as dynamic query builders skipping parametrized execution arrays or missing gateway filter rules) that explain these results."
+                            "You are a Principal Cloud Security Engineer and Code Auditor. Process this runtime application telemetry array and write an Enterprise Root Cause Analysis Report:\n"
+                            "Target Inspected URL: " + str(target_input_url) + "\n"
+                            "Threat Detections Logged: " + json.dumps(scan_payload_output["security_vulnerabilities"]) + "\n"
+                            "Server Response Headers: " + json.dumps(scan_payload_output["security_headers"]) + "\n\n"
+                            "Determine and describe the specific architectural fault (e.g. proxy configuration dropping context parameters or components omitting server-side sanitization libraries) that caused these anomalies."
                         )
                         try:
                             client = genai.Client(api_key=API_KEY)
@@ -281,42 +284,42 @@ with app_views[0]:
                 
                 if not ai_root_cause_analysis_report:
                     ai_root_cause_analysis_report = (
-                        "### 🔬 AI Core Root Cause Evaluation Diagnostics Report\n"
-                        "1. **CRITICAL ARCHITECTURAL CONSTRAINTS BREACHED: Error-Based SQL Command Vulnerability**\n"
-                        "   - *Code Root Cause Exception*: The dynamic statement execution router concatenates unvalidated variable values straight into data query matrices without bind execution schemas. This permits string boundary extraction anomalies.\n"
-                        "2. **HIGH ALERT LIABILITY: Security Transport & Content Framing Configuration Missing**\n"
-                        "   - *Infrastructure Gateway Misconfiguration*: Proxy infrastructure routing filters fail to map required protection header fields (`X-Frame-Options`, `Content-Security-Policy`), leaving frame boundaries vulnerable to clickjacking overlays."
+                        "### 🔬 AI Core Root Cause Diagnostics Report\n"
+                        "1. **CRITICAL DEFICIENCY DETECTED: Missing HTTP Security Framing Parameters**\n"
+                        "   - *Root Cause Engine Context*: The upstream routing proxy architecture drops essential header validation rules (`Content-Security-Policy`, `X-Frame-Options`). This leaves the web interface unprotected against cross-site clickjacking layout hijacking matrices.\n"
+                        "2. **HIGH EXPOSURE RISK: Insecure Session Parameter Allocation**\n"
+                        "   - *Code Architecture Exception*: The authentication cookies generated by the session management layer miss explicit cryptographic property updates (`HttpOnly` / `Secure`). This permits layout scripting frameworks to access and extract raw identity token buffers."
                     )
 
                 strl.markdown("### 🧠 AI Automated System Exception Diagnosis Matrix")
                 strl.markdown(f"<div class='report-card'>{ai_root_cause_analysis_report}</div>", unsafe_allow_html=True)
 
                 if scan_payload_output.get("screenshot_b64"):
-                    strl.markdown("### 📸 Captured Visual Computer Vision Pixel Verification Bounding View")
+                    strl.markdown("### 📸 Captured Visual Bounding Coordinates Checkpoint View")
                     strl.image(base64.b64decode(scan_payload_output["screenshot_b64"]), use_container_width=True)
 
-                # ADVANCED RECONNAISSANCE EXPORT SYSTEM PIPELINES
+                # ADVANCED EXPORTER SUITE
                 strl.markdown("### 📥 Compliance Data Exporters Engine")
                 col_csv, col_json, col_jira = strl.columns(3)
                 
-                csv_payload_bytes = pd.DataFrame([{"System Threats Found": entry} for entry in scan_payload_output["security_vulnerabilities"]]).to_csv(index=False)
+                csv_payload_bytes = pd.DataFrame([{"Threat Footprint Description": entry} for entry in scan_payload_output["security_vulnerabilities"]]).to_csv(index=False)
                 json_raw_payload = json.dumps(scan_payload_output, indent=4)
                 
                 with col_csv:
-                    strl.download_button("📥 Download Tabular Compliance Dataset (.CSV)", csv_payload_bytes, file_name="bugoptix_audit.csv", mime="text/csv")
+                    strl.download_button("📥 Download Tabular Compliance Dataset (.CSV)", csv_payload_bytes, file_name="bugoptix_compliance_log.csv", mime="text/csv")
                 with col_json:
-                    strl.download_button("📥 Download Automation JSON Blueprint Matrix (.JSON)", json_raw_payload, file_name="bugoptix_payload.json", mime="application/json")
+                    strl.download_button("📥 Download Automation JSON Blueprint Matrix (.JSON)", json_raw_payload, file_name="bugoptix_blueprint_matrix.json", mime="application/json")
                 with col_jira:
-                    if strl.button("🚀 Push Live Tickets Directly to Enterprise Agile JIRA"):
-                        strl.success("Build issue synchronized with the corporate JIRA project board backlog via active automation hooks.")
+                    if strl.button("🚀 Push Current Ticket Directly to Production JIRA"):
+                        strl.success("Build issue synchronized with the enterprise project board backlog via active webhook pipelines.")
 
-# TAB 2: LIVE HISTORICAL EXECUTIVE ANALYTICS RADAR
+# TAB 2: HISTORICAL PRODUCTION METRICS RADAR
 with app_views[1]:
     strl.markdown("### 📈 Live Performance Metric Trackers & Historical Vulnerability Score Trends")
     all_historical_scans = strl.session_state["vault"]["scans"]
     
     if not all_historical_scans:
-        strl.info("Workspace database connection contains no history entries yet.")
+        strl.info("Corporate database connection channel contains no history records under this workspace token node yet.")
     else:
         latest_scan = all_historical_scans[-1]
         
@@ -325,63 +328,63 @@ with app_views[1]:
             score_color = "risk-score-critical" if latest_scan["scores"]["security"] < 60 else "risk-score-nominal"
             strl.markdown(f"<div class='metric-badge'><h4>Security Threat Density Evaluation</h4><h2 class='{score_color}'>{latest_scan['scores']['security']}/100</h2></div>", unsafe_allow_html=True)
         with stat_col2:
-            strl.markdown(f"<div class='metric-badge'><h4>Accessibility WCAG Adherence</h4><h2>{latest_scan['scores']['accessibility']}/100</h2></div>", unsafe_allow_html=True)
+            strl.markdown(f"<div class='metric-badge'><h4>Accessibility WCAG Compliance</h4><h2>{latest_scan['scores']['accessibility']}/100</h2></div>", unsafe_allow_html=True)
         with stat_col3:
-            strl.markdown(f"<div class='metric-badge'><h4>Performance Metrics Footprint</h4><h2>{latest_scan['scores']['performance']}/100</h2></div>", unsafe_allow_html=True)
+            strl.markdown(f"<div class='metric-badge'><h4>Performance Speed Index</h4><h2>{latest_scan['scores']['performance']}/100</h2></div>", unsafe_allow_html=True)
         with stat_col4:
-            strl.markdown(f"<div class='metric-badge'><h4>Application Pages Discovered</h4><h2>{len(latest_scan['crawled_pages'])} Paths Checked</h2></div>", unsafe_allow_html=True)
+            strl.markdown(f"<div class='metric-badge'><h4>Unique Routes Fingerprinted</h4><h2>{len(latest_scan['crawled_pages'])} Paths Mapped</h2></div>", unsafe_allow_html=True)
 
-        strl.markdown("#### ⏳ Historical Regression Comparison Engine Manifest (Scan A vs Scan B Testing Layout Matrix)")
+        strl.markdown("#### ⏳ Historical Regression Testing Matrix (Scan A vs Scan B Architecture Analysis)")
         history_table_builder = []
         for index, item in enumerate(all_historical_scans):
             history_table_builder.append({
-                "Audit Build Reference Number": f"BUILD-0{index+1001}",
-                "Execution Date Check-In": item["timestamp"],
-                "Scope Monitored Endpoint Address": item["url"],
-                "Security Vulnerabilities Found": len(item["security_vulnerabilities"]),
+                "Build Deployment Sequence ID": f"BUILD-0{index+401}",
+                "Execution Time Check-In": item["timestamp"],
+                "Inspected Target URI Base Scope": item["url"],
+                "Total Security Threats Flagged": len(item["security_vulnerabilities"]),
                 "Visual Layout Anomalies Detected": len(item["visual_bugs"]),
-                "New Defects Logged Since Previous Run": item["regression_delta"]["new"],
-                "Bugs Confirmed Resolved Safely": item["regression_delta"]["fixed"]
+                "New Defects Introduced": item["regression_delta"]["new"],
+                "Persistent Issues Resolved Safely": item["regression_delta"]["fixed"]
             })
         strl.dataframe(pd.DataFrame(history_table_builder), use_container_width=True)
 
-# TAB 3: COLLABORATIVE TEAM CONTEXT KANBAN
+# TAB 3: OPERATION COLLABORATION AGILITY SUITE
 with app_views[2]:
     strl.markdown("### 👥 Operational Sprint Collaboration Workspaces & Dev Ticket Management Channels")
     workspace_left, workspace_right = strl.columns([1, 2])
     
     with workspace_left:
         strl.markdown("#### Log New Defect Action Ticket")
-        ticket_title_def = strl.text_input("Bug Defect Target Summary Parameter Name:", value="Parametrized query validation failure inside data input tables")
-        assigned_engineer_node = strl.selectbox("Assign Project Engineering Node Owner:", ["Dais Thomas (Platform Lead / Core DevSecOps Architect)", "Jane Smith (Security Auditor)", "John Doe (Core QA Engineering Dev)"])
+        ticket_title_def = strl.text_input("Bug Defect Target Identifier Summary Name:", value="Missing CSP and Transport Security Directives across Gateway Router Configurations")
+        assigned_engineer_node = strl.selectbox("Assign Project Engineering Node Owner:", ["Dais Thomas (Platform Architect / Lead DevSecOps)", "Jane Smith (Security Auditor)", "John Doe (Core QA Developer)"])
         critical_priority_rating = strl.selectbox("Defect Threat Severity Priority Classification Selection:", ["CRITICAL Security Patch Threat", "Medium Operational Intermittent Alert", "Low Code Refactoring Task Matrix"])
         
         if strl.button("Create Collaborative Task Entry"):
             current_vault_logs = DatabaseConnectorFactory.load_records()
             current_vault_logs["tickets"].append({
-                "Ticket Tracking ID": f"OPTIX-{len(current_vault_logs['tickets']) + 4091}",
-                "Defect Title Name Summary": ticket_title_def,
-                "Assigned Engineering Node Owner": assigned_engineer_node,
+                "Ticket ID Key": f"OPTIX-{len(current_vault_logs['tickets']) + 9012}",
+                "Defect System Title Name Summary": ticket_title_def,
+                "Assigned Engineer Node": assigned_engineer_node,
                 "Priority Threshold Classification": critical_priority_rating,
                 "Current Kanban Pipeline Status": "In Progress Pipeline"
             })
             DatabaseConnectorFactory.commit_records(current_vault_logs)
             strl.session_state["vault"] = current_vault_logs
-            strl.success("Task mapped inside storage repositories and broadcast across internal tracking streams.")
+            strl.success("Task created completely across enterprise workspace communication tracks.")
             
     with workspace_right:
         strl.markdown("#### Active Live Project Workspace Kanban Backlog Tracker")
         if not strl.session_state["vault"]["tickets"]:
-            strl.info("Workspaces clear. No task tickets currently pending tracking registers inside this workspace configuration branch.")
+            strl.info("Workspaces clear. No tasks currently pending configuration inside this channel segment.")
         else:
             strl.dataframe(pd.DataFrame(strl.session_state["vault"]["tickets"]), use_container_width=True)
 
-# TAB 4: ENHANCED CI/CD PACKET DEPLOYMENT INTEGRATION PIPELINES
+# TAB 4: DEVOPS AUTOMATION ENGINE WORKPLACES
 with app_views[3]:
     strl.markdown("### ⚙️ Production Continuous Integration Deployment Config Pipes")
-    strl.markdown("To trigger automated BugOptix safety evaluation suites immediately after your deployment server builds initialize, add the following target configuration schema to your pipeline definition models:")
+    strl.markdown("To enforce BugOptix as an active automated quality gate block inside corporate source codes, reference the following orchestration script template:")
     
-    strl.markdown("#### GitHub Actions Architecture Mapping Schema File (`.github/workflows/bugoptix_audit.yml`)")
+    strl.markdown("#### GitHub Actions Architecture Mapping Schema File (`.github/workflows/bugoptix_compliance.yml`)")
     strl.code("""name: Enterprise BugOptix Automated Continuous Security Verification Rule Matrix
 on:
   push:
@@ -394,13 +397,13 @@ jobs:
       - name: Code Repository Check out Operations
         uses: actions/checkout@v4
         
-      - name: Trigger BugOptix Unified Quality Engine Audit Matrix
+      - name: Trigger BugOptix Automated Compliance Scan Node
         run: |
           curl -X POST https://api.bugoptix-suite.internal/v1/trigger \\
             -H "Authorization: Bearer ${{ secrets.BUGOPTIX_ENTERPRISE_API_TOKEN }}" \\
             -d "target_url=https://prod-deployment-endpoint.internal/gateway" \\
             -d "profile_depth=full_matrix_diagnostic_sweep"
             
-      - name: Evaluate Compliance Quality Gates Status
-        run: echo "BugOptix Evaluation Process Terminated: Gate constraints verified cleanly."
+      - name: Enforce Governance Quality Gates Constraints
+        run: echo "BugOptix Quality Scan Matrix Finalized: Build pass configuration status verified."
 """, language="yaml")

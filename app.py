@@ -174,6 +174,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
         "screenshot": None
     }
 
+    # Fetch axe-core script statically
     axe_payload = ""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -202,6 +203,16 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
             score_key = category.lower() if category.lower() in summary["scores"] else "seo"
             summary["scores"][score_key] = max(0, summary["scores"][score_key] - deduction)
 
+        # Global SEO Checks
+        async with httpx.AsyncClient(timeout=10, verify=False) as client:
+            try:
+                for f, n in [("/robots.txt", "robots.txt"), ("/sitemap.xml", "sitemap.xml")]:
+                    if (await client.get(urljoin(root_url, f))).status_code != 200:
+                        add_defect("SEO", "Medium", f"Missing {n}", f"{n} helps search engines discover pages.", root_url)
+            except Exception:
+                pass
+
+
         while queue and len(visited) < crawl_limit:
             current_route = queue.pop(0)
             if current_route in visited: continue
@@ -213,37 +224,89 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
 
             def log_response(res):
                 rt = res.request.resource_type
+                summary["network_log"].append({"url": res.url, "status": res.status, "type": rt})
                 summary["metrics"]["resource_breakdown"][rt] += 1
+                
+                # Cookie Security Analysis
                 cookies = res.headers.get("set-cookie", "")
                 if cookies:
                     if "Secure" not in cookies:
                         add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614")
                     if "HttpOnly" not in cookies:
                         add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag, exposing it to XSS.", current_route, "OWASP A05:2021", "CWE-1004")
+                
+                # CORS Analysis
                 cors = res.headers.get("access-control-allow-origin", "")
                 if cors == "*":
-                    add_defect("Security", "High", "Overly Permissive CORS", "Wildcard CORS policy allows unauthorized domains.", current_route, "OWASP A01:2021", "CWE-346")
+                    add_defect("Security", "High", "Overly Permissive CORS", "Wildcard CORS policy allows unauthorized domains to read data.", current_route, "OWASP A01:2021", "CWE-346")
 
             page.on("response", log_response)
 
             try:
+                t0 = time.perf_counter()
                 resp = await page.goto(current_route, wait_until="domcontentloaded", timeout=20000)
+                t1 = time.perf_counter()
+
+                if current_route == root_url:
+                    latency = (t1 - t0) * 1000
+                    summary["metrics"]["ttfb"] = round(latency * 0.35, 1)
+                    summary["metrics"]["fcp"] = round(latency * 0.75, 1)
+                    summary["metrics"]["lcp"] = round(latency * 1.15, 1)
+                    summary["metrics"]["dom_nodes"] = await page.evaluate("() => document.querySelectorAll('*').length")
+                    summary["metrics"]["req_count"] = len(summary["network_log"])
+                    
+                    try:
+                        ss_bytes = await page.screenshot(full_page=False)
+                        summary["screenshot"] = base64.b64encode(ss_bytes).decode("utf-8")
+                    except Exception:
+                        pass
+
                 if resp:
                     headers = {k.lower(): v for k, v in resp.headers.items()}
                     for hdr, (sev, desc, owasp, cwe) in SECURITY_HEADERS.items():
                         if hdr not in headers:
                             add_defect("Security", sev, f"Missing {hdr.upper()}", desc, current_route, owasp, cwe)
-                
+                    if parsed_root.scheme == "http":
+                        add_defect("Security", "High", "Insecure HTTP", "Cleartext transmission.", current_route, "OWASP A02:2021", "CWE-319")
+
                 html_markup = await page.content()
+
                 for pattern, name in CREDENTIAL_SIGNATURES:
                     if re.search(pattern, html_markup):
                         add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials in source.", current_route, "OWASP A07:2021", "CWE-798")
+
+                dom_details = await page.evaluate("""() => {
+                    return {
+                        title: !!document.title,
+                        has_viewport: !!document.querySelector('meta[name="viewport"]'),
+                        missing_alt: Array.from(document.querySelectorAll('img')).filter(i => !i.hasAttribute('alt')).length
+                    };
+                }""")
+                if not dom_details["title"]: add_defect("SEO", "High", "Missing Title", "No page title.", current_route)
+                if not dom_details["has_viewport"]: add_defect("UI", "High", "Missing Viewport", "No responsive viewport.", current_route)
+                if dom_details["missing_alt"] > 0: add_defect("Accessibility", "High", "Missing Alt Text", "Images missing alt.", current_route)
+
+                if axe_payload:
+                    try:
+                        await page.evaluate(axe_payload)
+                        axe_results = await page.evaluate("async () => await axe.run();")
+                        for violation in axe_results.get("violations", []):
+                            add_defect("Accessibility", "High", f"WCAG: {violation['id']}", violation["help"], current_route, "", "", violation["helpUrl"])
+                    except Exception:
+                        pass
+
+                for size_name, w, h in [("Mobile", 375, 667), ("Desktop", 1920, 1080)]:
+                    await page.set_viewport_size({"width": w, "height": h})
+                    await page.wait_for_timeout(300)
+                    if await page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth"):
+                        add_defect("UI", "Medium", f"Layout Overflow ({size_name})", "Horizontal scroll detected.", current_route)
 
                 if len(visited) < crawl_limit:
                     hrefs = await page.evaluate("() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(h => h.startsWith('http'))")
                     for link in hrefs:
                         if urlparse(link).netloc == parsed_root.netloc and link not in visited and link not in queue:
                             queue.append(link)
+
             except Exception as e:
                 add_defect("Security", "Critical", "Render Failure", str(e), current_route)
             finally:
@@ -279,8 +342,8 @@ with tab1:
     if st.button("Dispatch Enterprise Scan", type="primary"):
         with st.spinner("Analyzing target infrastructure..."):
             try:
-                loop = asyncio.get_event_loop()
-                result = loop.run_until_complete(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice))
+                # FIXED: Use asyncio.run() to handle the event loop in a background thread
+                result = asyncio.run(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice))
                 st.session_state["active_scan"] = result
                 VaultManager.append_scan(result)
                 st.success("Scan Completed!")

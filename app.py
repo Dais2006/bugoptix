@@ -32,10 +32,7 @@ def install_playwright_browsers():
     except Exception:
         pass
 
-# --- TESTING STATE INITIALIZATION ---
-if "test_results" not in st.session_state:
-    st.session_state["test_results"] = {"passed": 0, "failed": 0, "findings": []}
-    install_playwright_browsers()
+install_playwright_browsers()
 
 from playwright.async_api import async_playwright
 
@@ -99,12 +96,7 @@ html, body, [class*="css"] { background-color: #0b0f19 !important; color: #c9d1d
 .badge-High { background: rgba(255, 123, 114, 0.15); color: #ff7b72; border: 1px solid rgba(255, 123, 114, 0.3); }
 .badge-Medium { background: rgba(227, 179, 65, 0.15); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.3); }
 .badge-Low { background: rgba(86, 211, 100, 0.15); color: #56d364; border: 1px solid rgba(86, 211, 100, 0.3); }
-# Insert at Line 100 (after SECURITY_HEADERS)
-COMPLIANCE_STANDARDS = {
-    "OWASP Top 10": {"CWE": "Various", "Description": "Standard for web security"},
-    "PCI DSS": {"CWE": "CWE-312", "Description": "Payment card data protection"},
-    "GDPR": {"CWE": "CWE-200", "Description": "Data privacy compliance"}
-}
+
 /* Score Indicators */
 .score-card {
     background: #0f1420;
@@ -133,10 +125,7 @@ SECURITY_HEADERS = {
     "x-content-type-options": ("Medium", "Missing X-Content-Type-Options. Allows MIME sniffing.", "OWASP A05:2021", "CWE-430"),
     "referrer-policy": ("Medium", "Missing Referrer-Policy. Leaks navigation data.", "OWASP A01:2021", "CWE-200")
 }
-# Insert at Line 125 (inside append_scan method)
-record["compliance_met"] = ["OWASP Top 10", "PCI DSS", "ISO 27001"]
-record["cvss_score"] = "8.5"  # Placeholder for calculation
-record["risk_matrix"] = "High Impact/Medium Likelihood"
+
 DEPRECATED_ELEMENTS = ["center", "font", "marquee", "blink", "frame", "frameset"]
 CREDENTIAL_SIGNATURES = [
     (r"AIzaSy[A-Za-z0-9_-]{33}", "Google Cloud API Key"),
@@ -349,17 +338,7 @@ with tab1:
     with col_u: target_url = st.text_input("Target URL:", "https://example.com")
     with col_b: browser_choice = st.selectbox("Browser Engine:", ["Chromium", "Firefox", "WebKit"])
     with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 5, 2)
-# Modify line 350+ in your PDF string formatting
-# Replace existing string with:
-pdf = f"""...
-0 -20 Td
-(Score: {scan['scores']['overall']}/100) Tj
-0 -20 Td
-(Compliance: OWASP Top 10, PCI DSS, GDPR) Tj
-0 -20 Td
-(Risk Matrix: {scan.get('risk_matrix', 'N/A')}) Tj
-ET
-..."""
+
     if st.button("Dispatch Enterprise Scan", type="primary"):
         with st.spinner("Analyzing target infrastructure..."):
             try:

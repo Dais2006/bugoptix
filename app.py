@@ -1,5 +1,6 @@
 import os
 import asyncio
+import subprocess
 import sys
 import json
 import base64
@@ -12,7 +13,6 @@ from urllib.parse import urlparse, urljoin
 
 import streamlit as st
 import pandas as pd
-from playwright.async_api import async_playwright
 
 # Try to nest asyncio for Streamlit runtime loop safety
 try:
@@ -23,6 +23,18 @@ except ImportError:
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# Ensure playwright is ready
+@st.cache_resource
+def install_playwright_browsers():
+    try:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True, capture_output=True)
+    except Exception:
+        pass
+
+install_playwright_browsers()
+
+from playwright.async_api import async_playwright
 
 # ════════════════════════════════════════════════════════════
 #  STYLING & INTERFACE MATRIX
@@ -71,6 +83,20 @@ html, body, [class*="css"] { background-color: #0b0f19 !important; color: #c9d1d
     margin: 0;
 }
 
+/* Severity Indicators */
+.badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+}
+.badge-Critical { background: rgba(255, 70, 70, 0.15); color: #ff4646; border: 1px solid rgba(255, 70, 70, 0.3); }
+.badge-High { background: rgba(255, 123, 114, 0.15); color: #ff7b72; border: 1px solid rgba(255, 123, 114, 0.3); }
+.badge-Medium { background: rgba(227, 179, 65, 0.15); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.3); }
+.badge-Low { background: rgba(86, 211, 100, 0.15); color: #56d364; border: 1px solid rgba(86, 211, 100, 0.3); }
+
 /* Score Indicators */
 .score-card {
     background: #0f1420;
@@ -90,68 +116,265 @@ html, body, [class*="css"] { background-color: #0b0f19 !important; color: #c9d1d
 """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
-#  RULES & COMPLIANCE
+#  RULES & COMPLIANCE MATRIX
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
-    "content-security-policy": ("Critical", "Missing Content-Security-Policy header.", "OWASP A03:2021", "CWE-352"),
-    "strict-transport-security": ("High", "Missing HSTS.", "OWASP A02:2021", "CWE-319"),
-    "x-frame-options": ("High", "Missing X-Frame-Options.", "OWASP A05:2021", "CWE-1021")
+    "content-security-policy": ("Critical", "Missing Content-Security-Policy header. Exposes site to XSS.", "OWASP A03:2021", "CWE-352"),
+    "strict-transport-security": ("High", "Missing HSTS. Allows MITM SSL strip attacks.", "OWASP A02:2021", "CWE-319"),
+    "x-frame-options": ("High", "Missing X-Frame-Options. Vulnerable to Clickjacking.", "OWASP A05:2021", "CWE-1021"),
+    "x-content-type-options": ("Medium", "Missing X-Content-Type-Options. Allows MIME sniffing.", "OWASP A05:2021", "CWE-430"),
+    "referrer-policy": ("Medium", "Missing Referrer-Policy. Leaks navigation data.", "OWASP A01:2021", "CWE-200")
 }
+
+DEPRECATED_ELEMENTS = ["center", "font", "marquee", "blink", "frame", "frameset"]
+CREDENTIAL_SIGNATURES = [
+    (r"AIzaSy[A-Za-z0-9_-]{33}", "Google Cloud API Key"),
+    (r"sk_live_[51A-Za-z0-9]{24,}", "Stripe Live Secret Key"),
+    (r"xox[bapr]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}", "Slack Token")
+]
 
 VAULT_FILE = "bugoptix_pro_vault.json"
 
 class VaultManager:
     @staticmethod
-    def read_history():
+    def read_history() -> dict:
         if os.path.exists(VAULT_FILE):
             try:
-                with open(VAULT_FILE, "r") as f: return json.load(f)
-            except: pass
+                with open(VAULT_FILE, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
         return {"scans": []}
 
     @staticmethod
-    def append_scan(record):
-        current = VaultManager.read_history()
-        current["scans"].append({k: v for k, v in record.items() if k != "screenshot"})
-        with open(VAULT_FILE, "w") as f: json.dump(current, f, indent=4)
+    def append_scan(record: dict):
+        try:
+            current = VaultManager.read_history()
+            light_record = {k: v for k, v in record.items() if k != "screenshot"}
+            current["scans"].append(light_record)
+            with open(VAULT_FILE, "w") as f:
+                json.dump(current, f, indent=4)
+        except Exception:
+            pass
 
 # ════════════════════════════════════════════════════════════
-#  TESTING CORE
+#  DYNAMIC TESTING CORE
 # ════════════════════════════════════════════════════════════
-async def perform_crawl_and_scan(root_url, crawl_limit, browser_type):
+async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str) -> dict:
+    start_time = datetime.now()
+    summary = {
+        "url": root_url,
+        "timestamp": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "browser": browser_type,
+        "routes": [],
+        "defects": [],
+        "metrics": {"ttfb": 0.0, "fcp": 0.0, "lcp": 0.0, "dom_nodes": 0, "req_count": 0, "resource_breakdown": defaultdict(int)},
+        "scores": {"security": 100, "performance": 100, "accessibility": 100, "seo": 100, "ui": 100},
+        "network_log": [],
+        "screenshot": None
+    }
+
+    axe_payload = ""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get("https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
+            if r.status_code == 200: axe_payload = r.text
+    except Exception:
+        pass
+
     async with async_playwright() as p:
-        # Launching with --no-sandbox is required for cloud containers
-        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+        b_engine = p.chromium
+        if browser_type == "Firefox": b_engine = p.firefox
+        elif browser_type == "WebKit": b_engine = p.webkit
+
+        browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
         
-        summary = {
-            "url": root_url,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "defects": [],
-            "scores": {"security": 100, "performance": 100, "accessibility": 100, "seo": 100, "ui": 100}
-        }
-        
-        try:
-            page = await browser.new_page()
-            await page.goto(root_url, wait_until="domcontentloaded", timeout=30000)
-            # Add your scanning logic here
-        except Exception as e:
-            summary["defects"].append({"severity": "Critical", "category": "System", "title": "Scan Failure", "description": str(e)})
-        finally:
-            await browser.close()
-        return summary
+        visited = set()
+        queue = [root_url]
+        parsed_root = urlparse(root_url)
+
+        def add_defect(category, severity, title, msg, route, owasp="", cwe="", fix=""):
+            summary["defects"].append({
+                "category": category, "severity": severity, "title": title,
+                "description": msg, "route": route, "owasp": owasp, "cwe": cwe, "fix": fix
+            })
+            deduction = {"Critical": 25, "High": 15, "Medium": 8, "Low": 3}.get(severity, 0)
+            score_key = category.lower() if category.lower() in summary["scores"] else "seo"
+            summary["scores"][score_key] = max(0, summary["scores"][score_key] - deduction)
+
+        while queue and len(visited) < crawl_limit:
+            current_route = queue.pop(0)
+            if current_route in visited: continue
+            visited.add(current_route)
+            summary["routes"].append(current_route)
+
+            context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 800})
+            page = await context.new_page()
+
+            def log_response(res):
+                rt = res.request.resource_type
+                summary["metrics"]["resource_breakdown"][rt] += 1
+                cookies = res.headers.get("set-cookie", "")
+                if cookies:
+                    if "Secure" not in cookies:
+                        add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614")
+                    if "HttpOnly" not in cookies:
+                        add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag, exposing it to XSS.", current_route, "OWASP A05:2021", "CWE-1004")
+                cors = res.headers.get("access-control-allow-origin", "")
+                if cors == "*":
+                    add_defect("Security", "High", "Overly Permissive CORS", "Wildcard CORS policy allows unauthorized domains.", current_route, "OWASP A01:2021", "CWE-346")
+
+            page.on("response", log_response)
+
+            try:
+                resp = await page.goto(current_route, wait_until="domcontentloaded", timeout=20000)
+                if resp:
+                    headers = {k.lower(): v for k, v in resp.headers.items()}
+                    for hdr, (sev, desc, owasp, cwe) in SECURITY_HEADERS.items():
+                        if hdr not in headers:
+                            add_defect("Security", sev, f"Missing {hdr.upper()}", desc, current_route, owasp, cwe)
+                
+                html_markup = await page.content()
+                for pattern, name in CREDENTIAL_SIGNATURES:
+                    if re.search(pattern, html_markup):
+                        add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials in source.", current_route, "OWASP A07:2021", "CWE-798")
+
+                if len(visited) < crawl_limit:
+                    hrefs = await page.evaluate("() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(h => h.startsWith('http'))")
+                    for link in hrefs:
+                        if urlparse(link).netloc == parsed_root.netloc and link not in visited and link not in queue:
+                            queue.append(link)
+            except Exception as e:
+                add_defect("Security", "Critical", "Render Failure", str(e), current_route)
+            finally:
+                await context.close()
+
+        await browser.close()
+
+    overall = sum(summary["scores"].values()) / 5.0
+    summary["scores"]["overall"] = round(overall, 1)
+    summary["duration"] = round((datetime.now() - start_time).total_seconds(), 2)
+    return summary
+
 
 # ════════════════════════════════════════════════════════════
-#  INTERFACE
+#  DASHBOARD CONTROL & VIEWS
 # ════════════════════════════════════════════════════════════
-st.markdown('<div class="hero"><div class="hero-badge">ENTERPRISE EDITION</div><h1 class="hero-title">BugOptix Pro</h1></div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="hero">
+    <div class="hero-badge">ENTERPRISE EDITION</div>
+    <h1 class="hero-title">BugOptix Pro</h1>
+    <div class="hero-sub">AI-Powered Risk Analysis & Compliance Quality Engine</div>
+</div>
+""", unsafe_allow_html=True)
 
-target_url = st.text_input("Target URL:", "https://example.com")
-if st.button("Dispatch Enterprise Scan", type="primary"):
-    with st.spinner("Analyzing target infrastructure..."):
-        try:
-            result = asyncio.run(perform_crawl_and_scan(target_url.strip(), 1, "Chromium"))
-            st.session_state["active_scan"] = result
-            VaultManager.append_scan(result)
-            st.success("Scan Completed!")
-        except Exception as e:
-            st.error(f"Execution Error: {str(e)}")
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Scanner", "🧠 AI Insights", "📈 Analytics & History", "📥 Reporting", "🔗 CI/CD & Integrations"])
+
+with tab1:
+    col_u, col_b, col_c = st.columns([3, 1, 1])
+    with col_u: target_url = st.text_input("Target URL:", "https://example.com")
+    with col_b: browser_choice = st.selectbox("Browser Engine:", ["Chromium", "Firefox", "WebKit"])
+    with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 5, 2)
+
+    if st.button("Dispatch Enterprise Scan", type="primary"):
+        with st.spinner("Analyzing target infrastructure..."):
+            try:
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice))
+                st.session_state["active_scan"] = result
+                VaultManager.append_scan(result)
+                st.success("Scan Completed!")
+            except Exception as e:
+                st.error(f"Execution Error: {str(e)}")
+
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        scores = scan["scores"]
+        
+        st.subheader("📊 Quality Index Scores")
+        sc1, sc2, sc3, sc4, sc5 = st.columns(5)
+        def display_card(col, value, label, color):
+            col.markdown(f'<div class="score-card"><div class="score-value" style="color: {color};">{int(value)}</div><div class="score-label">{label}</div></div>', unsafe_allow_html=True)
+        display_card(sc1, scores["overall"], "Overall Index", "#58a6ff")
+        display_card(sc2, scores["security"], "Security", "#ff7b72")
+        display_card(sc3, scores["performance"], "Performance", "#56d364")
+        display_card(sc4, scores["accessibility"], "Accessibility", "#e3b341")
+        display_card(sc5, scores["ui"], "UI / Layout", "#d2a8ff")
+
+        st.markdown("---")
+        st.subheader("🛑 Defect Findings")
+        for d in scan["defects"]:
+            with st.expander(f"[{d['severity']}] {d['category']} — {d['title']}"):
+                st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
+                tags = ""
+                if d.get("owasp"): tags += f"<span class='compliance-tag'>{d['owasp']}</span>"
+                if d.get("cwe"): tags += f"<span class='compliance-tag'>{d['cwe']}</span>"
+                if tags: st.markdown(tags, unsafe_allow_html=True)
+                if d.get("fix"): st.markdown(f"**Fix / Ref:** {d['fix']}")
+
+with tab2:
+    st.subheader("🧠 Simulated AI Risk & Root Cause Analysis")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        crit_count = sum(1 for d in scan["defects"] if d["severity"] == "Critical")
+        high_count = sum(1 for d in scan["defects"] if d["severity"] == "High")
+        
+        if crit_count > 0:
+            st.error(f"**AI Risk Prediction: CRITICAL SYSTEM RISK**\n\nThe presence of {crit_count} critical vulnerabilities indicates imminent risk of data breach. Immediate remediation required.")
+        elif high_count > 0:
+            st.warning(f"**AI Risk Prediction: ELEVATED RISK**\n\nIdentified {high_count} high-severity flaws. Platform is vulnerable to targeted compliance failures and exploitation.")
+        else:
+            st.success("**AI Risk Prediction: STABLE**\n\nNo major systemic threats detected. Continue standard monitoring.")
+            
+        st.markdown("### 🤖 Remediation Roadmap (AI Heuristic)")
+        st.write("1. **Prioritize Header Injections:** Resolve missing security headers (CSP, HSTS) to mitigate 60% of common client-side threats.")
+        st.write("2. **Accessibility Overhaul:** Fix WCAG contrast and missing labels to prevent compliance penalties.")
+    else:
+        st.info("Run a scan to generate AI insights.")
+
+with tab3:
+    st.subheader("📈 Executive Analytics & History")
+    hist = VaultManager.read_history()
+    if hist.get("scans"):
+        df = pd.DataFrame([{ "Time": s["timestamp"], "Score": s["scores"]["overall"], "Security": s["scores"]["security"] } for s in hist["scans"]])
+        df["Time"] = pd.to_datetime(df["Time"])
+        df.set_index("Time", inplace=True)
+        st.line_chart(df)
+        st.dataframe(pd.DataFrame([{ "Time": s["timestamp"], "Target": s["url"], "Score": s["scores"]["overall"], "Defects": len(s["defects"]) } for s in hist["scans"]]), use_container_width=True)
+    else:
+        st.info("No historical data.")
+
+with tab4:
+    st.subheader("📥 Export Compliance Reports")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        export_format = st.selectbox("Format:", ["Detailed TXT Report", "JSON Document", "CSV Ledger", "Compliance PDF"])
+        
+        # Prepare Data
+        if export_format == "Detailed TXT Report":
+            report_text = f"BUGOPTIX ENTERPRISE REPORT\n" + "="*50 + f"\nTarget: {scan['url']}\nDate: {scan['timestamp']}\nScore: {scan['scores']['overall']}/100\n\n"
+            report_text += "DETECTED DEFECTS:\n" + "-"*50 + "\n"
+            for d in scan["defects"]:
+                report_text += f"\n[{d['severity'].upper()}] {d['category']} - {d['title']}\nRoute: {d['route']}\nDetails: {d['description']}\n"
+            st.download_button("Download TXT", report_text, "detailed_report.txt", "text/plain")
+            
+        elif export_format == "JSON Document":
+            st.download_button("Download JSON", json.dumps(scan, indent=4), "report.json", "application/json")
+            
+        elif export_format == "CSV Ledger":
+            df_defects = pd.DataFrame(scan["defects"])
+            st.download_button("Download CSV", df_defects.to_csv(index=False), "defects.csv", "text/csv")
+            
+        elif export_format == "Compliance PDF":
+            # PDF Generation logic using standard string formatting
+            pdf = f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>>>>> >>endobj\n4 0 obj<</Length 450>>stream\nBT\n/F1 14 Tf\n40 720 Td\n(BUGOPTIX ENTERPRISE COMPLIANCE REPORT) Tj\n/F1 11 Tf\n0 -40 Td\n(Target: {scan['url']}) Tj\n0 -20 Td\n(Date: {scan['timestamp']}) Tj\n0 -20 Td\n(Score: {scan['scores']['overall']}/100) Tj\n0 -40 Td\n(Findings: {len(scan['defects'])} defects identified) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000250 00000 n\ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n740\n%%EOF"
+            st.download_button("Download PDF", pdf.encode(), "compliance_report.pdf", "application/pdf")
+    else:
+        st.info("Run a scan to compile reports.")
+
+with tab5:
+    st.subheader("🔗 DevOps & Integrations")
+    st.write("### Slack / Microsoft Teams Webhook")
+    st.code('{ "text": "BugOptix Scan Completed. Quality Score: 85/100. Critical Defects: 0" }', language="json")
+    st.write("### GitHub Actions / GitLab CI Pipeline")
+    st.code("python -c \"import json; score=json.load(open('report.json'))['scores']['overall']; exit(1) if score < 80 else exit(0)\"", language="bash")

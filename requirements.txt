@@ -1,6 +1,4 @@
-google-genai
 streamlit
 playwright
-nest_asyncio
 httpx
 pandas

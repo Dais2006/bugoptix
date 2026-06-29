@@ -160,23 +160,6 @@ class VaultManager:
 # ════════════════════════════════════════════════════════════
 #  DYNAMIC TESTING CORE
 # ════════════════════════════════════════════════════════════
-# Insert this new function around Line 140
-async def audit_login_form(page, url):
-    """Specific Auditor for Login Forms"""
-    results = []
-    # Check for insecure form submission
-    form = await page.query_selector("form")
-    if form:
-        action = await form.get_attribute("action")
-        if action and action.startswith("http://"):
-            results.append({"category": "Auth", "severity": "Critical", "title": "Insecure Login Form", "description": "Form submits over HTTP."})
-    
-    # Check for password field visibility
-    pwd_field = await page.query_selector('input[type="password"]')
-    if not pwd_field:
-        results.append({"category": "Auth", "severity": "Medium", "title": "Missing Password Masking", "description": "No secure password field found."})
-        
-    return results
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str) -> dict:
     start_time = datetime.now()
     summary = {
@@ -194,12 +177,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
     # Fetch axe-core script statically
     axe_payload = ""
     try:
-        # Inside perform_crawl_and_scan, after page.goto(current_route, ...):
-# (Insert this call around Line 190)
-
-if "login" in current_route.lower() or "admission" in current_route.lower():
-    login_defects = await audit_login_form(page, current_route)
-    summary["defects"].extend(login_defects)
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get("https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
             if r.status_code == 200: axe_payload = r.text

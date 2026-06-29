@@ -260,7 +260,21 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                         summary["screenshot"] = base64.b64encode(ss_bytes).decode("utf-8")
                     except Exception:
                         pass
-
+# LOCATE THIS LINE IN YOUR APP (~LINE 260)
+if st.button("Dispatch Enterprise Scan", type="primary"):
+    with st.spinner("Analyzing target infrastructure..."):
+        try:
+            # --- REPLACE THE LINE BELOW ---
+            # result = perform_crawl_and_scan(...)  <-- DELETE/COMMENT OUT THIS
+            
+            # --- WITH THIS NEW LINE ---
+            result = asyncio.run(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice))
+            
+            st.session_state["active_scan"] = result
+            VaultManager.append_scan(result)
+            st.success("Scan Completed!")
+        except Exception as e:
+            st.error(f"Execution Error: {str(e)}")
                 if resp:
                     headers = {k.lower(): v for k, v in resp.headers.items()}
                     for hdr, (sev, desc, owasp, cwe) in SECURITY_HEADERS.items():

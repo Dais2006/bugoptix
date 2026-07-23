@@ -58,7 +58,7 @@ except Exception:
     pass
 
 # ════════════════════════════════════════════════════════════
-#  3. OBSIDIAN STYLING SYSTEM & TRENDING MENU EFFECTS
+#  3. OBSIDIAN STYLING & DYNAMIC NIKE-STYLE MENU EFFECTS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -80,65 +80,61 @@ html, body, [class*="css"] {
 
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Trending Glow & Slide Menu Animations */
+/* Nike-Inspired Dynamic Hover & Slide Menu Effects */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 12px;
+    gap: 8px;
     background-color: #111113;
     padding: 10px 16px;
-    border-radius: 14px;
+    border-radius: 16px;
     border: 1px solid #1f1f24;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
 .stTabs [data-baseweb="tab"] {
     height: 48px;
     background-color: #08080a;
-    border-radius: 10px;
+    border-radius: 12px;
     color: #8e8e93;
-    font-weight: 700;
-    font-size: 14px;
+    font-weight: 800;
+    font-size: 13.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     border: 1px solid #1f1f24;
-    padding: 0px 18px;
+    padding: 0px 20px;
     position: relative;
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.stTabs [data-baseweb="tab"]::after {
+.stTabs [data-baseweb="tab"]::before {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 50%;
-    width: 0;
-    height: 2px;
-    background: #ff4600;
-    transition: all 0.3s ease;
-    transform: translateX(-50%);
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 70, 0, 0.15), transparent);
+    transition: all 0.5s ease;
+}
+
+.stTabs [data-baseweb="tab"]:hover::before {
+    left: 100%;
 }
 
 .stTabs [data-baseweb="tab"]:hover {
     color: #ffffff;
     border-color: #ff4600;
-    background-color: #161619;
+    background-color: #141417;
     transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(255, 70, 0, 0.25);
-}
-
-.stTabs [data-baseweb="tab"]:hover::after {
-    width: 80%;
+    box-shadow: 0 8px 25px rgba(255, 70, 0, 0.3);
 }
 
 .stTabs [aria-selected="true"] {
     background: linear-gradient(135deg, #ff4600 0%, #ff8700 100%) !important;
     color: #ffffff !important;
     border-color: #ff4600 !important;
-    box-shadow: 0 6px 25px rgba(255, 70, 0, 0.5) !important;
+    box-shadow: 0 8px 30px rgba(255, 70, 0, 0.5) !important;
     transform: translateY(-3px);
-}
-
-.stTabs [aria-selected="true"]::after {
-    width: 100%;
-    background: #ffffff;
 }
 
 .hero-banner {
@@ -222,6 +218,17 @@ html, body, [class*="css"] {
     font-weight: 700;
 }
 
+.error-card {
+    background: linear-gradient(135deg, rgba(255, 42, 95, 0.08) 0%, #111113 100%);
+    border-left: 4px solid #ff2a5f;
+    border-top: 1px solid #1f1f24;
+    border-right: 1px solid #1f1f24;
+    border-bottom: 1px solid #1f1f24;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
 .json-view-container {
     background: #0d0d0f;
     border: 1px solid #2a2a32;
@@ -232,17 +239,6 @@ html, body, [class*="css"] {
     color: #00e699;
     max-height: 500px;
     overflow-y: auto;
-}
-
-.error-card {
-    background: linear-gradient(135deg, rgba(255, 42, 95, 0.08) 0%, #111113 100%);
-    border-left: 4px solid #ff2a5f;
-    border-top: 1px solid #1f1f24;
-    border-right: 1px solid #1f1f24;
-    border-bottom: 1px solid #1f1f24;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -360,7 +356,7 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  5. PROFESSIONAL ENTERPRISE PDF GENERATOR
+#  5. PROFESSIONAL PDF GENERATOR (NO RAW JSON, FULL TESTED ERRORS)
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
@@ -369,42 +365,40 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor("#ff4600"), spaceAfter=6, fontName="Helvetica-Bold")
-    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#666666"), spaceAfter=14)
-    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8, fontName="Helvetica-Bold")
-    body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=8.5, textColor=colors.HexColor("#333333"), leading=11)
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor("#ff4600"), spaceAfter=4, fontName="Helvetica-Bold")
+    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=8.5, textColor=colors.HexColor("#666666"), spaceAfter=12)
+    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=11, textColor=colors.HexColor("#111113"), spaceBefore=12, spaceAfter=6, fontName="Helvetica-Bold")
+    body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor("#333333"), leading=10.5)
     cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor("#222222"), leading=9)
-    json_code_style = ParagraphStyle('JsonCode', parent=styles['Normal'], fontName='Courier', fontSize=6.5, leading=8, textColor=colors.HexColor("#1e1e1e"))
     
     story = []
 
     story.append(Paragraph("BUGOPTIX PRO — ENTERPRISE SECURITY & AUDIT REPORT", title_style))
-    story.append(Paragraph("CONFIDENTIAL | FOR INTERNAL & TECHNICAL STAKEHOLDER REVIEW ONLY", subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#ff4600"), spaceAfter=12))
+    story.append(Paragraph("CONFIDENTIAL | TESTED VULNERABILITY & INCIDENT ASSESSMENT REPORT", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#ff4600"), spaceAfter=10))
 
     meta_data = [
         [Paragraph("<b>Target URL:</b>", body_style), Paragraph(scan_data['url'], body_style), Paragraph("<b>Audit Date:</b>", body_style), Paragraph(scan_data['timestamp'], body_style)],
         [Paragraph("<b>Execution Engine:</b>", body_style), Paragraph(scan_data.get('browser', 'Fast Parser'), body_style), Paragraph("<b>Pages Crawled:</b>", body_style), Paragraph(str(len(scan_data.get('routes', []))), body_style)],
-        [Paragraph("<b>Max Severity Threat:</b>", body_style), Paragraph(f"CVSS {scan_data['metrics'].get('max_cvss', 0.0)}", body_style), Paragraph("<b>Overall Index:</b>", body_style), Paragraph(f"{scan_data['scores']['overall']}/100", body_style)],
+        [Paragraph("<b>Peak CVSS Risk:</b>", body_style), Paragraph(f"CVSS {scan_data['metrics'].get('max_cvss', 0.0)}", body_style), Paragraph("<b>Overall Index:</b>", body_style), Paragraph(f"{scan_data['scores']['overall']}/100", body_style)],
     ]
-    t_meta = Table(meta_data, colWidths=[100, 170, 90, 160])
+    t_meta = Table(meta_data, colWidths=[90, 180, 90, 160])
     t_meta.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e0e0e0")),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ]))
     story.append(t_meta)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
 
-    story.append(Paragraph("1. Executive Summary", h2_style))
+    story.append(Paragraph("1. Executive Summary & Health Index", h2_style))
     story.append(Paragraph(
-        f"A comprehensive security, compliance, and performance assessment was conducted for <b>{scan_data['url']}</b>. "
-        f"The platform achieved an overall rating of <b>{scan_data['scores']['overall']}/100</b>. "
-        f"A total of <b>{len(scan_data.get('defects', []))} defect(s)</b> were identified during automated crawling. Immediate remediation is advised for issues marked as Critical or High.",
+        f"Security posture analysis for <b>{scan_data['url']}</b> yielded an overall safety rating of <b>{scan_data['scores']['overall']}/100</b>. "
+        f"Below is the complete inventory of tested errors, system anomalies, and remediation guidelines discovered during scanning.",
         body_style
     ))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))
 
     scores = scan_data['scores']
     score_table_data = [
@@ -418,69 +412,39 @@ def generate_pdf_report(scan_data: dict) -> bytes:
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('FONTSIZE', (0,0), (-1,-1), 8.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(t_scores)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
 
-    story.append(Paragraph("2. Detailed Findings & Compliance Mapping", h2_style))
+    story.append(Paragraph("2. Complete Log of Tested Errors & Vulnerabilities", h2_style))
     defects = scan_data.get("defects", [])
     if defects:
-        defect_table_data = [["Sev", "Category", "Vulnerability & Description", "OWASP / CWE", "CVSS", "Remediation Guidance"]]
+        defect_table_data = [["Sev", "Category", "Tested Vulnerability & Description", "OWASP / CWE", "CVSS", "Remediation Action"]]
         for d in defects:
             defect_table_data.append([
                 d.get("severity", "Low"),
                 d.get("category", "General"),
-                Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}", cell_style),
+                Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}<br/><i>Route: {d.get('route', '')}</i>", cell_style),
                 Paragraph(f"{d.get('owasp', 'N/A')}<br/>{d.get('cwe', 'N/A')}", cell_style),
                 str(d.get("cvss", "0.0")),
-                Paragraph(d.get("fix", "Review server configuration and code."), cell_style)
+                Paragraph(d.get("fix", "Review server configurations."), cell_style)
             ])
-        t_defects = Table(defect_table_data, colWidths=[40, 55, 150, 75, 35, 165])
+        t_defects = Table(defect_table_data, colWidths=[40, 50, 160, 75, 35, 160])
         t_defects.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#ff4600")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
             ('FONTSIZE', (0,0), (-1,-1), 7.5),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('TOPPADDING', (0,0), (-1,-1), 5),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
         ]))
         story.append(t_defects)
     else:
-        story.append(Paragraph("No critical defects or security risks were identified.", body_style))
-
-    story.append(PageBreak())
-    story.append(Paragraph("3. Specialized Security & Telemetry", h2_style))
-    p_res = scan_data.get("phishing_analysis", {})
-    story.append(Paragraph(f"<b>Phishing Risk Score:</b> {p_res.get('risk_score', 0)}/100 | <b>Status:</b> {'HIGH RISK' if p_res.get('is_phishing') else 'Pass/Low Risk'}", body_style))
-    if p_res.get("indicators"):
-        for ind in p_res["indicators"]:
-            story.append(Paragraph(f"• {ind}", body_style))
-    story.append(Spacer(1, 10))
-
-    story.append(Paragraph("4. Technical Machine-Readable Telemetry (JSON)", h2_style))
-    story.append(Paragraph("Structured record attached for automated CI/CD pipeline ingestion and SIEM logging.", subtitle_style))
-    
-    formatted_json_str = json.dumps(scan_data, indent=2)
-    json_lines = formatted_json_str.split("\n")
-    json_table_data = []
-    for line in json_lines:
-        safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;")
-        json_table_data.append([Paragraph(safe_line, json_code_style)])
-
-    t_json = Table(json_table_data, colWidths=[520])
-    t_json.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#dcdcdc")),
-        ('TOPPADDING', (0,0), (-1,-1), 1),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-    ]))
-    story.append(t_json)
+        story.append(Paragraph("No tested errors or security vulnerabilities were discovered during scanning.", body_style))
 
     doc.build(story)
     buffer.seek(0)
@@ -691,7 +655,7 @@ with tab1:
         else:
             st.success("No defects or security issues discovered on target.")
 
-# --- TAB 2: EXECUTIVE SUMMARY (CONVERTED PDF JSON INTO VISUAL/TEXT FORMAT) ---
+# --- TAB 2: EXECUTIVE SUMMARY & VISUAL REPORT VIEWER ---
 with tab_summary:
     st.subheader("📊 C-Level Executive Security Summary & Visual Report Viewer")
     if st.session_state.get("active_scan"):
@@ -757,26 +721,24 @@ with tab_summary:
                 st.plotly_chart(fig_cvss_gauge, use_container_width=True)
 
         st.markdown("---")
-        st.markdown("### 📝 Visualized Report Data Stream")
-        
-        # Formatted visual/text breakdown of the PDF's internal JSON content
-        col_v1, col_v2 = st.columns(2)
-        with col_v1:
-            st.markdown("#### 📌 Scan Metadata")
-            st.code(json.dumps({
-                "url": scan["url"],
-                "timestamp": scan["timestamp"],
-                "engine": scan["browser"],
-                "total_routes_crawled": len(scan.get("routes", []))
-            }, indent=2), language="json")
-        with col_v2:
-            st.markdown("#### 🎯 Scorecard Breakdown")
-            st.code(json.dumps(scan["scores"], indent=2), language="json")
+        st.markdown("### 📝 Visualized Tested Errors & Incidents")
+        if defects:
+            for d in defects:
+                st.markdown(f"""
+                <div class="error-card">
+                    <strong style="color: #ff2a5f;">[{d['severity']}] {d['category']}</strong> — <b>{d['title']}</b> (CVSS: {d.get('cvss', 0.0)})<br>
+                    <span style="color: #8e8e93; font-size: 13px;">Affected Route: <code>{d['route']}</code> | Standard: {d.get('owasp', 'N/A')} / {d.get('cwe', 'N/A')}</span><br>
+                    <p style="margin-top: 6px; font-size: 14px; color: #f5f5f7;">{d['description']}</p>
+                    <code style="background: #08080a; padding: 4px 8px; border-radius: 4px; color: #00e699; font-size: 12px;">Remediation: {d.get('fix', 'N/A')}</code>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.success("No tested errors or vulnerabilities found.")
 
         st.markdown("#### 📄 Complete Raw JSON Telemetry Data")
         st.markdown(f'<div class="json-view-container"><pre>{json.dumps(scan, indent=4)}</pre></div>', unsafe_allow_html=True)
     else:
-        st.info("⚡ Run an active audit scan in the Scan Engine tab to populate the Executive Summary & Visual Report dashboard.")
+        st.info("⚡ Run an active audit scan in the Scan Engine tab to populate the Executive Summary dashboard.")
 
 # --- TAB 3: PHISHING AUDIT ---
 with tab2:

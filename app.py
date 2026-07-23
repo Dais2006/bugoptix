@@ -50,7 +50,7 @@ except Exception:
 REPORTLAB_AVAILABLE = False
 try:
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, HRFlowable
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib import colors
     REPORTLAB_AVAILABLE = True
@@ -58,7 +58,7 @@ except Exception:
     pass
 
 # ════════════════════════════════════════════════════════════
-#  3. OBSIDIAN STYLING SYSTEM
+#  3. OBSIDIAN STYLING SYSTEM & TAB ANIMATIONS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -79,6 +79,39 @@ html, body, [class*="css"] {
 }
 
 #MainMenu, footer, header { visibility: hidden; }
+
+/* Dynamic Menu / Tab Styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px;
+    background-color: #111113;
+    padding: 10px 16px;
+    border-radius: 14px;
+    border: 1px solid #1f1f24;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 48px;
+    background-color: #08080a;
+    border-radius: 10px;
+    color: #8e8e93;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid transparent;
+    padding: 0px 18px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color: #ffffff;
+    border-color: #ff4600;
+    transform: translateY(-2px);
+}
+
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #ff4600 0%, #ff8700 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(255, 70, 0, 0.4);
+}
 
 .hero-banner {
     background: linear-gradient(135deg, #111113 0%, #08080a 100%);
@@ -182,12 +215,12 @@ html, body, [class*="css"] {
 #  4. SECURITY ENGINES & RULES
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
-    "content-security-policy": ("Critical", "Missing Content-Security-Policy header. Exposes site to XSS.", "OWASP A03:2021", "CWE-352", 7.5),
-    "strict-transport-security": ("High", "Missing HSTS. Allows MITM SSL strip attacks.", "OWASP A02:2021", "CWE-319", 6.5),
-    "x-frame-options": ("High", "Missing X-Frame-Options. Vulnerable to Clickjacking.", "OWASP A05:2021", "CWE-1021", 5.4),
-    "x-content-type-options": ("Medium", "Missing X-Content-Type-Options. Allows MIME sniffing.", "OWASP A05:2021", "CWE-430", 4.3),
-    "referrer-policy": ("Medium", "Missing Referrer-Policy. Leaks navigation data.", "OWASP A01:2021", "CWE-200", 3.1),
-    "permissions-policy": ("Low", "Missing Permissions-Policy. Allows unrestricted browser feature usage.", "OWASP A05:2021", "CWE-693", 2.0)
+    "content-security-policy": ("Critical", "Missing Content-Security-Policy header. Exposes site to XSS.", "OWASP A03:2021", "CWE-352", 7.5, "Implement a strict CSP restricting script execution to trusted domains."),
+    "strict-transport-security": ("High", "Missing HSTS. Allows MITM SSL strip attacks.", "OWASP A02:2021", "CWE-319", 6.5, "Enable HSTS header with max-age=31536000 and includeSubDomains."),
+    "x-frame-options": ("High", "Missing X-Frame-Options. Vulnerable to Clickjacking.", "OWASP A05:2021", "CWE-1021", 5.4, "Configure X-Frame-Options to DENY or SAMEORIGIN."),
+    "x-content-type-options": ("Medium", "Missing X-Content-Type-Options. Allows MIME sniffing.", "OWASP A05:2021", "CWE-430", 4.3, "Set X-Content-Type-Options to 'nosniff'."),
+    "referrer-policy": ("Medium", "Missing Referrer-Policy. Leaks navigation data.", "OWASP A01:2021", "CWE-200", 3.1, "Set Referrer-Policy to 'strict-origin-when-cross-origin'."),
+    "permissions-policy": ("Low", "Missing Permissions-Policy. Allows unrestricted browser feature usage.", "OWASP A05:2021", "CWE-693", 2.0, "Define explicit permissions policy for camera, microphone, and geolocation.")
 }
 
 CREDENTIAL_SIGNATURES = [
@@ -290,6 +323,9 @@ class VaultManager:
         except Exception:
             pass
 
+# ════════════════════════════════════════════════════════════
+#  5. PROFESSIONAL ENTERPRISE PDF GENERATOR
+# ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
         return b""
@@ -297,69 +333,108 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#ff4600"), spaceAfter=12)
-    sub_style = ParagraphStyle('DocSub', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#555555"), spaceAfter=20)
-    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8)
-    cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor("#222222"))
-    json_code_style = ParagraphStyle('JsonCode', parent=styles['Normal'], fontName='Courier', fontSize=7, leading=9, textColor=colors.HexColor("#1e1e1e"))
+    # Styles Setup
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor("#ff4600"), spaceAfter=6, fontName="Helvetica-Bold")
+    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#666666"), spaceAfter=14)
+    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8, fontName="Helvetica-Bold")
+    body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=8.5, textColor=colors.HexColor("#333333"), leading=11)
+    cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor("#222222"), leading=9)
+    json_code_style = ParagraphStyle('JsonCode', parent=styles['Normal'], fontName='Courier', fontSize=6.5, leading=8, textColor=colors.HexColor("#1e1e1e"))
     
     story = []
-    # --- PAGE 1: EXECUTIVE SUMMARY ---
-    story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE AUDIT REPORT", title_style))
-    story.append(Paragraph(f"Target Domain: <b>{scan_data['url']}</b> | Generated: {scan_data['timestamp']} | Overall Score: <b>{scan_data['scores']['overall']}/100</b>", sub_style))
-    
+
+    # --- COVER / HEADER & METADATA BLOCK ---
+    story.append(Paragraph("BUGOPTIX PRO — ENTERPRISE SECURITY & AUDIT REPORT", title_style))
+    story.append(Paragraph("CONFIDENTIAL | FOR INTERNAL & TECHNICAL STAKEHOLDER REVIEW ONLY", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#ff4600"), spaceAfter=12))
+
+    meta_data = [
+        [Paragraph("<b>Target URL:</b>", body_style), Paragraph(scan_data['url'], body_style), Paragraph("<b>Audit Date:</b>", body_style), Paragraph(scan_data['timestamp'], body_style)],
+        [Paragraph("<b>Execution Engine:</b>", body_style), Paragraph(scan_data.get('browser', 'Fast Parser'), body_style), Paragraph("<b>Pages Crawled:</b>", body_style), Paragraph(str(len(scan_data.get('routes', []))), body_style)],
+        [Paragraph("<b>Max Severity Threat:</b>", body_style), Paragraph(f"CVSS {scan_data['metrics'].get('max_cvss', 0.0)}", body_style), Paragraph("<b>Overall Index:</b>", body_style), Paragraph(f"{scan_data['scores']['overall']}/100", body_style)],
+    ]
+    t_meta = Table(meta_data, colWidths=[100, 170, 90, 160])
+    t_meta.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e0e0e0")),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(t_meta)
+    story.append(Spacer(1, 12))
+
+    # --- EXECUTIVE NARRATIVE ---
+    story.append(Paragraph("1. Executive Summary", h2_style))
+    story.append(Paragraph(
+        f"A comprehensive security, compliance, and performance assessment was conducted for <b>{scan_data['url']}</b>. "
+        f"The platform achieved an overall rating of <b>{scan_data['scores']['overall']}/100</b>. "
+        f"A total of <b>{len(scan_data.get('defects', []))} defect(s)</b> were identified during automated crawling. Immediate remediation is advised for issues marked as Critical or High.",
+        body_style
+    ))
+    story.append(Spacer(1, 10))
+
+    # --- SCORECARDS TABLE ---
     scores = scan_data['scores']
     score_table_data = [
-        ["Overall Score", "Security", "Performance", "Accessibility", "UI Rating"],
+        ["Overall Index", "Security", "Performance", "Accessibility", "UI Rating"],
         [f"{scores['overall']}/100", f"{scores['security']}/100", f"{scores['performance']}/100", f"{scores['accessibility']}/100", f"{scores['ui']}/100"]
     ]
-    t_scores = Table(score_table_data, colWidths=[100, 100, 100, 100, 100])
+    t_scores = Table(score_table_data, colWidths=[104]*5)
     t_scores.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 1, colors.HexColor("#dddddd")),
-        ('FONTSIZE', (0,0), (-1,-1), 10),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
     ]))
     story.append(t_scores)
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Key Findings & Vulnerability Matrix", h2_style))
+    # --- VULNERABILITY MATRIX ---
+    story.append(Paragraph("2. Detailed Findings & Compliance Mapping", h2_style))
     defects = scan_data.get("defects", [])
-    
     if defects:
-        defect_table_data = [["Severity", "Category", "Title", "CVSS", "Route"]]
-        for d in defects[:15]:
+        defect_table_data = [["Sev", "Category", "Vulnerability & Description", "OWASP / CWE", "CVSS", "Remediation Guidance"]]
+        for d in defects:
             defect_table_data.append([
                 d.get("severity", "Low"),
                 d.get("category", "General"),
-                Paragraph(d.get("title", ""), cell_style),
+                Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}", cell_style),
+                Paragraph(f"{d.get('owasp', 'N/A')}<br/>{d.get('cwe', 'N/A')}", cell_style),
                 str(d.get("cvss", "0.0")),
-                Paragraph(d.get("route", ""), cell_style)
+                Paragraph(d.get("fix", "Review server configuration and code."), cell_style)
             ])
-        t_defects = Table(defect_table_data, colWidths=[65, 80, 180, 50, 150])
+        t_defects = Table(defect_table_data, colWidths=[40, 55, 150, 75, 35, 165])
         t_defects.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#ff4600")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
-            ('FONTSIZE', (0,0), (-1,-1), 8),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('FONTSIZE', (0,0), (-1,-1), 7.5),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
         ]))
         story.append(t_defects)
     else:
-        story.append(Paragraph("No critical defects or security risks were identified.", cell_style))
+        story.append(Paragraph("No critical defects or security risks were identified.", body_style))
 
-    # --- PAGE 2: FULL RAW JSON AUDIT PAYLOAD ---
+    # --- PAGE 2: PHISHING & RAW JSON DATA ---
     story.append(PageBreak())
-    story.append(Paragraph("TECHNICAL AUDIT DATA (RAW JSON RECORD)", h2_style))
-    story.append(Paragraph("The formatted machine-readable JSON telemetry data below is attached for automated ingestion into CI/CD security pipelines.", sub_style))
+    story.append(Paragraph("3. Specialized Security & Telemetry", h2_style))
+    p_res = scan_data.get("phishing_analysis", {})
+    story.append(Paragraph(f"<b>Phishing Risk Score:</b> {p_res.get('risk_score', 0)}/100 | <b>Status:</b> {'HIGH RISK' if p_res.get('is_phishing') else 'Pass/Low Risk'}", body_style))
+    if p_res.get("indicators"):
+        for ind in p_res["indicators"]:
+            story.append(Paragraph(f"• {ind}", body_style))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph("4. Technical Machine-Readable Telemetry (JSON)", h2_style))
+    story.append(Paragraph("Structured record attached for automated CI/CD pipeline ingestion and SIEM logging.", subtitle_style))
     
     formatted_json_str = json.dumps(scan_data, indent=2)
-    
-    # Break long JSON text into lines for multi-page PDF rendering
     json_lines = formatted_json_str.split("\n")
     json_table_data = []
     for line in json_lines:
@@ -382,16 +457,15 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     return buffer.getvalue()
 
 # ════════════════════════════════════════════════════════════
-#  5. ISOLATED ASYNC EXECUTION WORKER
+#  6. ISOLATED ASYNC EXECUTION WORKER
 # ════════════════════════════════════════════════════════════
 def run_async_isolated(coro):
-    """Executes async coroutines in a separate worker thread with its own clean loop."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(asyncio.run, coro)
         return future.result()
 
 # ════════════════════════════════════════════════════════════
-#  6. CRAWLER & AUDIT ENGINE
+#  7. CRAWLER & AUDIT ENGINE
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: str, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
@@ -428,7 +502,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
         summary["scores"][score_key] = max(0, summary["scores"][score_key] - deduction)
 
     if phishing_eval["is_phishing"]:
-        add_defect("Security", "Critical", "Phishing Signature Detected", f"Structural URL analysis identified high-risk phishing indicators: {', '.join(phishing_eval['indicators'])}", root_url, "OWASP A07:2021", "CWE-352", cvss=8.5)
+        add_defect("Security", "Critical", "Phishing Signature Detected", f"Structural URL analysis identified high-risk phishing indicators: {', '.join(phishing_eval['indicators'])}", root_url, "OWASP A07:2021", "CWE-352", "Audit domain registration and enforce domain monitoring.", cvss=8.5)
 
     parsed_root = urlparse(root_url)
     target_limit = 999999 if is_unlimited else crawl_limit
@@ -456,16 +530,16 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
 
                 # Security Headers Audit
                 headers = {k.lower(): v for k, v in resp.headers.items()}
-                for hdr, (sev, desc, owasp, cwe, cvss) in SECURITY_HEADERS.items():
+                for hdr, (sev, desc, owasp, cwe, cvss, fix) in SECURITY_HEADERS.items():
                     if hdr not in headers:
-                        add_defect("Security", sev, f"Missing {hdr.upper()}", desc, current_route, owasp, cwe, cvss=cvss)
+                        add_defect("Security", sev, f"Missing {hdr.upper()}", desc, current_route, owasp, cwe, fix, cvss=cvss)
 
                 cookies = resp.headers.get("set-cookie", "")
                 if cookies:
                     if "Secure" not in cookies:
-                        add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", cvss=4.3)
+                        add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", "Append 'Secure' attribute to set-cookie headers.", cvss=4.3)
                     if "HttpOnly" not in cookies:
-                        add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", cvss=4.3)
+                        add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", "Append 'HttpOnly' attribute to sensitive cookies.", cvss=4.3)
 
                 for h_name, h_val in resp.headers.items():
                     jwt_matches = re.findall(JWT_REGEX, h_val)
@@ -475,7 +549,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
                             findings = PassiveJWTAnalyzer.inspect_token(jwt)
                             for f in findings:
                                 if f["cvss"] > 0:
-                                    add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
+                                    add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", "Enforce asymmetric signatures and valid exp claims.", cvss=f["cvss"])
 
                 # DOM Content & Secret Scanning
                 html_markup = resp.text
@@ -485,11 +559,11 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
 
                     imgs_without_alt = soup.find_all("img", alt=False)
                     if imgs_without_alt:
-                        add_defect("Accessibility", "Medium", "Missing Image Alt Tags", f"Found {len(imgs_without_alt)} image tags without 'alt' attributes.", current_route, cvss=3.0)
+                        add_defect("Accessibility", "Medium", "Missing Image Alt Tags", f"Found {len(imgs_without_alt)} image tags without 'alt' attributes.", current_route, "OWASP A05:2021", "CWE-1007", "Add meaningful alt text to images.", cvss=3.0)
 
                     inputs_without_label = [i for i in soup.find_all("input") if not i.get("aria-label") and not i.get("id")]
                     if inputs_without_label:
-                        add_defect("Accessibility", "Low", "Unlabeled Input Fields", f"Found {len(inputs_without_label)} input fields lacking explicit labels.", current_route, cvss=2.0)
+                        add_defect("Accessibility", "Low", "Unlabeled Input Fields", f"Found {len(inputs_without_label)} input fields lacking explicit labels.", current_route, "OWASP A05:2021", "CWE-1007", "Associate input elements with explicit labels.", cvss=2.0)
 
                 html_jwts = re.findall(JWT_REGEX, html_markup)
                 for jwt in html_jwts:
@@ -498,11 +572,11 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
                         findings = PassiveJWTAnalyzer.inspect_token(jwt)
                         for f in findings:
                             if f["cvss"] > 0:
-                                add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", "Found in HTML/JS source.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
+                                add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", "Found in HTML/JS source.", current_route, "OWASP A02:2021", "CWE-287", "Remove hardcoded JWTs from client-side markup.", cvss=f["cvss"])
 
                 for pattern, name in CREDENTIAL_SIGNATURES:
                     if re.search(pattern, html_markup):
-                        add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials exposed in DOM markup.", current_route, "OWASP A07:2021", "CWE-798", cvss=8.9)
+                        add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials exposed in DOM markup.", current_route, "OWASP A07:2021", "CWE-798", "Revoke compromised key and store in vault.", cvss=8.9)
 
                 # Site Link Crawler
                 if len(visited) < target_limit:
@@ -513,7 +587,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
                             queue.append(link)
 
             except Exception as e:
-                add_defect("Security", "Low", "Route Fetch Error", str(e), current_route)
+                add_defect("Security", "Low", "Route Fetch Error", str(e), current_route, fix="Verify route accessibility.")
 
     overall = sum(summary["scores"].values()) / 5.0
     summary["scores"]["overall"] = round(overall, 1)
@@ -521,7 +595,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  7. DASHBOARD USER INTERFACE
+#  8. DASHBOARD USER INTERFACE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">
@@ -531,16 +605,61 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_summary, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📊 Executive Summary",
+# Correct Order: Scan Engine first, followed by Executive Summary and Specialized Audits
+tab1, tab_summary, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "⚡ Scan Engine", 
+    "📊 Executive Summary",
     "🛡️ Phishing Audit", 
-    "🔑 JWT Auto-Analyzer", 
+    "🔑 JWT Inspector", 
     "📈 Vitals & Metrics", 
-    "📥 Reports", 
-    "🔗 Pipeline"
+    "📄 Technical Reports", 
+    "🔗 CI/CD Pipeline"
 ])
 
+# --- TAB 1: SCAN ENGINE ---
+with tab1:
+    col_u, col_b, col_unlim, col_c = st.columns([3, 1, 1, 1])
+    with col_u: target_url = st.text_input("Target Domain:", "https://example.com")
+    with col_b: browser_choice = st.selectbox("Engine:", ["Fast Dynamic Parser", "Deep HTTP Prober"])
+    with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
+    with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
+
+    if st.button("RUN ENGINE", type="primary"):
+        with st.spinner("Analyzing target domain & inspecting HTTP assets..."):
+            try:
+                result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
+                st.session_state["active_scan"] = result
+                VaultManager.append_scan(result)
+                st.success("Audit Execution Finished Successfully!")
+            except Exception as e:
+                st.error(f"Execution Failure: {str(e)}")
+
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        scores = scan["scores"]
+        
+        st.markdown("### 📊 Index Breakdown")
+        sc1, sc2, sc3, sc4, sc5 = st.columns(5)
+        def display_card(col, value, label, color):
+            col.markdown(f'<div class="metric-card"><div class="metric-val" style="color: {color};">{int(value)}</div><div class="metric-lbl">{label}</div></div>', unsafe_allow_html=True)
+        
+        display_card(sc1, scores["overall"], "Overall Index", "#ff4600")
+        display_card(sc2, scores["security"], "Security", "#ff2a5f")
+        display_card(sc3, scores["performance"], "Performance", "#00e699")
+        display_card(sc4, scores["accessibility"], "Accessibility", "#ffb700")
+        display_card(sc5, scores["ui"], "UI / Layout", "#b800ff")
+
+        st.markdown("---")
+        st.markdown("### 🛑 Discovered Vulnerabilities & Findings")
+        if scan["defects"]:
+            for d in scan["defects"]:
+                cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
+                with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
+                    st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}\n\n**Fix Guidance:** `{d.get('fix', 'N/A')}`")
+        else:
+            st.success("No defects or security issues discovered on target.")
+
+# --- TAB 2: EXECUTIVE SUMMARY ---
 with tab_summary:
     st.subheader("📊 C-Level Executive Security Summary")
     if st.session_state.get("active_scan"):
@@ -555,7 +674,7 @@ with tab_summary:
             if REPORTLAB_AVAILABLE:
                 pdf_bytes = generate_pdf_report(scan)
                 st.download_button(
-                    label="📄 Download Full PDF Report (With JSON)",
+                    label="📄 Export Professional PDF Report",
                     data=pdf_bytes,
                     file_name=f"executive_summary_{scan['url'].replace('https://','').replace('http://','').replace('/','_')}.pdf",
                     mime="application/pdf",
@@ -607,52 +726,11 @@ with tab_summary:
         else:
             st.dataframe(pd.DataFrame(defects) if defects else "No defects discovered.")
     else:
-        st.info("⚡ Run an active audit scan in the Scan Engine tab to generate the Executive Summary dashboard.")
+        st.info("⚡ Run an active audit scan in the Scan Engine tab to populate the Executive Summary dashboard.")
 
-with tab1:
-    col_u, col_b, col_unlim, col_c = st.columns([3, 1, 1, 1])
-    with col_u: target_url = st.text_input("Target Domain:", "https://example.com")
-    with col_b: browser_choice = st.selectbox("Engine:", ["Fast Dynamic Parser", "Deep HTTP Prober"])
-    with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
-    with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
-
-    if st.button("RUN ENGINE", type="primary"):
-        with st.spinner("Analyzing target domain & inspecting HTTP assets..."):
-            try:
-                result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
-                st.session_state["active_scan"] = result
-                VaultManager.append_scan(result)
-                st.success("Audit Execution Finished Successfully!")
-            except Exception as e:
-                st.error(f"Execution Failure: {str(e)}")
-
-    if st.session_state.get("active_scan"):
-        scan = st.session_state["active_scan"]
-        scores = scan["scores"]
-        
-        st.markdown("### 📊 Index Breakdown")
-        sc1, sc2, sc3, sc4, sc5 = st.columns(5)
-        def display_card(col, value, label, color):
-            col.markdown(f'<div class="metric-card"><div class="metric-val" style="color: {color};">{int(value)}</div><div class="metric-lbl">{label}</div></div>', unsafe_allow_html=True)
-        
-        display_card(sc1, scores["overall"], "Overall Index", "#ff4600")
-        display_card(sc2, scores["security"], "Security", "#ff2a5f")
-        display_card(sc3, scores["performance"], "Performance", "#00e699")
-        display_card(sc4, scores["accessibility"], "Accessibility", "#ffb700")
-        display_card(sc5, scores["ui"], "UI / Layout", "#b800ff")
-
-        st.markdown("---")
-        st.markdown("### 🛑 Detected Findings")
-        if scan["defects"]:
-            for d in scan["defects"]:
-                cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
-                with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
-                    st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
-        else:
-            st.success("No defects or security issues discovered on target.")
-
+# --- TAB 3: PHISHING AUDIT ---
 with tab2:
-    st.subheader("🛡️ Phishing Intelligence")
+    st.subheader("🛡️ Phishing & Brand Protection Intelligence")
     if st.session_state.get("active_scan"):
         p_res = st.session_state["active_scan"]["phishing_analysis"]
         if p_res["is_phishing"]:
@@ -666,6 +744,7 @@ with tab2:
     else:
         st.info("Execute a scan to view phishing risk intelligence.")
 
+# --- TAB 4: JWT INSPECTOR ---
 with tab3:
     st.subheader("🔑 Passive JWT Token Inspector")
     if st.session_state.get("active_scan"):
@@ -691,8 +770,9 @@ with tab3:
         else:
             st.error("Please provide a valid JWT string.")
 
+# --- TAB 5: VITALS & METRICS ---
 with tab4:
-    st.subheader("📈 Real Network Vitals")
+    st.subheader("📈 Real Network Vitals & Telemetry")
     if st.session_state.get("active_scan"):
         metrics = st.session_state["active_scan"]["metrics"]
         m1, m2, m3 = st.columns(3)
@@ -702,14 +782,22 @@ with tab4:
     else:
         st.info("No active scan performance metrics available.")
 
+# --- TAB 6: TECHNICAL REPORTS ---
 with tab5:
-    st.subheader("📥 Export Scan Reports")
+    st.subheader("📄 Download Technical Reports")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
-        st.download_button("Download JSON Audit File", json.dumps(scan, indent=4), "audit_report.json", "application/json")
+        col_dl1, col_dl2 = st.columns(2)
+        with col_dl1:
+            st.download_button("📥 Download JSON Telemetry Data", json.dumps(scan, indent=4), "audit_report.json", "application/json", use_container_width=True)
+        with col_dl2:
+            if REPORTLAB_AVAILABLE:
+                pdf_bytes = generate_pdf_report(scan)
+                st.download_button("📄 Download Professional PDF Report", pdf_bytes, "audit_report.pdf", "application/pdf", use_container_width=True)
     else:
-        st.info("Run an audit scan to generate a report.")
+        st.info("Run an audit scan to generate downloadable reports.")
 
+# --- TAB 7: CI/CD PIPELINE ---
 with tab6:
     st.subheader("🔗 CI/CD Pipeline Automation Script")
     st.code("python -c \"import json; score=json.load(open('report.json'))['scores']['overall']; exit(1) if score < 80 else exit(0)\"", language="bash")

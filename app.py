@@ -15,7 +15,7 @@ from io import BytesIO
 import streamlit as st
 import pandas as pd
 
-# Safe Plotly imports with fallback checks
+# Safe Plotly imports
 PLOTLY_AVAILABLE = False
 try:
     import plotly.express as px
@@ -24,7 +24,7 @@ try:
 except ImportError:
     pass
 
-# Safe ReportLab imports for PDF Executive Summary Generation
+# Safe ReportLab imports
 REPORTLAB_AVAILABLE = False
 try:
     from reportlab.lib.pagesizes import letter
@@ -35,26 +35,18 @@ try:
 except ImportError:
     pass
 
-# Async runtime safety for Streamlit on Windows / Multi-thread loops
+# Safe Async loop patching
 try:
     import nest_asyncio
     nest_asyncio.apply()
-except ImportError:
+except Exception:
     pass
 
 if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-@st.cache_resource
-def install_playwright_browsers():
     try:
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True, capture_output=True)
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     except Exception:
         pass
-
-install_playwright_browsers()
-
-from playwright.async_api import async_playwright
 
 # ════════════════════════════════════════════════════════════
 #  NIKE-INSPIRED OBSIDIAN DESIGN SYSTEM
@@ -309,9 +301,6 @@ class VaultManager:
         except Exception:
             pass
 
-# ════════════════════════════════════════════════════════════
-#  PDF EXECUTIVE REPORT GENERATOR ENGINE
-# ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
         return b""
@@ -325,12 +314,9 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#222222"))
     
     story = []
-    
-    # Header Title
     story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE AUDIT REPORT", title_style))
     story.append(Paragraph(f"Target Domain: <b>{scan_data['url']}</b> | Generated: {scan_data['timestamp']} | Overall Score: <b>{scan_data['scores']['overall']}/100</b>", sub_style))
     
-    # Score Summary Table
     scores = scan_data['scores']
     score_table_data = [
         ["Overall Score", "Security", "Performance", "Accessibility", "UI Rating"],
@@ -349,7 +335,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_scores)
     story.append(Spacer(1, 15))
 
-    # Findings Table
     story.append(Paragraph("Key Findings & Vulnerability Matrix", h2_style))
     defects = scan_data.get("defects", [])
     
@@ -390,10 +375,24 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     buffer.seek(0)
     return buffer.getvalue()
 
+# Safe Playwright Browser Setup
+def ensure_playwright_installed():
+    try:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False, capture_output=True)
+    except Exception:
+        pass
+
 # ════════════════════════════════════════════════════════════
 #  DYNAMIC CRAWL & SCAN CORE
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str, is_unlimited: bool) -> dict:
+    ensure_playwright_installed()
+    
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        raise RuntimeError("Playwright library is not installed. Please check requirements.txt.")
+
     start_time = datetime.now()
     phishing_eval = PhishingDetector.analyze_url(root_url)
 
@@ -446,7 +445,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
         if browser_type == "Firefox": b_engine = p.firefox
         elif browser_type == "WebKit": b_engine = p.webkit
 
-        browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+        browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"])
 
         try:
             while queue and len(visited) < target_limit:
@@ -456,7 +455,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                 summary["routes"].append(current_route)
 
                 if not browser or not browser.is_connected():
-                    browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+                    browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"])
 
                 context = None
                 try:
@@ -493,7 +492,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
 
                     page.on("response", log_response)
 
-                    resp = await page.goto(current_route, wait_until="load", timeout=20000)
+                    resp = await page.goto(current_route, wait_until="load", timeout=25000)
 
                     if current_route == root_url:
                         try:
@@ -587,9 +586,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-if not PLOTLY_AVAILABLE or not REPORTLAB_AVAILABLE:
-    st.warning("⚠️ Some optional dependencies (`plotly` or `reportlab`) are missing. Add them to `requirements.txt` to enable rich interactivity.")
-
 tab_summary, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Executive Summary",
     "⚡ Scan Engine", 
@@ -600,12 +596,8 @@ tab_summary, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔗 Pipeline"
 ])
 
-# ════════════════════════════════════════════════════════════
-#  TAB 0: EXECUTIVE SUMMARY & ANALYTICS CHARTS
-# ════════════════════════════════════════════════════════════
 with tab_summary:
     st.subheader("📊 C-Level Executive Security Summary")
-    
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         defects = scan.get("defects", [])
@@ -624,14 +616,11 @@ with tab_summary:
                     mime="application/pdf",
                     use_container_width=True
                 )
-            else:
-                st.info("Install `reportlab` to download PDF reports.")
 
         st.markdown("---")
 
         if PLOTLY_AVAILABLE:
             col_g1, col_g2 = st.columns(2)
-            
             with col_g1:
                 fig_gauge = go.Figure(go.Indicator(
                     mode="gauge+number",
@@ -670,71 +659,21 @@ with tab_summary:
                 ))
                 fig_cvss_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
                 st.plotly_chart(fig_cvss_gauge, use_container_width=True)
-
-            st.markdown("---")
-
-            col_c1, col_c2, col_c3 = st.columns(3)
-            
-            with col_c1:
-                st.markdown("##### 🥧 Severity Distribution")
-                if defects:
-                    sev_counts = Counter([d["severity"] for d in defects])
-                    df_sev = pd.DataFrame(list(sev_counts.items()), columns=["Severity", "Count"])
-                    fig_pie = px.pie(df_sev, names="Severity", values="Count", color="Severity",
-                                     color_discrete_map={"Critical": "#ff2a5f", "High": "#ff8700", "Medium": "#ffb700", "Low": "#00e699"},
-                                     hole=0.4)
-                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
-                    st.plotly_chart(fig_pie, use_container_width=True)
-                else:
-                    st.info("No security defects identified.")
-
-            with col_c2:
-                st.markdown("##### 📊 Category Breakdown")
-                if defects:
-                    cat_counts = Counter([d["category"] for d in defects])
-                    df_cat = pd.DataFrame(list(cat_counts.items()), columns=["Category", "Count"])
-                    fig_cat = px.bar(df_cat, x="Category", y="Count", color="Category", text="Count")
-                    fig_cat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
-                    st.plotly_chart(fig_cat, use_container_width=True)
-                else:
-                    st.info("No category defects available.")
-
-            with col_c3:
-                st.markdown("##### 📈 CVSS Score Spread")
-                if defects:
-                    cvss_scores = [d.get("cvss", 0.0) for d in defects if d.get("cvss", 0.0) > 0]
-                    if cvss_scores:
-                        df_cvss = pd.DataFrame(cvss_scores, columns=["CVSS"])
-                        fig_cvss = px.histogram(df_cvss, x="CVSS", nbins=10, color_discrete_sequence=["#ff4600"])
-                        fig_cvss.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
-                        st.plotly_chart(fig_cvss, use_container_width=True)
-                    else:
-                        st.info("No CVSS rated vulnerabilities.")
-                else:
-                    st.info("No CVSS data available.")
         else:
-            st.warning("Install `plotly` to render interactive charts and gauge metrics.")
             st.dataframe(pd.DataFrame(defects) if defects else "No defects discovered.")
 
-        st.markdown("---")
-        st.markdown("##### 🖼️ Visual Evidence & Screenshot Preview")
         if scan.get("screenshot"):
+            st.markdown("---")
             st.image(f"data:image/png;base64,{scan['screenshot']}", caption="Captured DOM State", use_column_width=True)
-        else:
-            st.info("No DOM screenshot captured during scan.")
     else:
         st.info("⚡ Run an active audit scan in the Scan Engine tab to generate the Executive Summary dashboard.")
 
-# ════════════════════════════════════════════════════════════
-#  EXISTING APPLICATION TABS
-# ════════════════════════════════════════════════════════════
 with tab1:
     col_u, col_b, col_unlim, col_c = st.columns([3, 1, 1, 1])
     with col_u: target_url = st.text_input("Target Domain:", "https://example.com")
     with col_b: browser_choice = st.selectbox("Engine:", ["Chromium", "Firefox", "WebKit"])
     with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
-    with col_c: 
-        crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
+    with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
 
     if st.button("RUN ENGINE", type="primary"):
         with st.spinner("Analyzing target domain & detecting JWT structures..."):
@@ -768,10 +707,6 @@ with tab1:
                 cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
                 with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
                     st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
-                    tags = ""
-                    if d.get("owasp"): tags += f"<span class='compliance-tag'>{d['owasp']}</span>"
-                    if d.get("cwe"): tags += f"<span class='compliance-tag'>{d['cwe']}</span>"
-                    if tags: st.markdown(tags, unsafe_allow_html=True)
         else:
             st.success("No defects or security issues discovered on target.")
 
@@ -787,8 +722,6 @@ with tab2:
         if p_res["indicators"]:
             for ind in p_res["indicators"]:
                 st.write(f"- 🚨 {ind}")
-        else:
-            st.write("No structural phishing traits detected.")
     else:
         st.info("Execute a scan to view phishing risk intelligence.")
 
@@ -804,7 +737,7 @@ with tab3:
                 for f in findings:
                     st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
         else:
-            st.info("No active JWT tokens detected during the domain crawl.")
+            st.info("No active JWT tokens detected during domain crawl.")
 
     st.markdown("---")
     st.markdown("#### 🔍 Manual JWT Analysis")

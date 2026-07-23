@@ -8,15 +8,37 @@ from datetime import datetime
 from collections import defaultdict
 from urllib.parse import urlparse, urljoin
 from io import BytesIO
+import concurrent.futures
 
 import streamlit as st
 import pandas as pd
-import httpx
-from bs4 import BeautifulSoup
 
 # ════════════════════════════════════════════════════════════
-#  SAFE OPTIONAL IMPORTS (Prevents app crashes on missing libs)
+#  1. PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
 # ════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="BugOptix Pro | Enterprise Auditor", 
+    page_icon="⚡", 
+    layout="wide"
+)
+
+# ════════════════════════════════════════════════════════════
+#  2. SAFE IMPORTS FOR THIRD-PARTY LIBRARIES
+# ════════════════════════════════════════════════════════════
+HTTPX_AVAILABLE = False
+try:
+    import httpx
+    HTTPX_AVAILABLE = True
+except ImportError:
+    pass
+
+BS4_AVAILABLE = False
+try:
+    from bs4 import BeautifulSoup
+    BS4_AVAILABLE = True
+except ImportError:
+    pass
+
 PLOTLY_AVAILABLE = False
 try:
     import plotly.express as px
@@ -36,10 +58,8 @@ except Exception:
     pass
 
 # ════════════════════════════════════════════════════════════
-#  NIKE-INSPIRED OBSIDIAN DESIGN SYSTEM
+#  3. OBSIDIAN STYLING SYSTEM
 # ════════════════════════════════════════════════════════════
-st.set_page_config(page_title="BugOptix Pro | Enterprise Auditor", page_icon="⚡", layout="wide")
-
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -59,11 +79,6 @@ html, body, [class*="css"] {
 }
 
 #MainMenu, footer, header { visibility: hidden; }
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0c0c0e; }
-::-webkit-scrollbar-thumb { background: #26262a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #ff4600; }
 
 .hero-banner {
     background: linear-gradient(135deg, #111113 0%, #08080a 100%);
@@ -164,7 +179,7 @@ html, body, [class*="css"] {
 """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
-#  SECURITY, PHISHING & PASSIVE JWT ENGINES
+#  4. SECURITY ENGINES & RULES
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
     "content-security-policy": ("Critical", "Missing Content-Security-Policy header. Exposes site to XSS.", "OWASP A03:2021", "CWE-352", 7.5),
@@ -282,10 +297,10 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#ff4600"), spaceAfter=12)
-    sub_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#555555"), spaceAfter=20)
-    h2_style = ParagraphStyle('H2Style', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8)
-    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#222222"))
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#ff4600"), spaceAfter=12)
+    sub_style = ParagraphStyle('DocSub', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#555555"), spaceAfter=20)
+    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8)
+    cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#222222"))
     
     story = []
     story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE AUDIT REPORT", title_style))
@@ -340,27 +355,21 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     return buffer.getvalue()
 
 # ════════════════════════════════════════════════════════════
-#  SAFE ASYNC RUNNER FOR STREAMLIT CLOUD
+#  5. ISOLATED ASYNC EXECUTION WORKER
 # ════════════════════════════════════════════════════════════
-def run_async_task(coro):
-    """Executes async tasks safely without breaking Streamlit's event loop."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    if loop.is_running():
-        import nest_asyncio
-        nest_asyncio.apply()
-        return loop.run_until_complete(coro)
-    else:
-        return loop.run_until_complete(coro)
+def run_async_isolated(coro):
+    """Executes async coroutines in a separate worker thread with its own clean loop."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coro)
+        return future.result()
 
 # ════════════════════════════════════════════════════════════
-#  DYNAMIC CRAWL & SCAN ENGINE (NATIVE HTTPX + BS4)
+#  6. CRAWLER & AUDIT ENGINE
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: str, is_unlimited: bool) -> dict:
+    if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
+        raise RuntimeError("Required packages 'httpx' or 'beautifulsoup4' are missing in the environment.")
+
     start_time = datetime.now()
     phishing_eval = PhishingDetector.analyze_url(root_url)
 
@@ -485,7 +494,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  APPLICATION DASHBOARD
+#  7. DASHBOARD USER INTERFACE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">
@@ -583,8 +592,8 @@ with tab1:
     if st.button("RUN ENGINE", type="primary"):
         with st.spinner("Analyzing target domain & inspecting HTTP assets..."):
             try:
-                # Safe execution on Streamlit Cloud async loop
-                result = run_async_task(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
+                # Isolated thread execution to guarantee zero async event-loop crashes
+                result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
                 st.session_state["active_scan"] = result
                 VaultManager.append_scan(result)
                 st.success("Audit Execution Finished Successfully!")

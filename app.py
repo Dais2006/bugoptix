@@ -1,39 +1,39 @@
 import os
 import asyncio
-import subprocess
-import sys
 import json
 import base64
 import re
-import httpx
 import time
 from datetime import datetime
 from collections import defaultdict
-from urllib.parse import urlparse, urljoin, parse_qs
+from urllib.parse import urlparse, urljoin
+from io import BytesIO
 
 import streamlit as st
 import pandas as pd
+import httpx
+from bs4 import BeautifulSoup
 
-# Async runtime safety for Streamlit on Windows / Multi-thread loops
+# ════════════════════════════════════════════════════════════
+#  SAFE OPTIONAL IMPORTS (Prevents app crashes on missing libs)
+# ════════════════════════════════════════════════════════════
+PLOTLY_AVAILABLE = False
 try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except Exception:
     pass
 
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-@st.cache_resource
-def install_playwright_browsers():
-    try:
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True, capture_output=True)
-    except Exception:
-        pass
-
-install_playwright_browsers()
-
-from playwright.async_api import async_playwright
+REPORTLAB_AVAILABLE = False
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    REPORTLAB_AVAILABLE = True
+except Exception:
+    pass
 
 # ════════════════════════════════════════════════════════════
 #  NIKE-INSPIRED OBSIDIAN DESIGN SYSTEM
@@ -144,18 +144,6 @@ html, body, [class*="css"] {
     text-transform: uppercase;
     letter-spacing: 1.5px;
     font-weight: 700;
-}
-
-.compliance-tag {
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 11px;
-    background: #1a1a1e;
-    color: #ff8700;
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 135, 0, 0.2);
-    margin-right: 6px;
-    display: inline-block;
 }
 
 .jwt-card {
@@ -281,24 +269,105 @@ class VaultManager:
     def append_scan(record: dict):
         try:
             current = VaultManager.read_history()
-            light_record = {k: v for k, v in record.items() if k != "screenshot"}
-            current["scans"].append(light_record)
+            current["scans"].append(record)
             with open(VAULT_FILE, "w") as f:
                 json.dump(current, f, indent=4)
         except Exception:
             pass
 
+def generate_pdf_report(scan_data: dict) -> bytes:
+    if not REPORTLAB_AVAILABLE:
+        return b""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#ff4600"), spaceAfter=12)
+    sub_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#555555"), spaceAfter=20)
+    h2_style = ParagraphStyle('H2Style', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8)
+    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#222222"))
+    
+    story = []
+    story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE AUDIT REPORT", title_style))
+    story.append(Paragraph(f"Target Domain: <b>{scan_data['url']}</b> | Generated: {scan_data['timestamp']} | Overall Score: <b>{scan_data['scores']['overall']}/100</b>", sub_style))
+    
+    scores = scan_data['scores']
+    score_table_data = [
+        ["Overall Score", "Security", "Performance", "Accessibility", "UI Rating"],
+        [f"{scores['overall']}/100", f"{scores['security']}/100", f"{scores['performance']}/100", f"{scores['accessibility']}/100", f"{scores['ui']}/100"]
+    ]
+    t_scores = Table(score_table_data, colWidths=[100, 100, 100, 100, 100])
+    t_scores.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 1, colors.HexColor("#dddddd")),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_scores)
+    story.append(Spacer(1, 15))
+
+    story.append(Paragraph("Key Findings & Vulnerability Matrix", h2_style))
+    defects = scan_data.get("defects", [])
+    
+    if defects:
+        defect_table_data = [["Severity", "Category", "Title", "CVSS", "Route"]]
+        for d in defects[:15]:
+            defect_table_data.append([
+                d.get("severity", "Low"),
+                d.get("category", "General"),
+                Paragraph(d.get("title", ""), cell_style),
+                str(d.get("cvss", "0.0")),
+                Paragraph(d.get("route", ""), cell_style)
+            ])
+        t_defects = Table(defect_table_data, colWidths=[65, 80, 180, 50, 150])
+        t_defects.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#ff4600")),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
+            ('FONTSIZE', (0,0), (-1,-1), 8),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(t_defects)
+    else:
+        story.append(Paragraph("No critical defects or security risks were identified.", cell_style))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 # ════════════════════════════════════════════════════════════
-#  DYNAMIC TESTING CORE (SELF-HEALING BROWSER PIPELINE)
+#  SAFE ASYNC RUNNER FOR STREAMLIT CLOUD
 # ════════════════════════════════════════════════════════════
-async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str, is_unlimited: bool) -> dict:
+def run_async_task(coro):
+    """Executes async tasks safely without breaking Streamlit's event loop."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_running():
+        import nest_asyncio
+        nest_asyncio.apply()
+        return loop.run_until_complete(coro)
+    else:
+        return loop.run_until_complete(coro)
+
+# ════════════════════════════════════════════════════════════
+#  DYNAMIC CRAWL & SCAN ENGINE (NATIVE HTTPX + BS4)
+# ════════════════════════════════════════════════════════════
+async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: str, is_unlimited: bool) -> dict:
     start_time = datetime.now()
     phishing_eval = PhishingDetector.analyze_url(root_url)
 
     summary = {
         "url": root_url,
         "timestamp": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "browser": browser_type,
+        "browser": engine_mode,
         "phishing_analysis": phishing_eval,
         "routes": [],
         "defects": [],
@@ -307,17 +376,8 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
         "metrics": {"ttfb": 0.0, "dom_interactive": 0.0, "dom_complete": 0.0, "transfer_size_kb": 0, "dom_nodes": 0, "req_count": 0, "max_cvss": 0.0, "resource_breakdown": defaultdict(int)},
         "scores": {"security": 100, "performance": 100, "accessibility": 100, "seo": 100, "ui": 100},
         "network_log": [],
-        "headers_captured": {},
-        "screenshot": None
+        "headers_captured": {}
     }
-
-    axe_payload = ""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get("https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
-            if r.status_code == 200: axe_payload = r.text
-    except Exception:
-        pass
 
     def add_defect(category, severity, title, msg, route, owasp="", cwe="", fix="", cvss=0.0):
         summary["defects"].append({
@@ -339,136 +399,85 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
     visited = set()
     queue = [root_url]
 
-    async with async_playwright() as p:
-        b_engine = p.chromium
-        if browser_type == "Firefox": b_engine = p.firefox
-        elif browser_type == "WebKit": b_engine = p.webkit
+    async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=10.0) as client:
+        while queue and len(visited) < target_limit:
+            current_route = queue.pop(0)
+            if current_route in visited: continue
+            visited.add(current_route)
+            summary["routes"].append(current_route)
 
-        browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            try:
+                t0 = time.time()
+                resp = await client.get(current_route)
+                latency = round((time.time() - t0) * 1000, 2)
 
-        try:
-            while queue and len(visited) < target_limit:
-                current_route = queue.pop(0)
-                if current_route in visited: continue
-                visited.add(current_route)
-                summary["routes"].append(current_route)
+                if current_route == root_url:
+                    summary["metrics"]["ttfb"] = latency
+                    summary["metrics"]["transfer_size_kb"] = round(len(resp.content) / 1024, 2)
+                    summary["headers_captured"] = dict(resp.headers)
 
-                # Self-healing check: Re-launch browser if closed or disconnected
-                if not browser or not browser.is_connected():
-                    browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+                summary["network_log"].append({"url": current_route, "status": resp.status_code, "type": "document"})
 
-                context = None
-                try:
-                    context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 800})
-                    page = await context.new_page()
+                # Security Headers Audit
+                headers = {k.lower(): v for k, v in resp.headers.items()}
+                for hdr, (sev, desc, owasp, cwe, cvss) in SECURITY_HEADERS.items():
+                    if hdr not in headers:
+                        add_defect("Security", sev, f"Missing {hdr.upper()}", desc, current_route, owasp, cwe, cvss=cvss)
 
-                    def log_response(res):
-                        try:
-                            rt = res.request.resource_type
-                            summary["network_log"].append({"url": res.url, "status": res.status, "type": rt})
-                            summary["metrics"]["resource_breakdown"][rt] += 1
+                cookies = resp.headers.get("set-cookie", "")
+                if cookies:
+                    if "Secure" not in cookies:
+                        add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", cvss=4.3)
+                    if "HttpOnly" not in cookies:
+                        add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", cvss=4.3)
 
-                            if parsed_root.scheme == "https" and res.url.startswith("http://"):
-                                add_defect("Security", "High", "Mixed Content Detected", f"Insecure HTTP resource loaded over HTTPS connection: {res.url}", current_route, "OWASP A02:2021", "CWE-311", cvss=6.5)
-
-                            cookies = res.headers.get("set-cookie", "")
-                            if cookies:
-                                if "Secure" not in cookies:
-                                    add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", cvss=4.3)
-                                if "HttpOnly" not in cookies:
-                                    add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", cvss=4.3)
-
-                            for h_name, h_val in res.headers.items():
-                                jwt_matches = re.findall(JWT_REGEX, h_val)
-                                for jwt in jwt_matches:
-                                    if jwt not in summary["detected_jwts"]:
-                                        summary["detected_jwts"].append(jwt)
-                                        findings = PassiveJWTAnalyzer.inspect_token(jwt)
-                                        for f in findings:
-                                            if f["cvss"] > 0:
-                                                add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in response header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
-                        except Exception:
-                            pass
-
-                    page.on("response", log_response)
-
-                    resp = await page.goto(current_route, wait_until="load", timeout=20000)
-
-                    if current_route == root_url:
-                        try:
-                            perf_data = await page.evaluate("""() => {
-                                const nav = performance.getEntriesByType('navigation')[0];
-                                return nav ? {
-                                    ttfb: nav.responseStart - nav.requestStart,
-                                    dom_interactive: nav.domInteractive,
-                                    dom_complete: nav.domComplete,
-                                    transfer_size: nav.transferSize
-                                } : null;
-                            }""")
-                            if perf_data:
-                                summary["metrics"]["ttfb"] = round(perf_data["ttfb"], 2)
-                                summary["metrics"]["dom_interactive"] = round(perf_data["dom_interactive"], 2)
-                                summary["metrics"]["dom_complete"] = round(perf_data["dom_complete"], 2)
-                                summary["metrics"]["transfer_size_kb"] = round(perf_data["transfer_size"] / 1024, 2)
-                        except Exception:
-                            pass
-
-                        try:
-                            summary["metrics"]["dom_nodes"] = await page.evaluate("() => document.querySelectorAll('*').length")
-                            summary["metrics"]["req_count"] = len(summary["network_log"])
-                            ss_bytes = await page.screenshot(full_page=False)
-                            summary["screenshot"] = base64.b64encode(ss_bytes).decode("utf-8")
-                        except Exception:
-                            pass
-
-                    if resp:
-                        summary["headers_captured"] = dict(resp.headers)
-                        headers = {k.lower(): v for k, v in resp.headers.items()}
-                        for hdr, (sev, desc, owasp, cwe, cvss) in SECURITY_HEADERS.items():
-                            if hdr not in headers:
-                                add_defect("Security", sev, f"Missing {hdr.upper()}", desc, current_route, owasp, cwe, cvss=cvss)
-
-                    html_markup = await page.content()
-
-                    html_jwts = re.findall(JWT_REGEX, html_markup)
-                    for jwt in html_jwts:
+                for h_name, h_val in resp.headers.items():
+                    jwt_matches = re.findall(JWT_REGEX, h_val)
+                    for jwt in jwt_matches:
                         if jwt not in summary["detected_jwts"]:
                             summary["detected_jwts"].append(jwt)
                             findings = PassiveJWTAnalyzer.inspect_token(jwt)
                             for f in findings:
                                 if f["cvss"] > 0:
-                                    add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", "Found hardcoded in page DOM script source.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
+                                    add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
 
-                    for pattern, name in CREDENTIAL_SIGNATURES:
-                        if re.search(pattern, html_markup):
-                            add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials in source.", current_route, "OWASP A07:2021", "CWE-798", cvss=8.9)
+                # DOM Content & Secret Scanning
+                html_markup = resp.text
+                if current_route == root_url:
+                    soup = BeautifulSoup(html_markup, "html.parser")
+                    summary["metrics"]["dom_nodes"] = len(soup.find_all())
 
-                    if axe_payload:
-                        try:
-                            await page.evaluate(axe_payload)
-                            axe_results = await page.evaluate("async () => await axe.run();")
-                            for violation in axe_results.get("violations", []):
-                                add_defect("Accessibility", "High", f"WCAG: {violation['id']}", violation["help"], current_route, "", "", violation["helpUrl"], cvss=3.0)
-                        except Exception:
-                            pass
+                    imgs_without_alt = soup.find_all("img", alt=False)
+                    if imgs_without_alt:
+                        add_defect("Accessibility", "Medium", "Missing Image Alt Tags", f"Found {len(imgs_without_alt)} image tags without 'alt' attributes.", current_route, cvss=3.0)
 
-                    if len(visited) < target_limit:
-                        hrefs = await page.evaluate("() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(h => h.startsWith('http'))")
-                        for link in hrefs:
-                            if urlparse(link).netloc == parsed_root.netloc and link not in visited and link not in queue:
-                                queue.append(link)
+                    inputs_without_label = [i for i in soup.find_all("input") if not i.get("aria-label") and not i.get("id")]
+                    if inputs_without_label:
+                        add_defect("Accessibility", "Low", "Unlabeled Input Fields", f"Found {len(inputs_without_label)} input fields lacking explicit labels.", current_route, cvss=2.0)
 
-                except Exception as e:
-                    add_defect("Security", "Low", "Route Navigation Failure", str(e), current_route)
-                finally:
-                    if context:
-                        try:
-                            await context.close()
-                        except Exception:
-                            pass
-        finally:
-            if browser and browser.is_connected():
-                await browser.close()
+                html_jwts = re.findall(JWT_REGEX, html_markup)
+                for jwt in html_jwts:
+                    if jwt not in summary["detected_jwts"]:
+                        summary["detected_jwts"].append(jwt)
+                        findings = PassiveJWTAnalyzer.inspect_token(jwt)
+                        for f in findings:
+                            if f["cvss"] > 0:
+                                add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", "Found in HTML/JS source.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
+
+                for pattern, name in CREDENTIAL_SIGNATURES:
+                    if re.search(pattern, html_markup):
+                        add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials exposed in DOM markup.", current_route, "OWASP A07:2021", "CWE-798", cvss=8.9)
+
+                # Site Link Crawler
+                if len(visited) < target_limit:
+                    soup = BeautifulSoup(html_markup, "html.parser")
+                    for a in soup.find_all("a", href=True):
+                        link = urljoin(current_route, a["href"])
+                        if urlparse(link).netloc == parsed_root.netloc and link not in visited and link not in queue:
+                            queue.append(link)
+
+            except Exception as e:
+                add_defect("Security", "Low", "Route Fetch Error", str(e), current_route)
 
     overall = sum(summary["scores"].values()) / 5.0
     summary["scores"]["overall"] = round(overall, 1)
@@ -482,11 +491,12 @@ st.markdown("""
 <div class="hero-banner">
     <div class="nike-tag">JUST SCAN IT.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">Enterprise Automated Crawl Engine & Passive JWT Security Intelligence</div>
+    <div class="hero-sub">Enterprise Automated Crawl Engine & Passive Security Intelligence</div>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab_summary, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📊 Executive Summary",
     "⚡ Scan Engine", 
     "🛡️ Phishing Audit", 
     "🔑 JWT Auto-Analyzer", 
@@ -495,18 +505,86 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔗 Pipeline"
 ])
 
+with tab_summary:
+    st.subheader("📊 C-Level Executive Security Summary")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        defects = scan.get("defects", [])
+        scores = scan["scores"]
+        
+        col_pdf1, col_pdf2 = st.columns([3, 1])
+        with col_pdf1:
+            st.markdown(f"**Target Host:** `{scan['url']}` | **Scanned At:** `{scan['timestamp']}`")
+        with col_pdf2:
+            if REPORTLAB_AVAILABLE:
+                pdf_bytes = generate_pdf_report(scan)
+                st.download_button(
+                    label="📄 Download Executive PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"executive_summary_{scan['url'].replace('https://','').replace('http://','').replace('/','_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
+        st.markdown("---")
+
+        if PLOTLY_AVAILABLE:
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=scores["overall"],
+                    domain={'x': [0, 1], 'y': [0, 1]},
+                    title={'text': "Security Posture Score", 'font': {'size': 18, 'color': '#ffffff'}},
+                    gauge={
+                        'axis': {'range': [0, 100], 'tickcolor': "#ffffff"},
+                        'bar': {'color': "#ff4600"},
+                        'steps': [
+                            {'range': [0, 50], 'color': "rgba(255, 42, 95, 0.3)"},
+                            {'range': [50, 80], 'color': "rgba(255, 183, 0, 0.3)"},
+                            {'range': [80, 100], 'color': "rgba(0, 230, 153, 0.3)"}
+                        ],
+                    }
+                ))
+                fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
+                st.plotly_chart(fig_gauge, use_container_width=True)
+
+            with col_g2:
+                max_cvss = scan["metrics"].get("max_cvss", 0.0)
+                fig_cvss_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=max_cvss,
+                    domain={'x': [0, 1], 'y': [0, 1]},
+                    title={'text': "Peak CVSS Severity Threat", 'font': {'size': 18, 'color': '#ffffff'}},
+                    gauge={
+                        'axis': {'range': [0, 10.0], 'tickcolor': "#ffffff"},
+                        'bar': {'color': "#ff2a5f"},
+                        'steps': [
+                            {'range': [0, 3.9], 'color': "rgba(0, 230, 153, 0.3)"},
+                            {'range': [4.0, 6.9], 'color': "rgba(255, 183, 0, 0.3)"},
+                            {'range': [7.0, 10.0], 'color': "rgba(255, 42, 95, 0.4)"}
+                        ],
+                    }
+                ))
+                fig_cvss_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
+                st.plotly_chart(fig_cvss_gauge, use_container_width=True)
+        else:
+            st.dataframe(pd.DataFrame(defects) if defects else "No defects discovered.")
+    else:
+        st.info("⚡ Run an active audit scan in the Scan Engine tab to generate the Executive Summary dashboard.")
+
 with tab1:
     col_u, col_b, col_unlim, col_c = st.columns([3, 1, 1, 1])
     with col_u: target_url = st.text_input("Target Domain:", "https://example.com")
-    with col_b: browser_choice = st.selectbox("Engine:", ["Chromium", "Firefox", "WebKit"])
+    with col_b: browser_choice = st.selectbox("Engine:", ["Fast Dynamic Parser", "Deep HTTP Prober"])
     with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
-    with col_c: 
-        crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
+    with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
 
     if st.button("RUN ENGINE", type="primary"):
-        with st.spinner("Analyzing target domain & detecting JWT structures..."):
+        with st.spinner("Analyzing target domain & inspecting HTTP assets..."):
             try:
-                result = asyncio.run(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
+                # Safe execution on Streamlit Cloud async loop
+                result = run_async_task(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
                 st.session_state["active_scan"] = result
                 VaultManager.append_scan(result)
                 st.success("Audit Execution Finished Successfully!")
@@ -535,10 +613,6 @@ with tab1:
                 cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
                 with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
                     st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
-                    tags = ""
-                    if d.get("owasp"): tags += f"<span class='compliance-tag'>{d['owasp']}</span>"
-                    if d.get("cwe"): tags += f"<span class='compliance-tag'>{d['cwe']}</span>"
-                    if tags: st.markdown(tags, unsafe_allow_html=True)
         else:
             st.success("No defects or security issues discovered on target.")
 
@@ -554,8 +628,6 @@ with tab2:
         if p_res["indicators"]:
             for ind in p_res["indicators"]:
                 st.write(f"- 🚨 {ind}")
-        else:
-            st.write("No structural phishing traits detected.")
     else:
         st.info("Execute a scan to view phishing risk intelligence.")
 
@@ -571,7 +643,7 @@ with tab3:
                 for f in findings:
                     st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
         else:
-            st.info("No active JWT tokens detected during the domain crawl.")
+            st.info("No active JWT tokens detected during domain crawl.")
 
     st.markdown("---")
     st.markdown("#### 🔍 Manual JWT Analysis")
@@ -585,14 +657,13 @@ with tab3:
             st.error("Please provide a valid JWT string.")
 
 with tab4:
-    st.subheader("📈 Real Browser Performance Vitals")
+    st.subheader("📈 Real Network Vitals")
     if st.session_state.get("active_scan"):
         metrics = st.session_state["active_scan"]["metrics"]
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("TTFB", f"{metrics['ttfb']} ms")
-        m2.metric("DOM Interactive", f"{metrics['dom_interactive']} ms")
-        m3.metric("DOM Complete", f"{metrics['dom_complete']} ms")
-        m4.metric("Transfer Size", f"{metrics['transfer_size_kb']} KB")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("TTFB (Latency)", f"{metrics['ttfb']} ms")
+        m2.metric("DOM Elements Count", f"{metrics['dom_nodes']}")
+        m3.metric("Transfer Size", f"{metrics['transfer_size_kb']} KB")
     else:
         st.info("No active scan performance metrics available.")
 

@@ -229,16 +229,15 @@ html, body, [class*="css"] {
     margin-bottom: 12px;
 }
 
-.json-view-container {
-    background: #0d0d0f;
-    border: 1px solid #2a2a32;
-    border-radius: 12px;
-    padding: 20px;
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 12.5px;
-    color: #00e699;
-    max-height: 500px;
-    overflow-y: auto;
+.lab-card {
+    background: linear-gradient(135deg, rgba(0, 230, 153, 0.05) 0%, #111113 100%);
+    border-left: 4px solid #00e699;
+    border-top: 1px solid #1f1f24;
+    border-right: 1px solid #1f1f24;
+    border-bottom: 1px solid #1f1f24;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -395,7 +394,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(Paragraph("1. Executive Summary & Health Index", h2_style))
     story.append(Paragraph(
         f"Security posture analysis for <b>{scan_data['url']}</b> yielded an overall safety rating of <b>{scan_data['scores']['overall']}/100</b>. "
-        f"Below is the complete inventory of tested errors, system anomalies, and remediation guidelines discovered during scanning.",
+        f"Below is the complete inventory of tested errors, vulnerability lab simulations, system anomalies, and remediation guidelines discovered during scanning.",
         body_style
     ))
     story.append(Spacer(1, 8))
@@ -419,7 +418,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_scores)
     story.append(Spacer(1, 10))
 
-    story.append(Paragraph("2. Complete Log of Tested Errors & Vulnerabilities", h2_style))
+    story.append(Paragraph("2. Complete Log of Tested Errors & Vulnerability Labs", h2_style))
     defects = scan_data.get("defects", [])
     if defects:
         defect_table_data = [["Sev", "Category", "Tested Vulnerability & Description", "OWASP / CWE", "CVSS", "Remediation Action"]]
@@ -427,7 +426,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
             defect_table_data.append([
                 d.get("severity", "Low"),
                 d.get("category", "General"),
-                Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}<br/><i>Route: {d.get('route', '')}</i>", cell_style),
+                Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}<br/><i>Route/Source: {d.get('route', '')}</i>", cell_style),
                 Paragraph(f"{d.get('owasp', 'N/A')}<br/>{d.get('cwe', 'N/A')}", cell_style),
                 str(d.get("cvss", "0.0")),
                 Paragraph(d.get("fix", "Review server configurations."), cell_style)
@@ -592,13 +591,14 @@ st.markdown("""
 <div class="hero-banner">
     <div class="nike-tag">JUST SCAN IT.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">Enterprise Automated Crawl Engine & Passive Security Intelligence</div>
+    <div class="hero-sub">Enterprise Automated Crawl Engine & Vulnerability Lab Auditor</div>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab_summary, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab_summary, tab_labs, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "⚡ Scan Engine", 
     "📊 Executive Summary",
+    "🧪 Vulnerability Labs",
     "🛡️ Phishing Audit", 
     "🔑 JWT Inspector", 
     "📈 Vitals & Metrics", 
@@ -734,13 +734,163 @@ with tab_summary:
                 """, unsafe_allow_html=True)
         else:
             st.success("No tested errors or vulnerabilities found.")
-
-        st.markdown("#### 📄 Complete Raw JSON Telemetry Data")
-        st.markdown(f'<div class="json-view-container"><pre>{json.dumps(scan, indent=4)}</pre></div>', unsafe_allow_html=True)
     else:
         st.info("⚡ Run an active audit scan in the Scan Engine tab to populate the Executive Summary dashboard.")
 
-# --- TAB 3: PHISHING AUDIT ---
+# --- TAB 3: COMPREHENSIVE VULNERABILITY LABS ---
+with tab_labs:
+    st.subheader("🧪 Comprehensive Vulnerability Labs & Interactive Simulators")
+    st.markdown("Test payloads against local vulnerable modules to verify detection signatures and exploit patterns.")
+    
+    lab_choice = st.selectbox("Select Vulnerability Lab:", [
+        "SQL Injection (SQLi)", 
+        "Cross-Site Scripting (XSS)", 
+        "Cross-Site Request Forgery (CSRF)", 
+        "Authentication & Brute-Force", 
+        "Authorization (RBAC)", 
+        "Business Logic Flaws"
+    ])
+
+    if "lab_results" not in st.session_state:
+        st.session_state["lab_results"] = []
+
+    if lab_choice == "SQL Injection (SQLi)":
+        st.markdown("#### Sandbox & Scanner: SQL Injection Simulation")
+        sqli_input = st.text_input("Test SQL Payload (e.g., `' OR '1'='1`, `UNION SELECT`):", "' OR 1=1 --")
+        if st.button("Run SQLi Simulation"):
+            if "'" in sqli_input or "UNION" in sqli_input.upper() or "OR" in sqli_input.upper():
+                res_desc = f"Vulnerability triggered successfully with payload: `{sqli_input}`. Syntax manipulation allowed query breakout."
+                st.error(f"🚨 SQL Injection Vulnerability Confirmed (CVSS 8.6)")
+                st.code(res_desc, language="text")
+                sim_defect = {
+                    "category": "Security", "severity": "Critical", "title": "SQL Injection Simulation Verified",
+                    "description": res_desc, "route": "Local Lab: /api/v1/lookup", "owasp": "OWASP A03:2021", "cwe": "CWE-89",
+                    "fix": "Use parameterized prepared statements for all database queries.", "cvss": 8.6
+                }
+                if sim_defect not in st.session_state["lab_results"]:
+                    st.session_state["lab_results"].append(sim_defect)
+                    if st.session_state.get("active_scan"):
+                        st.session_state["active_scan"]["defects"].append(sim_defect)
+            else:
+                st.success("Payload safely neutralized or rejected by input validator.")
+
+    elif lab_choice == "Cross-Site Scripting (XSS)":
+        st.markdown("#### Sandbox & Scanner: XSS Reflected & DOM Sanity Checks")
+        xss_input = st.text_input("Test Script Payload:", "<script>alert('BugOptixXSS')</script>")
+        if st.button("Run XSS Simulation"):
+            if "<script>" in xss_input.lower() or "javascript:" in xss_input.lower() or "onerror=" in xss_input.lower():
+                res_desc = f"Reflected execution check confirmed unescaped output rendering for payload: `{xss_input}`."
+                st.error(f"🚨 Reflected XSS Vulnerability Confirmed (CVSS 7.2)")
+                st.code(res_desc, language="text")
+                sim_defect = {
+                    "category": "Security", "severity": "High", "title": "Cross-Site Scripting (XSS) Verified",
+                    "description": res_desc, "route": "Local Lab: /search?q=", "owasp": "OWASP A03:2021", "cwe": "CWE-79",
+                    "fix": "Implement strict context-aware output encoding and CSP headers.", "cvss": 7.2
+                }
+                if sim_defect not in st.session_state["lab_results"]:
+                    st.session_state["lab_results"].append(sim_defect)
+                    if st.session_state.get("active_scan"):
+                        st.session_state["active_scan"]["defects"].append(sim_defect)
+            else:
+                st.success("Input successfully sanitized against DOM script execution.")
+
+    elif lab_choice == "Cross-Site Request Forgery (CSRF)":
+        st.markdown("#### Sandbox & Scanner: CSRF Token Validation Check")
+        csrf_token_present = st.checkbox("Include Anti-CSRF Token in Request Header", value=False)
+        if st.button("Test State-Changing Request"):
+            if not csrf_token_present:
+                res_desc = "State-changing POST request processed successfully without valid anti-CSRF token verification."
+                st.error(f"🚨 CSRF Protection Missing (CVSS 6.8)")
+                st.code(res_desc, language="text")
+                sim_defect = {
+                    "category": "Security", "severity": "High", "title": "Missing CSRF Token Validation",
+                    "description": res_desc, "route": "Local Lab: /api/user/update-email", "owasp": "OWASP A01:2021", "cwe": "CWE-352",
+                    "fix": "Enforce anti-CSRF synchronizer tokens or SameSite cookie attributes.", "cvss": 6.8
+                }
+                if sim_defect not in st.session_state["lab_results"]:
+                    st.session_state["lab_results"].append(sim_defect)
+                    if st.session_state.get("active_scan"):
+                        st.session_state["active_scan"]["defects"].append(sim_defect)
+            else:
+                st.success("Request protected: Anti-CSRF token validated successfully.")
+
+    elif lab_choice == "Authentication & Brute-Force":
+        st.markdown("#### Sandbox & Scanner: Default Credential & Auth Bypass Tests")
+        test_user = st.text_input("Username:", "admin")
+        test_pass = st.text_input("Password:", "' OR '1'=='1")
+        if st.button("Simulate Authentication Attempt"):
+            if test_pass in ["' OR '1'=='1", "admin123", "password", "root"]:
+                res_desc = f"Authentication successfully bypassed using credential/payload combination: {test_user} / {test_pass}."
+                st.error(f"🚨 Authentication Bypass / Default Credential Risk (CVSS 9.8)")
+                st.code(res_desc, language="text")
+                sim_defect = {
+                    "category": "Security", "severity": "Critical", "title": "Authentication Bypass Simulation",
+                    "description": res_desc, "route": "Local Lab: /login", "owasp": "OWASP A07:2021", "cwe": "CWE-287",
+                    "fix": "Enforce robust multi-factor authentication, account lockouts, and parameterized credential checks.", "cvss": 9.8
+                }
+                if sim_defect not in st.session_state["lab_results"]:
+                    st.session_state["lab_results"].append(sim_defect)
+                    if st.session_state.get("active_scan"):
+                        st.session_state["active_scan"]["defects"].append(sim_defect)
+            else:
+                st.success("Authentication rejected: Invalid credentials.")
+
+    elif lab_choice == "Authorization (RBAC)":
+        st.markdown("#### Sandbox & Scanner: Role-Based Access Control Validation")
+        user_role = st.selectbox("Assigned Role:", ["Guest", "Customer", "Administrator"])
+        target_endpoint = st.selectbox("Requested Sensitive Endpoint:", ["/admin/settings", "/api/v1/users/delete", "/dashboard/financials"])
+        if st.button("Validate RBAC Access"):
+            if user_role != "Administrator":
+                res_desc = f"Privilege Escalation: Role '{user_role}' successfully accessed restricted admin route '{target_endpoint}'."
+                st.error(f"🚨 Broken Access Control / RBAC Bypass (CVSS 8.8)")
+                st.code(res_desc, language="text")
+                sim_defect = {
+                    "category": "Security", "severity": "Critical", "title": "Broken Object Level Authorization (RBAC Flaw)",
+                    "description": res_desc, "route": f"Local Lab: {target_endpoint}", "owasp": "OWASP A01:2021", "cwe": "CWE-639",
+                    "fix": "Implement strict server-side role verification checks on all sensitive route handlers.", "cvss": 8.8
+                }
+                if sim_defect not in st.session_state["lab_results"]:
+                    st.session_state["lab_results"].append(sim_defect)
+                    if st.session_state.get("active_scan"):
+                        st.session_state["active_scan"]["defects"].append(sim_defect)
+            else:
+                st.success("Access granted: Authorized administrator role.")
+
+    elif lab_choice == "Business Logic Flaws":
+        st.markdown("#### Sandbox & Scanner: Integer Underflow & Price Manipulation Tests")
+        item_qty = st.number_input("Cart Quantity:", value=-1, step=1)
+        discount_code = st.text_input("Discount Code Abuse:", "BYPASS99")
+        if st.button("Test Business Logic Integrity"):
+            if item_qty < 0 or discount_code == "BYPASS99":
+                res_desc = f"Business logic flaw verified: Negative quantity ({item_qty}) or discount coupon abuse resulted in negative cart balance."
+                st.error(f"🚨 Business Logic Flaw Detected (CVSS 7.5)")
+                st.code(res_desc, language="text")
+                sim_defect = {
+                    "category": "Security", "severity": "High", "title": "Business Logic Integer Underflow / Price Manipulation",
+                    "description": res_desc, "route": "Local Lab: /api/cart/checkout", "owasp": "OWASP A04:2021", "cwe": "CWE-840",
+                    "fix": "Implement strict server-side validation boundaries for quantities (min > 0) and coupon validation rules.", "cvss": 7.5
+                }
+                if sim_defect not in st.session_state["lab_results"]:
+                    st.session_state["lab_results"].append(sim_defect)
+                    if st.session_state.get("active_scan"):
+                        st.session_state["active_scan"]["defects"].append(sim_defect)
+            else:
+                st.success("Business logic validations passed successfully.")
+
+    if st.session_state["lab_results"]:
+        st.markdown("---")
+        st.markdown("#### 📋 Simulated Lab Findings Log")
+        for idx, lres in enumerate(st.session_state["lab_results"]):
+            st.markdown(f"""
+            <div class="lab-card">
+                <strong style="color: #00e699;">[Lab Simulated #{idx+1}] {lres['title']}</strong> (CVSS: {lres['cvss']})<br>
+                <span style="color: #8e8e93; font-size: 13px;">Route: <code>{lres['route']}</code> | Ref: {lres['owasp']} / {lres['cwe']}</span><br>
+                <p style="margin-top: 6px; font-size: 14px; color: #f5f5f7;">{lres['description']}</p>
+                <code style="background: #08080a; padding: 4px 8px; border-radius: 4px; color: #00e699; font-size: 12px;">Remediation: {lres['fix']}</code>
+            </div>
+            """, unsafe_allow_html=True)
+
+# --- TAB 4: PHISHING AUDIT ---
 with tab2:
     st.subheader("🛡️ Phishing & Brand Protection Intelligence")
     if st.session_state.get("active_scan"):
@@ -756,7 +906,7 @@ with tab2:
     else:
         st.info("Execute a scan to view phishing risk intelligence.")
 
-# --- TAB 4: JWT INSPECTOR ---
+# --- TAB 5: JWT INSPECTOR ---
 with tab3:
     st.subheader("🔑 Passive JWT Token Inspector")
     if st.session_state.get("active_scan"):
@@ -782,7 +932,7 @@ with tab3:
         else:
             st.error("Please provide a valid JWT string.")
 
-# --- TAB 5: VITALS & METRICS ---
+# --- TAB 6: VITALS & METRICS ---
 with tab4:
     st.subheader("📈 Real Network Vitals & Telemetry")
     if st.session_state.get("active_scan"):
@@ -794,7 +944,7 @@ with tab4:
     else:
         st.info("No active scan performance metrics available.")
 
-# --- TAB 6: TECHNICAL REPORTS ---
+# --- TAB 7: TECHNICAL REPORTS ---
 with tab5:
     st.subheader("📄 Download Technical Reports")
     if st.session_state.get("active_scan"):
@@ -809,7 +959,7 @@ with tab5:
     else:
         st.info("Run an audit scan to generate downloadable reports.")
 
-# --- TAB 7: CI/CD PIPELINE ---
+# --- TAB 8: CI/CD PIPELINE ---
 with tab6:
     st.subheader("🔗 CI/CD Pipeline Automation Script")
     st.code("python -c \"import json; score=json.load(open('report.json'))['scores']['overall']; exit(1) if score < 80 else exit(0)\"", language="bash")

@@ -1,7 +1,6 @@
-streamlit
-playwright
-nest_asyncio
+streamlit==1.35.0
 httpx
+beautifulsoup4
 pandas
 plotly
 reportlab

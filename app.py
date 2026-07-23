@@ -50,7 +50,7 @@ except Exception:
 REPORTLAB_AVAILABLE = False
 try:
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib import colors
     REPORTLAB_AVAILABLE = True
@@ -300,9 +300,11 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#ff4600"), spaceAfter=12)
     sub_style = ParagraphStyle('DocSub', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#555555"), spaceAfter=20)
     h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8)
-    cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#222222"))
+    cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor("#222222"))
+    json_code_style = ParagraphStyle('JsonCode', parent=styles['Normal'], fontName='Courier', fontSize=7, leading=9, textColor=colors.HexColor("#1e1e1e"))
     
     story = []
+    # --- PAGE 1: EXECUTIVE SUMMARY ---
     story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE AUDIT REPORT", title_style))
     story.append(Paragraph(f"Target Domain: <b>{scan_data['url']}</b> | Generated: {scan_data['timestamp']} | Overall Score: <b>{scan_data['scores']['overall']}/100</b>", sub_style))
     
@@ -349,6 +351,31 @@ def generate_pdf_report(scan_data: dict) -> bytes:
         story.append(t_defects)
     else:
         story.append(Paragraph("No critical defects or security risks were identified.", cell_style))
+
+    # --- PAGE 2: FULL RAW JSON AUDIT PAYLOAD ---
+    story.append(PageBreak())
+    story.append(Paragraph("TECHNICAL AUDIT DATA (RAW JSON RECORD)", h2_style))
+    story.append(Paragraph("The formatted machine-readable JSON telemetry data below is attached for automated ingestion into CI/CD security pipelines.", sub_style))
+    
+    formatted_json_str = json.dumps(scan_data, indent=2)
+    
+    # Break long JSON text into lines for multi-page PDF rendering
+    json_lines = formatted_json_str.split("\n")
+    json_table_data = []
+    for line in json_lines:
+        safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;")
+        json_table_data.append([Paragraph(safe_line, json_code_style)])
+
+    t_json = Table(json_table_data, colWidths=[520])
+    t_json.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#dcdcdc")),
+        ('TOPPADDING', (0,0), (-1,-1), 1),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_json)
 
     doc.build(story)
     buffer.seek(0)
@@ -528,7 +555,7 @@ with tab_summary:
             if REPORTLAB_AVAILABLE:
                 pdf_bytes = generate_pdf_report(scan)
                 st.download_button(
-                    label="📄 Download Executive PDF Report",
+                    label="📄 Download Full PDF Report (With JSON)",
                     data=pdf_bytes,
                     file_name=f"executive_summary_{scan['url'].replace('https://','').replace('http://','').replace('/','_')}.pdf",
                     mime="application/pdf",
@@ -592,7 +619,6 @@ with tab1:
     if st.button("RUN ENGINE", type="primary"):
         with st.spinner("Analyzing target domain & inspecting HTTP assets..."):
             try:
-                # Isolated thread execution to guarantee zero async event-loop crashes
                 result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
                 st.session_state["active_scan"] = result
                 VaultManager.append_scan(result)

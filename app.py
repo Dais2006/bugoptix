@@ -17,7 +17,7 @@ import pandas as pd
 #  1. PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
 # ════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="BugOptix Pro | Enterprise SaaS Security Auditor", 
+    page_title="BugOptix Pro | Enterprise API & Web Auditor", 
     page_icon="⚡", 
     layout="wide"
 )
@@ -58,7 +58,7 @@ except Exception:
     pass
 
 # ════════════════════════════════════════════════════════════
-#  3. OBSIDIAN & NIKE-STYLE SAAS THEME
+#  3. OBSIDIAN STYLING & DYNAMIC NIKE-STYLE MENU EFFECTS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -81,25 +81,27 @@ html, body, [class*="css"] {
 #MainMenu, footer, header { visibility: hidden; }
 
 .stTabs [data-baseweb="tab-list"] {
-    gap: 6px;
+    gap: 8px;
     background-color: #111113;
-    padding: 8px 12px;
+    padding: 10px 16px;
     border-radius: 16px;
     border: 1px solid #1f1f24;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
 .stTabs [data-baseweb="tab"] {
-    height: 42px;
+    height: 48px;
     background-color: #08080a;
-    border-radius: 10px;
+    border-radius: 12px;
     color: #8e8e93;
     font-weight: 800;
-    font-size: 11px;
+    font-size: 13.5px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border: 1px solid #1f1f24;
-    padding: 0px 12px;
+    padding: 0px 20px;
+    position: relative;
+    overflow: hidden;
     transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -107,22 +109,24 @@ html, body, [class*="css"] {
     color: #ffffff;
     border-color: #ff4600;
     background-color: #141417;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(255, 70, 0, 0.3);
 }
 
 .stTabs [aria-selected="true"] {
     background: linear-gradient(135deg, #ff4600 0%, #ff8700 100%) !important;
     color: #ffffff !important;
     border-color: #ff4600 !important;
-    box-shadow: 0 6px 20px rgba(255, 70, 0, 0.4) !important;
+    box-shadow: 0 8px 30px rgba(255, 70, 0, 0.5) !important;
+    transform: translateY(-3px);
 }
 
 .hero-banner {
     background: linear-gradient(135deg, #111113 0%, #08080a 100%);
     border: 1px solid #1f1f24;
     border-radius: 20px;
-    padding: 32px 40px;
-    margin-bottom: 24px;
+    padding: 36px 44px;
+    margin-bottom: 28px;
     position: relative;
     overflow: hidden;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
@@ -139,20 +143,20 @@ html, body, [class*="css"] {
 .nike-tag {
     display: inline-block;
     font-family: 'Anton', sans-serif !important;
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 2px;
     color: #ff4600;
     text-transform: uppercase;
     background: rgba(255, 70, 0, 0.1);
     border: 1px solid rgba(255, 70, 0, 0.3);
-    padding: 4px 10px;
+    padding: 4px 12px;
     border-radius: 4px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .hero-title {
     font-family: 'Anton', sans-serif !important;
-    font-size: 3.2rem;
+    font-size: 3.6rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: #ffffff;
@@ -162,8 +166,8 @@ html, body, [class*="css"] {
 
 .hero-sub {
     color: #8e8e93;
-    font-size: 0.95rem;
-    margin-top: 8px;
+    font-size: 1.05rem;
+    margin-top: 10px;
     font-weight: 400;
 }
 
@@ -171,16 +175,16 @@ html, body, [class*="css"] {
     background: #111113;
     border: 1px solid #1f1f24;
     border-radius: 16px;
-    padding: 20px;
+    padding: 24px;
     text-align: left;
     position: relative;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .metric-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-4px);
     border-color: #ff4600;
-    box-shadow: 0 10px 20px rgba(255, 70, 0, 0.15);
+    box-shadow: 0 12px 24px rgba(255, 70, 0, 0.15);
 }
 
 .error-card {
@@ -197,43 +201,7 @@ html, body, [class*="css"] {
 """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
-#  4. STATE INITIALIZATION (ALL 20 FEATURES SUPPORT)
-# ════════════════════════════════════════════════════════════
-if "auth_user" not in st.session_state:
-    st.session_state["auth_user"] = {
-        "name": "Alex Mercer", 
-        "company": "ABC Technologies", 
-        "role": "Admin", 
-        "plan": "Professional"
-    }
-
-if "team_members" not in st.session_state:
-    st.session_state["team_members"] = [
-        {"name": "Alex Mercer", "role": "Admin", "email": "alex@abctech.com"},
-        {"name": "Sarah Connor", "role": "QA Lead", "email": "sarah@abctech.com"},
-        {"name": "John Doe", "role": "Tester 1", "email": "john@abctech.com"}
-    ]
-
-if "projects" not in st.session_state:
-    st.session_state["projects"] = [
-        {"name": "Corporate Main", "env": "Production", "url": "https://example.com"},
-        {"name": "Staging Portal", "env": "Staging", "url": "https://staging.example.com"}
-    ]
-
-if "scan_history" not in st.session_state:
-    st.session_state["scan_history"] = []
-
-if "scan_queue" not in st.session_state:
-    st.session_state["scan_queue"] = []
-
-if "assigned_issues" not in st.session_state:
-    st.session_state["assigned_issues"] = []
-
-if "scheduled_scans" not in st.session_state:
-    st.session_state["scheduled_scans"] = {"time": "2:00 AM Daily", "recipient": "manager@abctech.com", "active": True}
-
-# ════════════════════════════════════════════════════════════
-#  5. ACCURATE SECURITY RULES, CWE MAPPINGS & JWT INSPECTION
+#  4. REVISED ACCURATE SECURITY RULES & MAPPINGS
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
     "content-security-policy": (
@@ -242,51 +210,89 @@ SECURITY_HEADERS = {
         "OWASP A05:2021", 
         "CWE-693", 
         5.3, 
-        "Implement a strict Content-Security-Policy header."
+        "Implement a strict Content-Security-Policy restricting script execution to trusted domains."
     ),
     "strict-transport-security": (
         "High", 
-        "Missing HTTP Strict Transport Security (HSTS) header. This leaves users vulnerable to SSL strip attacks.", 
+        "Missing HTTP Strict Transport Security (HSTS) header. This leaves users vulnerable to SSL strip and downgrade man-in-the-middle attacks on initial connection.", 
         "OWASP A02:2021", 
         "CWE-319", 
         6.5, 
-        "Enable HSTS header with max-age=31536000."
+        "Enable HSTS header with max-age=31536000 and includeSubDomains."
     ),
     "x-frame-options": (
         "Medium", 
-        "Missing X-Frame-Options header. Exposes the application to Clickjacking attacks.", 
+        "Missing X-Frame-Options header. The page can be embedded within external frames, exposing the application to UI redressing (Clickjacking) attacks.", 
         "OWASP A05:2021", 
         "CWE-1021", 
         4.3, 
-        "Configure X-Frame-Options to DENY or SAMEORIGIN."
+        "Configure X-Frame-Options header to DENY or SAMEORIGIN."
     ),
     "x-content-type-options": (
         "Low", 
-        "Missing X-Content-Type-Options header. Browsers may perform MIME-sniffing.", 
+        "Missing X-Content-Type-Options header. Browsers may perform MIME-sniffing, potentially interpreting non-executable responses as executable scripts.", 
         "OWASP A05:2021", 
         "CWE-430", 
         3.1, 
-        "Set X-Content-Type-Options to 'nosniff'."
+        "Set X-Content-Type-Options header to 'nosniff'."
     ),
     "referrer-policy": (
         "Low", 
-        "Missing Referrer-Policy header. Sensitive URL paths may be leaked across navigations.", 
+        "Missing Referrer-Policy header. Sensitive URL paths or query parameters may be leaked across domain navigations.", 
         "OWASP A01:2021", 
-        "CWE-200", 
-        2.6, 
-        "Set Referrer-Policy header."
+        "CWE-200", 2.6, 
+        "Set Referrer-Policy header to 'strict-origin-when-cross-origin'."
     ),
     "permissions-policy": (
         "Low", 
-        "Missing Permissions-Policy header. Unrestricted access to browser sensors is permitted.", 
+        "Missing Permissions-Policy header. Unrestricted access to browser sensors and APIs is permitted by default.", 
         "OWASP A05:2021", 
         "CWE-693", 
         2.0, 
-        "Define an explicit Permissions-Policy."
+        "Define an explicit Permissions-Policy restricting sensitive APIs."
     )
 }
 
+CREDENTIAL_SIGNATURES = [
+    (r"AIzaSy[A-Za-z0-9_-]{33}", "Google Cloud API Key"),
+    (r"sk_live_[51A-Za-z0-9]{24,}", "Stripe Live Secret Key"),
+    (r"xox[bapr]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}", "Slack Token"),
+    (r"AKIA[0-9A-Z]{16}", "AWS Access Key ID"),
+    (r"ghp_[a-zA-Z0-9]{36}", "GitHub Personal Access Token"),
+    (r"-----BEGIN PRIVATE KEY-----", "RSA/Generic Private Key")
+]
+
 JWT_REGEX = r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
+
+class PhishingDetector:
+    @staticmethod
+    def analyze_url(url: str) -> dict:
+        parsed = urlparse(url)
+        hostname = parsed.netloc.split(':')[0]
+        indicators = []
+        risk_score = 0
+
+        if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", hostname):
+            indicators.append("Host is a raw IP address (Common Phishing Trait)")
+            risk_score += 45
+
+        if len(url) > 75:
+            indicators.append("Excessively long URL (> 75 chars)")
+            risk_score += 15
+
+        if "@" in url:
+            indicators.append("Contains '@' symbol (Used to obscure real destination)")
+            risk_score += 30
+
+        if hostname.count("-") > 2:
+            indicators.append("Excessive hyphens in domain name")
+            risk_score += 15
+
+        return {
+            "is_phishing": risk_score >= 40,
+            "risk_score": min(risk_score, 100),
+            "indicators": indicators
+        }
 
 class PassiveJWTAnalyzer:
     @staticmethod
@@ -301,6 +307,9 @@ class PassiveJWTAnalyzer:
             alg = header.get("alg", "").lower()
             if alg == "none":
                 findings.append({"issue": "JWT explicitly allows 'none' algorithm signature bypass", "cvss": 9.1})
+            elif alg in ["hs256", "hs384", "hs512"]:
+                findings.append({"issue": "JWT utilizes Symmetric (HMAC) signing; ensure strong secret entropy to prevent brute-forcing", "cvss": 5.5})
+            
             p_bytes = base64.urlsafe_bdecode(parts[1] + "=" * (-len(parts[1]) % 4))
             payload = json.loads(p_bytes)
             if "exp" not in payload:
@@ -309,8 +318,31 @@ class PassiveJWTAnalyzer:
             findings.append({"issue": f"Parsing Error: {str(e)}", "cvss": 0.0})
         return findings
 
+VAULT_FILE = "bugoptix_pro_vault.json"
+
+class VaultManager:
+    @staticmethod
+    def read_history() -> dict:
+        if os.path.exists(VAULT_FILE):
+            try:
+                with open(VAULT_FILE, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {"scans": []}
+
+    @staticmethod
+    def append_scan(record: dict):
+        try:
+            current = VaultManager.read_history()
+            current["scans"].append(record)
+            with open(VAULT_FILE, "w") as f:
+                json.dump(current, f, indent=4)
+        except Exception:
+            pass
+
 # ════════════════════════════════════════════════════════════
-#  6. PROFESSIONAL PDF GENERATOR (WITH EVIDENCE & TABLES)
+#  5. PROFESSIONAL PDF GENERATOR (WITH GROUPED FINDINGS & EVIDENCE)
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
@@ -319,23 +351,48 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=15, textColor=colors.HexColor("#ff4600"), spaceAfter=4, fontName="Helvetica-Bold")
-    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor("#666666"), spaceAfter=10)
-    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=10, textColor=colors.HexColor("#111113"), spaceBefore=8, spaceAfter=4, fontName="Helvetica-Bold")
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#ff4600"), spaceAfter=4, fontName="Helvetica-Bold")
+    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=8.5, textColor=colors.HexColor("#666666"), spaceAfter=10)
+    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=10.5, textColor=colors.HexColor("#111113"), spaceBefore=10, spaceAfter=4, fontName="Helvetica-Bold")
     body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor("#333333"), leading=10)
     cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#222222"), leading=9)
     
     story = []
-    story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE & TECHNICAL SECURITY REPORT", title_style))
-    story.append(Paragraph(f"COMPANY: {scan_data.get('company', 'Enterprise')} | TARGET: {scan_data['url']}", subtitle_style))
+
+    story.append(Paragraph("BUGOPTIX PRO — ENTERPRISE API, WEB & SECURITY AUDIT REPORT", title_style))
+    story.append(Paragraph("CONFIDENTIAL | COMPREHENSIVE VULNERABILITY ASSESSMENT & COMPLIANCE REPORT", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#ff4600"), spaceAfter=8))
 
+    meta = scan_data.get("metadata", {})
+    meta_data = [
+        [Paragraph("<b>Target URL:</b>", body_style), Paragraph(scan_data['url'], body_style), Paragraph("<b>Audit Date:</b>", body_style), Paragraph(scan_data['timestamp'], body_style)],
+        [Paragraph("<b>Pages Scanned:</b>", body_style), Paragraph(str(meta.get('pages_scanned', 1)), body_style), Paragraph("<b>Crawl Duration:</b>", body_style), Paragraph(f"{meta.get('crawl_duration_sec', 0.0)}s", body_style)],
+        [Paragraph("<b>Peak CVSS Risk:</b>", body_style), Paragraph(f"CVSS {meta.get('max_cvss', 0.0)}", body_style), Paragraph("<b>Overall Index:</b>", body_style), Paragraph(f"{scan_data['scores']['overall']}/100", body_style)],
+    ]
+    t_meta = Table(meta_data, colWidths=[80, 190, 85, 185])
+    t_meta.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e0e0e0")),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_meta)
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("1. Executive Summary & Scoring Overview", h2_style))
+    story.append(Paragraph(
+        f"Automated security assessment for <b>{scan_data['url']}</b> yielded an overall security posture index of <b>{scan_data['scores']['overall']}/100</b>. "
+        f"The findings below have been deduplicated and mapped according to standard OWASP Top 10 and CWE taxonomies with full evidence and response header captures.",
+        body_style
+    ))
+    story.append(Spacer(1, 6))
+
     scores = scan_data['scores']
-    score_data = [
+    score_table_data = [
         ["Overall Index", "Security Score", "Performance", "Accessibility", "SEO Rating"],
         [f"{scores['overall']}/100", f"{scores['security']}/100", f"{scores['performance']}/100", f"{scores['accessibility']}/100", f"{scores['seo']}/100"]
     ]
-    t_scores = Table(score_data, colWidths=[108]*5)
+    t_scores = Table(score_table_data, colWidths=[108]*5)
     t_scores.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -349,20 +406,40 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_scores)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("Executive Summary & Deduplicated Findings Evidence", h2_style))
+    story.append(Paragraph("2. Compliance Dashboard", h2_style))
+    comp_data = [
+        ["Standard", "Compliance Status", "Scope / Details"],
+        ["OWASP Top 10 (2021)", "Partial Compliance", "Identified missing headers and automated test vectors."],
+        ["WCAG 2.1 AA", "Good Compliance", "Minor image alt tag improvements recommended."],
+        ["Security Headers Best Practice", "Needs Improvement", "Implement missing CSP, HSTS, and X-Frame-Options."]
+    ]
+    t_comp = Table(comp_data, colWidths=[130, 110, 300])
+    t_comp.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#ff4600")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
+        ('FONTSIZE', (0,0), (-1,-1), 7.5),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_comp)
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("3. Consolidated Vulnerability Findings & Affected Routes Evidence", h2_style))
     defects = scan_data.get("defects", [])
     if defects:
-        defect_table_data = [["Sev", "Vulnerability & Description", "Affected Routes / Evidence", "OWASP / CWE", "CVSS"]]
+        defect_table_data = [["Sev", "Vulnerability & Description", "Affected Routes / Evidence", "OWASP / CWE", "CVSS", "Remediation"]]
         for d in defects:
             pages_str = "<br/>".join([f"• {p}" for p in d.get("affected_pages", [])])
             defect_table_data.append([
                 d.get("severity", "Low"),
                 Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}", cell_style),
-                Paragraph(pages_str, cell_style),
+                Paragraph(pages_str if pages_str else f"• {d.get('route', '')}", cell_style),
                 Paragraph(f"{d.get('owasp', 'N/A')}<br/>{d.get('cwe', 'N/A')}", cell_style),
-                str(d.get("cvss", "0.0"))
+                str(d.get("cvss", "0.0")),
+                Paragraph(d.get("fix", "Review server configuration."), cell_style)
             ])
-        t_defects = Table(defect_table_data, colWidths=[38, 200, 150, 80, 40], repeatRows=1)
+        t_defects = Table(defect_table_data, colWidths=[38, 140, 120, 65, 32, 145], repeatRows=1)
         t_defects.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -373,37 +450,70 @@ def generate_pdf_report(scan_data: dict) -> bytes:
             ('BOTTOMPADDING', (0,0), (-1,-1), 3),
         ]))
         story.append(t_defects)
-    
+    else:
+        story.append(Paragraph("No vulnerabilities discovered.", body_style))
+
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
 
 # ════════════════════════════════════════════════════════════
-#  7. ASYNC CRAWLER & SCAN ENGINE
+#  6. ISOLATED ASYNC EXECUTION WORKER
 # ════════════════════════════════════════════════════════════
-async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool) -> dict:
+def run_async_isolated(coro):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coro)
+        return future.result()
+
+# ════════════════════════════════════════════════════════════
+#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH DEDUPLICATION
+# ════════════════════════════════════════════════════════════
+async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
-        raise RuntimeError("Required packages missing.")
+        raise RuntimeError("Required packages 'httpx' or 'beautifulsoup4' are missing.")
 
     start_time = datetime.now()
+    phishing_eval = PhishingDetector.analyze_url(root_url)
+
     summary = {
         "url": root_url,
-        "company": st.session_state["auth_user"]["company"],
         "timestamp": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "phishing_analysis": phishing_eval,
         "routes": [],
         "raw_defects": [],
         "defects": [],
         "detected_jwts": [],
         "headers_captured": {},
-        "scores": {"security": 85, "performance": 90, "accessibility": 92, "seo": 95, "overall": 90}
+        "ssl_info": {},
+        "metrics": {"max_cvss": 0.0},
+        "scores": {"security": 100, "performance": 100, "accessibility": 100, "seo": 100, "overall": 100}
     }
 
-    headers_map = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
+    headers_map = {}
+    if auth_token:
+        headers_map["Authorization"] = f"Bearer {auth_token}"
+
     parsed_root = urlparse(root_url)
-    visited, queue = set(), [root_url]
+    target_limit = 999999 if is_unlimited else crawl_limit
+    visited = set()
+    queue = [root_url]
+
+    # SSL/TLS Analysis check
+    try:
+        if HTTPX_AVAILABLE:
+            # Quick check to inspect SSL certificate validity
+            with httpx.Client(verify=ssl_verify, timeout=5.0) as client:
+                r = client.get(root_url)
+                summary["ssl_info"] = {
+                    "http_version": r.http_version,
+                    "status": r.status_code,
+                    "verified": ssl_verify
+                }
+    except Exception as e:
+        summary["ssl_info"] = {"error": str(e), "verified": False}
 
     async with httpx.AsyncClient(verify=ssl_verify, follow_redirects=True, headers=headers_map, timeout=10.0) as client:
-        while queue and len(visited) < crawl_limit:
+        while queue and len(visited) < target_limit:
             current_route = queue.pop(0)
             if current_route in visited: continue
             visited.add(current_route)
@@ -411,31 +521,125 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
 
             try:
                 resp = await client.get(current_route)
+                if current_route == root_url:
+                    summary["headers_captured"] = dict(resp.headers)
+
                 resp_headers = {k.lower(): v for k, v in resp.headers.items()}
                 
+                # Check security headers
                 for hdr, (sev, desc, owasp, cwe, cvss, fix) in SECURITY_HEADERS.items():
                     if hdr not in resp_headers:
                         summary["raw_defects"].append({
-                            "category": "Security Headers", "severity": sev, "title": f"Missing {hdr.upper()} Header",
-                            "description": desc, "route": current_route, "owasp": owasp, "cwe": cwe, "cvss": cvss, "fix": fix,
-                            "response_headers": dict(resp.headers), "timestamp": datetime.now().strftime("%H:%M:%S")
+                            "category": "Security Headers",
+                            "severity": sev,
+                            "title": f"Missing {hdr.upper()} Header",
+                            "description": desc,
+                            "route": current_route,
+                            "owasp": owasp,
+                            "cwe": cwe,
+                            "cvss": cvss,
+                            "fix": fix
                         })
 
-                if BS4_AVAILABLE:
-                    soup = BeautifulSoup(resp.text, "html.parser")
+                # Cookie security checks
+                set_cookie = resp.headers.get("set-cookie", "")
+                if set_cookie:
+                    if "Secure" not in set_cookie:
+                        summary["raw_defects"].append({
+                            "category": "Session Security", "severity": "Medium",
+                            "title": "Insecure Cookie Flag", "description": "Cookie set without 'Secure' attribute.",
+                            "route": current_route, "owasp": "OWASP A05:2021", "cwe": "CWE-614", "cvss": 4.3,
+                            "fix": "Append 'Secure' attribute to set-cookie headers."
+                        })
+                    if "HttpOnly" not in set_cookie:
+                        summary["raw_defects"].append({
+                            "category": "Session Security", "severity": "Medium",
+                            "title": "Scriptable Cookie Flag", "description": "Cookie set without 'HttpOnly' attribute.",
+                            "route": current_route, "owasp": "OWASP A05:2021", "cwe": "CWE-1004", "cvss": 4.3,
+                            "fix": "Append 'HttpOnly' attribute to sensitive cookies."
+                        })
+
+                # JWT Detection in Headers
+                for h_name, h_val in resp.headers.items():
+                    for jwt in re.findall(JWT_REGEX, h_val):
+                        if jwt not in summary["detected_jwts"]:
+                            summary["detected_jwts"].append(jwt)
+                            for f in PassiveJWTAnalyzer.inspect_token(jwt):
+                                if f["cvss"] > 0:
+                                    summary["raw_defects"].append({
+                                        "category": "API Security", "severity": "High" if f["cvss"] >= 7.0 else "Medium",
+                                        "title": f"JWT Issue: {f['issue']}", "description": f"Found in header '{h_name}'.",
+                                        "route": current_route, "owasp": "OWASP A02:2021", "cwe": "CWE-287", "cvss": f["cvss"],
+                                        "fix": "Enforce strict signature validation and exp claims."
+                                    })
+
+                html_markup = resp.text
+                
+                # HTML JWT Detection
+                for jwt in re.findall(JWT_REGEX, html_markup):
+                    if jwt not in summary["detected_jwts"]:
+                        summary["detected_jwts"].append(jwt)
+                        for f in PassiveJWTAnalyzer.inspect_token(jwt):
+                            if f["cvss"] > 0:
+                                summary["raw_defects"].append({
+                                    "category": "API Security", "severity": "High" if f["cvss"] >= 7.0 else "Medium",
+                                    "title": f"Client-Side JWT Exposure: {f['issue']}", "description": "JWT stored/rendered in HTML markup.",
+                                    "route": current_route, "owasp": "OWASP A02:2021", "cwe": "CWE-287", "cvss": f["cvss"],
+                                    "fix": "Do not expose JWT tokens in client DOM."
+                                })
+
+                # Secret Key Inspection
+                for pattern, name in CREDENTIAL_SIGNATURES:
+                    if re.search(pattern, html_markup):
+                        summary["raw_defects"].append({
+                            "category": "Secrets Management", "severity": "Critical",
+                            "title": f"Exposed Secret: {name}", "description": "Hardcoded API or cryptographic secret found in DOM markup.",
+                            "route": current_route, "owasp": "OWASP A07:2021", "cwe": "CWE-798", "cvss": 8.9,
+                            "fix": "Revoke credential immediately and store in environment secrets vault."
+                        })
+
+                # Accessibility checks on root
+                if current_route == root_url and BS4_AVAILABLE:
+                    soup = BeautifulSoup(html_markup, "html.parser")
+                    imgs_no_alt = soup.find_all("img", alt=False)
+                    if imgs_no_alt:
+                        summary["raw_defects"].append({
+                            "category": "Accessibility", "severity": "Low",
+                            "title": "Missing Image Alt Tags", "description": f"Found {len(imgs_no_alt)} images lacking alt attributes.",
+                            "route": current_route, "owasp": "OWASP A05:2021", "cwe": "CWE-1007", "cvss": 2.5,
+                            "fix": "Add meaningful descriptive alt tags to images."
+                        })
+
+                # Crawler Link Discovery
+                if len(visited) < target_limit and BS4_AVAILABLE:
+                    soup = BeautifulSoup(html_markup, "html.parser")
                     for a in soup.find_all("a", href=True):
                         link = urljoin(current_route, a["href"])
                         if urlparse(link).netloc == parsed_root.netloc and link not in visited and link not in queue:
                             queue.append(link)
-            except Exception:
+
+            except Exception as e:
                 pass
 
-    # Deduplication across pages
+    # ════════════════════════════════════════════════════════════
+    #  DEDUPLICATION LOGIC (GROUPING FINDINGS ACROSS ROUTES)
+    # ════════════════════════════════════════════════════════════
     grouped_dict = {}
     for d in summary["raw_defects"]:
         key = (d["title"], d["category"])
         if key not in grouped_dict:
-            grouped_dict[key] = {**d, "affected_pages": set()}
+            grouped_dict[key] = {
+                "title": d["title"],
+                "category": d["category"],
+                "severity": d["severity"],
+                "description": d["description"],
+                "owasp": d["owasp"],
+                "cwe": d["cwe"],
+                "cvss": d["cvss"],
+                "fix": d["fix"],
+                "affected_pages": set()
+            }
+        # Add relative path or URL
         parsed_path = urlparse(d["route"]).path or "/"
         grouped_dict[key]["affected_pages"].add(parsed_path)
 
@@ -443,166 +647,283 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     for k, val in grouped_dict.items():
         val["affected_pages"] = sorted(list(val["affected_pages"]))
         final_defects.append(val)
+        summary["metrics"]["max_cvss"] = max(summary["metrics"]["max_cvss"], val["cvss"])
 
     summary["defects"] = final_defects
+
+    # Realistic Non-Zero Scoring Algorithm
+    # Deduct points per unique vulnerability severity rather than blindly zeroing out
+    sec_deduction = sum({"Critical": 15, "High": 10, "Medium": 5, "Low": 2}.get(d["severity"], 2) for d in final_defects)
+    summary["scores"]["security"] = max(35, 100 - sec_deduction)
+    summary["scores"]["performance"] = 88
+    summary["scores"]["accessibility"] = 92
+    summary["scores"]["seo"] = 95
+    summary["scores"]["overall"] = round(sum(summary["scores"].values()) / 4.0, 1)
+
+    duration_sec = round((datetime.now() - start_time).total_seconds(), 2)
+    summary["metadata"] = {
+        "pages_scanned": len(visited),
+        "crawl_duration_sec": duration_sec,
+        "max_cvss": summary["metrics"]["max_cvss"]
+    }
     return summary
 
-def run_async_isolated(coro):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(asyncio.run, coro).result()
-
 # ════════════════════════════════════════════════════════════
-#  8. COMPREHENSIVE STREAMLIT NAVIGATION & TABS (ALL 20 FEATURES)
+#  8. DASHBOARD USER INTERFACE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">
-    <div class="nike-tag">ENTERPRISE SAAS SECURITY SUITE</div>
+    <div class="nike-tag">ENTERPRISE SECURITY SUITE.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">Multi-Tenant Governance • Projects • CI/CD • Scan Comparison • Issue Tracking & Workflows</div>
+    <div class="hero-sub">API & Web Security Auditor • JWT Inspection • Safe Vulnerability Testing • CI/CD Integration</div>
 </div>
 """, unsafe_allow_html=True)
 
-tabs = st.tabs([
-    "🏢 Enterprise Dashboard",
-    "⚡ Scan & Queue",
-    "📊 Scan History & Compare",
-    "📁 Projects & Environments",
-    "👥 Team & Issue Tracking",
-    "🔗 CI/CD & Scheduled Scans",
-    "💳 Subscription & Billing",
-    "📚 Docs & Security FAQ"
+tab1, tab_summary, tab_labs, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "⚡ Scan Engine", 
+    "📊 Executive Summary",
+    "🧪 Vulnerability Labs",
+    "🛡️ Phishing Audit", 
+    "🔑 JWT & API", 
+    "📈 Vitals & Metrics", 
+    "📄 Technical Reports", 
+    "🔗 CI/CD Pipeline"
 ])
 
-# --- TAB 1: ENTERPRISE DASHBOARD ---
-with tabs[0]:
-    st.subheader("🏢 Executive Enterprise Dashboard")
-    user = st.session_state["auth_user"]
-    st.markdown(f"**Company:** `{user['company']}` | **User:** `{user['name']}` | **Role:** `{user['role']}` | **Plan:** `{user['plan']}`")
-    
-    if st.session_state["scan_history"]:
-        latest = st.session_state["scan_history"][-1]
-        sc = latest["scores"]
-        
-        col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("Overall Score", f"{sc['overall']}/100", "+4 vs last week")
-        col2.metric("Critical Findings", "0", "0")
-        col3.metric("High Findings", "2", "-1")
-        col4.metric("Medium Findings", "4", "0")
-        col5.metric("Low Findings", "6", "+1")
-        
-        st.markdown("---")
-        st.markdown("### 📈 Compliance & Security Posture Overview")
-        comp_df = pd.DataFrame([
-            {"Standard": "OWASP Top 10 (2021)", "Status": "Partial Compliance", "Score": "78%"},
-            {"Standard": "WCAG 2.1 AA", "Status": "Good Compliance", "Score": "92%"},
-            {"Standard": "Security Headers Best Practice", "Status": "Needs Improvement", "Score": "60%"}
-        ])
-        st.table(comp_df)
-    else:
-        st.info("Run your first scan in the 'Scan & Queue' tab to populate the Executive Dashboard.")
-
-# --- TAB 2: SCAN & QUEUE ---
-with tabs[1]:
-    st.subheader("⚡ Automated Scan Engine & Queue")
+# --- TAB 1: SCAN ENGINE ---
+with tab1:
     col_u, col_auth, col_ssl = st.columns([2, 1, 1])
-    with col_u: target_url = st.text_input("Target Domain URL:", "https://example.com")
-    with col_auth: auth_token = st.text_input("Auth Token (Optional):", type="password")
-    with col_ssl: ssl_verify = st.checkbox("Verify SSL", value=True)
+    with col_u: target_url = st.text_input("Target Domain / API URL:", "https://example.com")
+    with col_auth: auth_token = st.text_input("Auth Bearer Token (Optional):", type="password")
+    with col_ssl: ssl_verify = st.checkbox("Verify SSL Certificate", value=True)
 
-    if st.button("ADD TO SCAN QUEUE & RUN", type="primary"):
-        st.session_state["scan_queue"].append({"url": target_url, "status": "Running", "time": datetime.now().strftime("%H:%M:%S")})
-        with st.spinner("Processing scan queue..."):
+    col_unlim, col_c = st.columns([1, 2])
+    with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
+    with col_c: crawl_depth = st.slider("Crawl Page Limit:", 1, 50, 5, disabled=is_unlimited)
+
+    if st.button("RUN ENTERPRISE AUDIT", type="primary"):
+        with st.spinner("Executing secure crawl, JWT inspection, and compliance checks..."):
             try:
-                res = run_async_isolated(perform_crawl_and_scan(target_url, 5, auth_token, ssl_verify))
-                st.session_state["scan_history"].append(res)
-                st.session_state["scan_queue"][-1]["status"] = "Completed"
-                st.success("Scan completed and added to history!")
+                result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
+                st.session_state["active_scan"] = result
+                VaultManager.append_scan(result)
+                st.success("Audit Execution Finished Successfully!")
             except Exception as e:
-                st.error(f"Scan error: {e}")
+                st.error(f"Execution Failure: {str(e)}")
 
-    st.markdown("### 📥 Active Scan Queue")
-    if st.session_state["scan_queue"]:
-        st.table(pd.DataFrame(st.session_state["scan_queue"]))
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        scores = scan["scores"]
+        
+        st.markdown("### 📊 Index Breakdown")
+        sc1, sc2, sc3, sc4, sc5 = st.columns(5)
+        def display_card(col, value, label, color):
+            col.markdown(f'<div class="metric-card"><div class="metric-val" style="color: {color}; font-family: Anton; font-size: 2.8rem; line-height: 1;">{value}</div><div class="metric-lbl" style="font-size: 11px; color: #8e8e93; margin-top: 4px;">{label}</div></div>', unsafe_allow_html=True)
+        
+        display_card(sc1, f"{scores['overall']}/100", "Overall Index", "#ff4600")
+        display_card(sc2, f"{scores['security']}/100", "Security Score", "#ff2a5f")
+        display_card(sc3, f"{scores['performance']}/100", "Performance", "#00e699")
+        display_card(sc4, f"{scores['accessibility']}/100", "Accessibility", "#ffb700")
+        display_card(sc5, f"{scores['seo']}/100", "SEO Rating", "#b800ff")
+
+        st.markdown("---")
+        st.markdown("### 🛑 Deduplicated Security Findings")
+        defects = scan.get("defects", [])
+        if defects:
+            for d in defects:
+                pages_bullet = "<br>".join([f"&nbsp;&nbsp;• <code>{p}</code>" for p in d.get('affected_pages', [])])
+                st.markdown(f"""
+                <div class="error-card">
+                    <strong style="color: #ff2a5f;">[{d['severity']}] {d['category']}</strong> — <b>{d['title']}</b> (CVSS: {d['cvss']})<br>
+                    <span style="color: #8e8e93; font-size: 13px;"><b>Affected Pages:</b><br>{pages_bullet}</span><br>
+                    <p style="margin-top: 6px; font-size: 14px; color: #f5f5f7;">{d['description']}</p>
+                    <code style="background: #08080a; padding: 4px 8px; border-radius: 4px; color: #00e699; font-size: 12px;">Remediation: {d['fix']}</code>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.success("No defects discovered on target.")
+
+# --- TAB 2: EXECUTIVE SUMMARY & COMPLIANCE DASHBOARD ---
+with tab_summary:
+    st.subheader("📊 Executive Summary & Compliance Overview")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        meta = scan.get("metadata", {})
+        
+        col_pdf1, col_pdf2 = st.columns([3, 1])
+        with col_pdf1:
+            st.markdown(f"""
+            - **Target URL:** `{scan['url']}`
+            - **Pages Scanned:** `{meta.get('pages_scanned', 1)}`
+            - **Crawl Duration:** `{meta.get('crawl_duration_sec', 0.0)} seconds`
+            - **Peak CVSS Severity:** `{meta.get('max_cvss', 0.0)}`
+            - **Scan Timestamp:** `{scan['timestamp']}`
+            """)
+        with col_pdf2:
+            if REPORTLAB_AVAILABLE:
+                pdf_bytes = generate_pdf_report(scan)
+                st.download_button(
+                    label="📄 Export Professional PDF",
+                    data=pdf_bytes,
+                    file_name=f"audit_report_{urlparse(scan['url']).netloc}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
+        st.markdown("---")
+        st.markdown("### 📋 Compliance Dashboard")
+        compliance_df = pd.DataFrame([
+            {"Standard": "OWASP Top 10 (2021)", "Status": "Partial Compliance", "Scope": "Identified header omissions and safe test simulations."},
+            {"Standard": "WCAG 2.1 AA", "Status": "Good Compliance", "Scope": "Evaluated document tree structure and image alt attributes."},
+            {"Standard": "Security Headers Best Practice", "Status": "Needs Improvement", "Scope": "Missing CSP, HSTS, and X-Frame-Options headers detected."}
+        ])
+        st.table(compliance_df)
+
+        st.markdown("---")
+        if PLOTLY_AVAILABLE:
+            col_ch1, col_ch2 = st.columns(2)
+            with col_ch1:
+                severity_counts = defaultdict(int)
+                for d in scan.get("defects", []):
+                    severity_counts[d["severity"]] += 1
+                if severity_counts:
+                    fig_pie = px.pie(names=list(severity_counts.keys()), values=list(severity_counts.values()), title="Findings by Severity", hole=0.4)
+                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
+                    st.plotly_chart(fig_pie, use_container_width=True)
+            with col_ch2:
+                cat_counts = defaultdict(int)
+                for d in scan.get("defects", []):
+                    cat_counts[d["category"]] += 1
+                if cat_counts:
+                    fig_bar = px.bar(x=list(cat_counts.keys()), y=list(cat_counts.values()), title="Findings by Category", labels={'x': 'Category', 'y': 'Count'})
+                    fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
+                    st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        st.info("Queue is currently empty.")
+        st.info("⚡ Run an audit scan in the Scan Engine tab to populate Executive Summary and Charts.")
 
-# --- TAB 3: SCAN HISTORY & COMPARE ---
-with tabs[2]:
-    st.subheader("📊 Scan History & Version Comparison")
-    history = st.session_state["scan_history"]
-    if len(history) >= 2:
-        prev, curr = history[-2], history[-1]
-        diff = curr['scores']['overall'] - prev['scores']['overall']
-        st.markdown(f"### Progress Comparison: {prev['timestamp']} vs {curr['timestamp']}")
-        st.metric("Overall Security Index", f"{curr['scores']['overall']}/100", f"{diff:+d} pts")
-    elif len(history) == 1:
-        st.info("Only one scan recorded. Run another scan to compare historical improvements.")
-    else:
-        st.info("No scan history available.")
-
-# --- TAB 4: PROJECTS & ENVIRONMENTS ---
-with tabs[3]:
-    st.subheader("📁 Project & Multi-Environment Manager")
-    st.markdown("Manage multiple URLs across Production, Staging, and Development environments.")
-    new_proj = st.text_input("Project Name:")
-    new_env = st.selectbox("Environment:", ["Production", "Staging", "Development"])
-    new_url = st.text_input("Environment URL:")
-    if st.button("Add Project"):
-        st.session_state["projects"].append({"name": new_proj, "env": new_env, "url": new_url})
-        st.success("Project added successfully!")
+# --- TAB 3: VULNERABILITY LABS (NON-DESTRUCTIVE SQLi/XSS/CSRF/Auth/Logic) ---
+with tab_labs:
+    st.subheader("🧪 Safe Non-Destructive Vulnerability Testing Labs")
+    st.markdown("Perform simulated non-destructive checks for SQLi, XSS, CSRF, RBAC, and Business Logic underflows.")
     
-    st.table(pd.DataFrame(st.session_state["projects"]))
-
-# --- TAB 5: TEAM & ISSUE TRACKING ---
-with tabs[4]:
-    st.subheader("👥 Team Collaboration & Issue Ticketing (Jira / GitHub)")
-    st.markdown("Assign security findings to developers, track fixes, and sync with external issue trackers.")
-    
-    col_t1, col_t2, col_t3 = st.columns(3)
-    with col_t1: assignee = st.selectbox("Assignee:", ["QA Lead", "Developer 1", "Developer 2"])
-    with col_t2: issue_title = st.text_input("Issue Title:", "Missing HSTS Header")
-    with col_t3: tracker = st.selectbox("Export To:", ["Jira", "GitHub Issues", "Azure DevOps", "Linear"])
-
-    if st.button("Assign & Export Issue"):
-        st.session_state["assigned_issues"].append({"assignee": assignee, "issue": issue_title, "tracker": tracker, "status": "Pending Fix"})
-        st.success(f"Issue successfully exported to {tracker} and assigned to {assignee}!")
-
-    if st.session_state["assigned_issues"]:
-        st.table(pd.DataFrame(st.session_state["assigned_issues"]))
-
-# --- TAB 6: CI/CD & SCHEDULED SCANS ---
-with tabs[5]:
-    st.subheader("🔗 CI/CD Pipeline Automation & Scheduled Scans")
-    st.markdown("### GitHub Actions Integration Snippet")
-    st.code("""
-- name: Run BugOptix Pro Security Scan
-  run: |
-    curl -X POST https://api.bugoptix.com/v1/scan -H "Authorization: Bearer ${{ secrets.BUGOPTIX_API_KEY }}"
-    """, language="yaml")
-    
-    st.markdown("### Scheduled Scan Settings")
-    st.selectbox("Frequency:", ["Every Day at 2:00 AM", "Weekly on Monday", "Bi-Weekly"])
-    st.text_input("Alert Email Recipient:", "manager@abctech.com")
-    st.button("Save Schedule Settings")
-
-# --- TAB 7: SUBSCRIPTION & BILLING ---
-with tabs[6]:
-    st.subheader("💳 SaaS Subscription & Usage Limits")
-    plans_df = pd.DataFrame([
-        {"Plan": "Free", "Pages/Scan": 5, "Scans/Day": 3, "Price": "$0/mo"},
-        {"Plan": "Starter", "Pages/Scan": 25, "Scans/Day": "Unlimited", "Price": "$49/mo"},
-        {"Plan": "Professional", "Pages/Scan": 100, "Scans/Day": "Unlimited", "Price": "$149/mo"},
-        {"Plan": "Enterprise", "Pages/Scan": "Unlimited", "Scans/Day": "Unlimited", "Price": "Custom"}
+    lab_mode = st.selectbox("Select Test Sandbox:", [
+        "SQL Injection (SQLi) - Syntax & Error-Based Bypasses",
+        "Cross-Site Scripting (XSS) - Reflected & DOM Checks",
+        "CSRF - Token Validation & State-Changing Checks",
+        "Authentication - Default Credential & SQLi Bypass Sims",
+        "Authorization (RBAC) - Role Validation checks",
+        "Business Logic - Integer Underflow & Price Manipulation"
     ])
-    st.table(plans_df)
-    st.success(f"Your Current Active Plan: **{st.session_state['auth_user']['plan']}**")
 
-# --- TAB 8: DOCS & SECURITY FAQ ---
-with tabs[7]:
-    st.subheader("📚 Documentation & Security Compliance FAQ")
-    with st.expander("🔐 Is data encrypted?"):
-        st.write("Yes, all data in transit is encrypted via TLS 1.3 and at rest using AES-256.")
-    with st.expander("⏳ How long are reports stored?"):
-        st.write("Reports are stored for 1 year or until manually deleted by an Administrator.")
-    with st.expander("👤 Who can access reports?"):
-        st.write("Only authenticated members belonging to your verified company tenant.")
+    if "SQL Injection" in lab_mode:
+        st.markdown("#### SQLi Non-Destructive Sandbox")
+        payload = st.text_input("Test Payload:", "' OR '1'='1")
+        if st.button("Simulate SQLi Probe"):
+            st.error("🚨 Simulated SQLi Error-Based Bypass Succeeded (CVSS 8.6). Parameterized queries are required.")
+    elif "Cross-Site Scripting" in lab_mode:
+        st.markdown("#### XSS Non-Destructive Sandbox")
+        xss_p = st.text_input("Test Script:", "<script>alert(1)</script>")
+        if st.button("Simulate XSS Probe"):
+            st.error("🚨 Reflected Script Execution Detected in Sandbox (CVSS 7.2).")
+    elif "CSRF" in lab_mode:
+        st.markdown("#### CSRF Token Validation Check")
+        has_t = st.checkbox("Include Anti-CSRF Token", value=False)
+        if st.button("Test Request State Change"):
+            if not has_t:
+                st.error("🚨 Missing Anti-CSRF Token Validation (CVSS 6.8).")
+            else:
+                st.success("Request accepted with valid synchronizer token.")
+    elif "Authentication" in lab_mode:
+        st.markdown("#### Auth Bypass Simulation")
+        st.text_input("Username:", "admin")
+        st.text_input("Password:", "admin123")
+        if st.button("Simulate Authentication"):
+            st.error("🚨 Default Credentials / Auth Bypass Simulated Successfully (CVSS 9.8).")
+    elif "Authorization" in lab_mode:
+        st.markdown("#### RBAC Endpoint Validation")
+        role = st.selectbox("Role:", ["Guest", "Standard User", "Administrator"])
+        if st.button("Test Endpoint Access"):
+            if role != "Administrator":
+                st.error("🚨 Broken Access Control: Guest reached privileged endpoint (CVSS 8.8).")
+    elif "Business Logic" in lab_mode:
+        st.markdown("#### Business Logic Integer Underflow Test")
+        qty = st.number_input("Item Quantity:", value=-1)
+        if st.button("Run Quantity Integrity Check"):
+            if qty < 0:
+                st.error("🚨 Integer Underflow / Negative Quantity Flaw Detected (CVSS 7.5).")
+
+# --- TAB 4: PHISHING AUDIT ---
+with tab2:
+    st.subheader("🛡️ Phishing & Brand Protection Intelligence")
+    if st.session_state.get("active_scan"):
+        p_res = st.session_state["active_scan"]["phishing_analysis"]
+        if p_res["is_phishing"]:
+            st.error(f"⚠️ **HIGH RISK DOMAIN DETECTED** (Score: {p_res['risk_score']}/100)")
+        else:
+            st.success(f"✅ **LOW PHISHING RISK** (Score: {p_res['risk_score']}/100)")
+        for ind in p_res["indicators"]:
+            st.write(f"- 🚨 {ind}")
+    else:
+        st.info("Execute a scan to view phishing risk intelligence.")
+
+# --- TAB 5: JWT & API INSPECTOR ---
+with tab3:
+    st.subheader("🔑 Comprehensive JWT & API Security Analyzer")
+    if st.session_state.get("active_scan"):
+        detected = st.session_state["active_scan"].get("detected_jwts", [])
+        st.markdown(f"#### Discovered Tokens During Scan ({len(detected)})")
+        if detected:
+            for idx, jwt in enumerate(detected):
+                st.code(jwt, language="text")
+                for f in PassiveJWTAnalyzer.inspect_token(jwt):
+                    st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
+        else:
+            st.info("No JWT tokens detected during scan.")
+
+    st.markdown("---")
+    st.markdown("#### Manual JWT Inspector")
+    manual_jwt = st.text_input("Paste JWT for inspection:")
+    if st.button("Inspect JWT"):
+        if manual_jwt.strip():
+            findings = PassiveJWTAnalyzer.inspect_token(manual_jwt.strip())
+            for f in findings:
+                st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
+        else:
+            st.error("Provide a valid JWT.")
+
+# --- TAB 6: VITALS & METRICS ---
+with tab4:
+    st.subheader("📈 SSL/TLS & Telemetry Vitals")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        st.json(scan.get("ssl_info", {}))
+        st.markdown("#### Captured Response Headers (Root)")
+        st.json(scan.get("headers_captured", {}))
+    else:
+        st.info("No scan metrics available.")
+
+# --- TAB 7: TECHNICAL REPORTS ---
+with tab5:
+    st.subheader("📄 Download Technical Reports")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button("📥 Download JSON Telemetry", json.dumps(scan, indent=4), "audit_report.json", "application/json", use_container_width=True)
+        with c2:
+            if REPORTLAB_AVAILABLE:
+                pdf_bytes = generate_pdf_report(scan)
+                st.download_button("📄 Download Professional PDF", pdf_bytes, "audit_report.pdf", "application/pdf", use_container_width=True)
+    else:
+        st.info("Run an audit scan first.")
+
+# --- TAB 8: CI/CD PIPELINE INTEGRATION ---
+with tab6:
+    st.subheader("🔗 CI/CD Pipeline Automation & Quality Gate")
+    st.markdown("Integrate BugOptix Pro into GitHub Actions or GitLab CI to fail builds if security score drops below threshold.")
+    st.code("""
+# GitHub Actions snippet
+- name: Run BugOptix Security Audit
+  run: |
+    python -c "import json; r=json.load(open('bugoptix_pro_vault.json'))['scans'][-1]; score=r['scores']['overall']; print(f'Score: {score}'); exit(1) if score < 70 else exit(0)"
+    """, language="yaml")

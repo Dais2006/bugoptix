@@ -14,7 +14,7 @@ from urllib.parse import urlparse, urljoin, parse_qs
 import streamlit as st
 import pandas as pd
 
-# Try to nest asyncio for Streamlit runtime loop safety
+# Async runtime safety for Streamlit on Windows
 try:
     import nest_asyncio
     nest_asyncio.apply()
@@ -24,7 +24,6 @@ except ImportError:
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-# Ensure playwright is ready
 @st.cache_resource
 def install_playwright_browsers():
     try:
@@ -37,120 +36,155 @@ install_playwright_browsers()
 from playwright.async_api import async_playwright
 
 # ════════════════════════════════════════════════════════════
-#  STYLING & INTERFACE MATRIX
+#  PREMIUM GLASSMORPHIC INTERFACE DESIGN SYSTEM
 # ════════════════════════════════════════════════════════════
-st.set_page_config(page_title="BugOptix Pro | Enterprise Quality Suite", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="BugOptix Pro | Enterprise Auditor", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-*, *::before, *::after { font-family: 'Plus Jakarta Sans', sans-serif; box-sizing: border-box; }
+*, *::before, *::after { 
+    font-family: 'Plus Jakarta Sans', sans-serif !important; 
+    box-sizing: border-box; 
+}
 
 html, body, [class*="css"] {
-    background-color: #05070f !important;
+    background-color: #030712 !important;
     background-image: 
-        radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-        radial-gradient(at 90% 90%, rgba(236, 72, 153, 0.12) 0px, transparent 50%),
-        radial-gradient(at 50% 50%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.10) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
     background-attachment: fixed;
-    color: #f1f5f9;
+    color: #f3f4f6;
 }
 
 #MainMenu, footer, header { visibility: hidden; }
 
-@keyframes float {
-    0% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-8px) rotate(0.5deg); }
-    100% { transform: translateY(0px) rotate(0deg); }
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0b0f19; }
+::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #374151; }
+
+@keyframes floatHero {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+    100% { transform: translateY(0px); }
 }
 
 @keyframes pulseGlow {
-    0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
-    50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.35); }
-    100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
+    0% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
+    50% { box-shadow: 0 0 35px rgba(168, 85, 247, 0.25); }
+    100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
 }
 
 .hero {
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(17, 24, 39, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
-    padding: 30px 40px;
-    margin-bottom: 24px;
-    animation: float 6s ease-in-out infinite, pulseGlow 8s infinite alternate;
+    padding: 32px 40px;
+    margin-bottom: 28px;
+    animation: floatHero 6s ease-in-out infinite, pulseGlow 8s infinite alternate;
 }
 
 .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2));
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(236, 72, 153, 0.25));
     border: 1px solid rgba(168, 85, 247, 0.4);
     border-radius: 30px;
-    padding: 4px 14px;
+    padding: 6px 16px;
     font-size: 11px;
     color: #f472b6;
     font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .hero-title {
-    font-size: 2.8rem;
+    font-size: 3rem;
     font-weight: 900;
-    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 40%, #c084fc 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.hero-sub {
+    color: #9ca3af;
+    font-size: 1.05rem;
+    margin-top: 6px;
 }
 
 .score-card {
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(12px);
+    background: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 20px;
+    border-radius: 20px;
+    padding: 22px;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .score-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-6px);
     border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 12px 30px -10px rgba(168, 85, 247, 0.25);
 }
 
 .score-value {
-    font-size: 3rem;
+    font-size: 3.2rem;
     font-weight: 900;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', monospace !important;
+    line-height: 1;
 }
 
 .score-label {
     font-size: 11px;
-    color: #94a3b8;
+    color: #9ca3af;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 8px;
+    letter-spacing: 1.2px;
+    margin-top: 10px;
     font-weight: 700;
 }
 
 .compliance-tag {
-    font-size: 10px;
-    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace !important;
     background: rgba(30, 41, 59, 0.8);
     color: #38bdf8;
-    padding: 3px 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(56, 189, 248, 0.2);
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
     margin-right: 6px;
+    display: inline-block;
+}
+
+.jwt-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 10px;
+}
+
+.jwt-code {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 12px;
+    color: #a7f3d0;
+    word-break: break-all;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
-#  100% ACCURATE SECURITY & PHISHING DETECTORS
+#  SECURITY, PHISHING & PASSIVE JWT INSPECTION ENGINES
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
     "content-security-policy": ("Critical", "Missing Content-Security-Policy header. Exposes site to XSS.", "OWASP A03:2021", "CWE-352", 7.5),
@@ -167,9 +201,10 @@ CREDENTIAL_SIGNATURES = [
     (r"xox[bapr]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}", "Slack Token"),
     (r"AKIA[0-9A-Z]{16}", "AWS Access Key ID"),
     (r"ghp_[a-zA-Z0-9]{36}", "GitHub Personal Access Token"),
-    (r"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+", "Hardcoded JWT Token"),
     (r"-----BEGIN PRIVATE KEY-----", "RSA/Generic Private Key")
 ]
+
+JWT_REGEX = r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
 
 class PhishingDetector:
     @staticmethod
@@ -179,42 +214,35 @@ class PhishingDetector:
         indicators = []
         risk_score = 0
 
-        # Check IP address as hostname
         if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", hostname):
             indicators.append("Host is an raw IP address (Common Phishing Trait)")
             risk_score += 45
 
-        # Check URL length
         if len(url) > 75:
             indicators.append("Excessively long URL (> 75 chars)")
             risk_score += 15
 
-        # Check for '@' symbol in URL
         if "@" in url:
             indicators.append("Contains '@' symbol (Used to blind/redirect credentials)")
             risk_score += 30
 
-        # Check double slash redirection
         if url.rfind("//") > 7:
             indicators.append("Contains suspicious double-slash '//' path redirection")
             risk_score += 25
 
-        # Check suspicious subdomains or hyphens
         if hostname.count("-") > 2:
             indicators.append("Excessive hyphens in domain name")
             risk_score += 15
 
-        # Suspicious keywords in domain
         suspicious_keywords = ["login", "verify", "update", "account", "banking", "secure", "signin", "paypal", "wallet"]
         for kw in suspicious_keywords:
             if kw in hostname.lower() and not hostname.lower().startswith(kw):
                 indicators.append(f"Contains target keyword '{kw}' in subdomain structure")
                 risk_score += 20
 
-        # High risk TLD check
         suspicious_tlds = [".xyz", ".top", ".tk", ".ml", ".ga", ".cf", ".gq", ".work"]
         if any(hostname.endswith(tld) for tld in suspicious_tlds):
-            indicators.append("Uses a high-risk cheap/free TLD frequently associated with phishing")
+            indicators.append("Uses a high-risk TLD frequently associated with phishing")
             risk_score += 20
 
         is_phishing = risk_score >= 40
@@ -235,12 +263,12 @@ class PassiveJWTAnalyzer:
             h_bytes = base64.urlsafe_bdecode(parts[0] + "=" * (-len(parts[0]) % 4))
             header = json.loads(h_bytes)
             if header.get("alg", "").lower() == "none":
-                findings.append({"issue": "Token explicitly allows 'none' algorithm", "cvss": 9.1})
+                findings.append({"issue": "JWT explicitly allows 'none' algorithm signature bypass", "cvss": 9.1})
             
             p_bytes = base64.urlsafe_bdecode(parts[1] + "=" * (-len(parts[1]) % 4))
             payload = json.loads(p_bytes)
             if "exp" not in payload:
-                findings.append({"issue": "Token lacks Expiration Claim ('exp')", "cvss": 5.3})
+                findings.append({"issue": "JWT lacks Expiration Claim ('exp')", "cvss": 5.3})
         except Exception as e:
             findings.append({"issue": f"Parsing Error: {str(e)}", "cvss": 0.0})
         return findings
@@ -270,9 +298,9 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  DYNAMIC TESTING CORE (DETERMINISTIC & REAL MEASUREMENTS)
+#  DYNAMIC TESTING CORE (AUTOMATIC JWT & UNLIMITED CRAWL)
 # ════════════════════════════════════════════════════════════
-async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str) -> dict:
+async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str, is_unlimited: bool) -> dict:
     start_time = datetime.now()
     phishing_eval = PhishingDetector.analyze_url(root_url)
 
@@ -283,6 +311,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
         "phishing_analysis": phishing_eval,
         "routes": [],
         "defects": [],
+        "detected_jwts": [],
         "owasp_matrix": defaultdict(int),
         "metrics": {"ttfb": 0.0, "dom_interactive": 0.0, "dom_complete": 0.0, "transfer_size_kb": 0, "dom_nodes": 0, "req_count": 0, "max_cvss": 0.0, "resource_breakdown": defaultdict(int)},
         "scores": {"security": 100, "performance": 100, "accessibility": 100, "seo": 100, "ui": 100},
@@ -332,7 +361,9 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
             if param.lower() in suspicious_params:
                 add_defect("Security", "Low", f"Sensitive Parameter Name Identified: '{param}'", "Query parameter is associated with redirection/file paths. Verify access rules.", root_url, "OWASP A01:2021", "CWE-601", cvss=3.1)
 
-        while queue and len(visited) < crawl_limit:
+        target_limit = float('inf') if is_unlimited else crawl_limit
+
+        while queue and len(visited) < target_limit:
             current_route = queue.pop(0)
             if current_route in visited: continue
             visited.add(current_route)
@@ -356,6 +387,17 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                         add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", cvss=4.3)
                     if "HttpOnly" not in cookies:
                         add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", cvss=4.3)
+
+                # Automatic Header JWT Scanner
+                for h_name, h_val in res.headers.items():
+                    jwt_matches = re.findall(JWT_REGEX, h_val)
+                    for jwt in jwt_matches:
+                        if jwt not in summary["detected_jwts"]:
+                            summary["detected_jwts"].append(jwt)
+                            findings = PassiveJWTAnalyzer.inspect_token(jwt)
+                            for f in findings:
+                                if f["cvss"] > 0:
+                                    add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in response header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
 
             page.on("response", log_response)
 
@@ -411,6 +453,17 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                         add_defect("Security", "Medium", "State-Changing Form Lacks Anti-CSRF Field", f"Form submitting to '{f['action']}' lacks hidden CSRF token element.", current_route, "OWASP A01:2021", "CWE-352", cvss=4.3)
 
                 html_markup = await page.content()
+
+                # Automatic HTML/Script JWT Scanner
+                html_jwts = re.findall(JWT_REGEX, html_markup)
+                for jwt in html_jwts:
+                    if jwt not in summary["detected_jwts"]:
+                        summary["detected_jwts"].append(jwt)
+                        findings = PassiveJWTAnalyzer.inspect_token(jwt)
+                        for f in findings:
+                            if f["cvss"] > 0:
+                                add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", "Found hardcoded in page DOM script source.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
+
                 for pattern, name in CREDENTIAL_SIGNATURES:
                     if re.search(pattern, html_markup):
                         add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials in source.", current_route, "OWASP A07:2021", "CWE-798", cvss=8.9)
@@ -424,7 +477,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                     except Exception:
                         pass
 
-                if len(visited) < crawl_limit:
+                if len(visited) < target_limit:
                     hrefs = await page.evaluate("() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(h => h.startsWith('http'))")
                     for link in hrefs:
                         if urlparse(link).netloc == parsed_root.netloc and link not in visited and link not in queue:
@@ -443,31 +496,40 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  STYLING & APPLICATION CONTROLLER
+#  APPLICATION CONTROLLER & PROFESSIONAL TABS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero">
-    <div class="hero-badge">✨ ENTERPRISE ACCURACY v2.5</div>
+    <div class="hero-badge">✨ ENTERPRISE AUDITOR v3.0</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">Deterministic Web Vulnerability & Phishing Intelligence Engine</div>
+    <div class="hero-sub">Deterministic Web Vulnerability, JWT & Phishing Intelligence Suite</div>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🚀 Scanner", "🛡️ Phishing Audit", "🔑 JWT Inspector", "📈 Real Analytics", "📥 Export Reports", "🔗 Integrations"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "🚀 Scan Engine", 
+    "🛡️ Phishing Audit", 
+    "🔑 JWT Auto-Analyzer", 
+    "📈 Performance Vitals", 
+    "📥 Compliance Reports", 
+    "🔗 Integrations"
+])
 
 with tab1:
-    col_u, col_b, col_c = st.columns([3, 1, 1])
+    col_u, col_b, col_c, col_unlim = st.columns([3, 1, 1, 1])
     with col_u: target_url = st.text_input("Target URL:", "https://example.com")
     with col_b: browser_choice = st.selectbox("Browser Engine:", ["Chromium", "Firefox", "WebKit"])
-    with col_c: crawl_depth = st.slider("Crawl Limit:", 1, 5, 2)
+    with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
+    with col_c: 
+        crawl_depth = st.slider("Crawl Limit:", 1, 50, 3, disabled=is_unlimited)
 
-    if st.button("Dispatch Enterprise Scan", type="primary"):
-        with st.spinner("Executing real-time Playwright audit..."):
+    if st.button("Dispatch Enterprise Audit", type="primary"):
+        with st.spinner("Executing real-time Playwright audit & automatic JWT detection..."):
             try:
-                result = asyncio.run(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice))
+                result = asyncio.run(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice, is_unlimited))
                 st.session_state["active_scan"] = result
                 VaultManager.append_scan(result)
-                st.success("Scan Completed with 100% Deterministic Metrics!")
+                st.success("Audit Completed with 100% Deterministic Rules!")
             except Exception as e:
                 st.error(f"Execution Error: {str(e)}")
 
@@ -475,7 +537,7 @@ with tab1:
         scan = st.session_state["active_scan"]
         scores = scan["scores"]
         
-        st.markdown("### 📊 Quality Index Scores")
+        st.markdown("### 📊 Quality & Compliance Index")
         sc1, sc2, sc3, sc4, sc5 = st.columns(5)
         def display_card(col, value, label, color):
             col.markdown(f'<div class="score-card"><div class="score-value" style="color: {color};">{int(value)}</div><div class="score-label">{label}</div></div>', unsafe_allow_html=True)
@@ -487,14 +549,17 @@ with tab1:
 
         st.markdown("---")
         st.markdown("### 🛑 Verified Findings")
-        for d in scan["defects"]:
-            cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
-            with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
-                st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
-                tags = ""
-                if d.get("owasp"): tags += f"<span class='compliance-tag'>{d['owasp']}</span>"
-                if d.get("cwe"): tags += f"<span class='compliance-tag'>{d['cwe']}</span>"
-                if tags: st.markdown(tags, unsafe_allow_html=True)
+        if scan["defects"]:
+            for d in scan["defects"]:
+                cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
+                with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
+                    st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
+                    tags = ""
+                    if d.get("owasp"): tags += f"<span class='compliance-tag'>{d['owasp']}</span>"
+                    if d.get("cwe"): tags += f"<span class='compliance-tag'>{d['cwe']}</span>"
+                    if tags: st.markdown(tags, unsafe_allow_html=True)
+        else:
+            st.success("No defects or vulnerabilities detected.")
 
 with tab2:
     st.subheader("🛡️ Automated Phishing & Structural Risk Analysis")
@@ -515,15 +580,30 @@ with tab2:
         st.info("Execute a scan to review structural phishing intelligence.")
 
 with tab3:
-    st.subheader("🔑 Static JWT Claims Inspection")
-    jwt_input = st.text_area("Paste JWT Token String:")
+    st.subheader("🔑 Automatic & Manual JWT Token Inspector")
+    
+    if st.session_state.get("active_scan"):
+        detected = st.session_state["active_scan"].get("detected_jwts", [])
+        st.markdown(f"#### 🤖 Automatically Discovered Tokens ({len(detected)})")
+        if detected:
+            for idx, jwt in enumerate(detected):
+                st.markdown(f'<div class="jwt-card"><strong>Token #{idx+1}:</strong><br><span class="jwt-code">{jwt}</span></div>', unsafe_allow_html=True)
+                findings = PassiveJWTAnalyzer.inspect_token(jwt)
+                for f in findings:
+                    st.warning(f"⚠️ {f['issue']} (CVSS Base Rating: {f['cvss']})")
+        else:
+            st.info("No JWT tokens were automatically detected during the domain crawl.")
+
+    st.markdown("---")
+    st.markdown("#### 🔍 Manual JWT Analysis")
+    jwt_input = st.text_area("Paste JWT String:")
     if st.button("Inspect JWT Structure"):
         if jwt_input.strip():
             findings = PassiveJWTAnalyzer.inspect_token(jwt_input.strip())
             for f in findings:
                 st.warning(f"⚠️ {f['issue']} (CVSS Base Rating: {f['cvss']})")
         else:
-            st.error("Please enter a JWT string.")
+            st.error("Please enter a valid JWT string.")
 
 with tab4:
     st.subheader("📈 Real Performance Timeline (Navigation API)")
@@ -535,14 +615,16 @@ with tab4:
         m3.metric("DOM Complete", f"{metrics['dom_complete']} ms")
         m4.metric("Transfer Size", f"{metrics['transfer_size_kb']} KB")
     else:
-        st.info("No scan active.")
+        st.info("No active scan. Run a scan from the main dashboard.")
 
 with tab5:
     st.subheader("📥 Export Compliance Reports")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         st.download_button("Download JSON Report", json.dumps(scan, indent=4), "audit_report.json", "application/json")
+    else:
+        st.info("No audit report available to export.")
 
 with tab6:
-    st.subheader("🔗 CI/CD Integration")
+    st.subheader("🔗 CI/CD Pipeline Integration")
     st.code("python -c \"import json; score=json.load(open('report.json'))['scores']['overall']; exit(1) if score < 80 else exit(0)\"", language="bash")

@@ -58,7 +58,7 @@ except Exception:
     pass
 
 # ════════════════════════════════════════════════════════════
-#  3. OBSIDIAN STYLING SYSTEM & TAB ANIMATIONS
+#  3. OBSIDIAN STYLING SYSTEM & TRENDING MENU EFFECTS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -80,13 +80,14 @@ html, body, [class*="css"] {
 
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Dynamic Menu / Tab Styling */
+/* Trending Glow & Slide Menu Animations */
 .stTabs [data-baseweb="tab-list"] {
     gap: 12px;
     background-color: #111113;
     padding: 10px 16px;
     border-radius: 14px;
     border: 1px solid #1f1f24;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 .stTabs [data-baseweb="tab"] {
@@ -96,21 +97,48 @@ html, body, [class*="css"] {
     color: #8e8e93;
     font-weight: 700;
     font-size: 14px;
-    border: 1px solid transparent;
+    border: 1px solid #1f1f24;
     padding: 0px 18px;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stTabs [data-baseweb="tab"]::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: #ff4600;
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
 }
 
 .stTabs [data-baseweb="tab"]:hover {
     color: #ffffff;
     border-color: #ff4600;
-    transform: translateY(-2px);
+    background-color: #161619;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(255, 70, 0, 0.25);
+}
+
+.stTabs [data-baseweb="tab"]:hover::after {
+    width: 80%;
 }
 
 .stTabs [aria-selected="true"] {
     background: linear-gradient(135deg, #ff4600 0%, #ff8700 100%) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 15px rgba(255, 70, 0, 0.4);
+    border-color: #ff4600 !important;
+    box-shadow: 0 6px 25px rgba(255, 70, 0, 0.5) !important;
+    transform: translateY(-3px);
+}
+
+.stTabs [aria-selected="true"]::after {
+    width: 100%;
+    background: #ffffff;
 }
 
 .hero-banner {
@@ -194,19 +222,27 @@ html, body, [class*="css"] {
     font-weight: 700;
 }
 
-.jwt-card {
+.json-view-container {
     background: #0d0d0f;
-    border: 1px solid #ff4600;
+    border: 1px solid #2a2a32;
     border-radius: 12px;
-    padding: 16px;
-    margin-top: 12px;
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 12.5px;
+    color: #00e699;
+    max-height: 500px;
+    overflow-y: auto;
 }
 
-.jwt-code {
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 12px;
-    color: #00e699;
-    word-break: break-all;
+.error-card {
+    background: linear-gradient(135deg, rgba(255, 42, 95, 0.08) 0%, #111113 100%);
+    border-left: 4px solid #ff2a5f;
+    border-top: 1px solid #1f1f24;
+    border-right: 1px solid #1f1f24;
+    border-bottom: 1px solid #1f1f24;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -333,7 +369,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     
-    # Styles Setup
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor("#ff4600"), spaceAfter=6, fontName="Helvetica-Bold")
     subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#666666"), spaceAfter=14)
     h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8, fontName="Helvetica-Bold")
@@ -343,7 +378,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     
     story = []
 
-    # --- COVER / HEADER & METADATA BLOCK ---
     story.append(Paragraph("BUGOPTIX PRO — ENTERPRISE SECURITY & AUDIT REPORT", title_style))
     story.append(Paragraph("CONFIDENTIAL | FOR INTERNAL & TECHNICAL STAKEHOLDER REVIEW ONLY", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#ff4600"), spaceAfter=12))
@@ -363,7 +397,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_meta)
     story.append(Spacer(1, 12))
 
-    # --- EXECUTIVE NARRATIVE ---
     story.append(Paragraph("1. Executive Summary", h2_style))
     story.append(Paragraph(
         f"A comprehensive security, compliance, and performance assessment was conducted for <b>{scan_data['url']}</b>. "
@@ -373,7 +406,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     ))
     story.append(Spacer(1, 10))
 
-    # --- SCORECARDS TABLE ---
     scores = scan_data['scores']
     score_table_data = [
         ["Overall Index", "Security", "Performance", "Accessibility", "UI Rating"],
@@ -393,7 +425,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_scores)
     story.append(Spacer(1, 12))
 
-    # --- VULNERABILITY MATRIX ---
     story.append(Paragraph("2. Detailed Findings & Compliance Mapping", h2_style))
     defects = scan_data.get("defects", [])
     if defects:
@@ -421,7 +452,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     else:
         story.append(Paragraph("No critical defects or security risks were identified.", body_style))
 
-    # --- PAGE 2: PHISHING & RAW JSON DATA ---
     story.append(PageBreak())
     story.append(Paragraph("3. Specialized Security & Telemetry", h2_style))
     p_res = scan_data.get("phishing_analysis", {})
@@ -528,7 +558,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
 
                 summary["network_log"].append({"url": current_route, "status": resp.status_code, "type": "document"})
 
-                # Security Headers Audit
                 headers = {k.lower(): v for k, v in resp.headers.items()}
                 for hdr, (sev, desc, owasp, cwe, cvss, fix) in SECURITY_HEADERS.items():
                     if hdr not in headers:
@@ -551,7 +580,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
                                 if f["cvss"] > 0:
                                     add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", "Enforce asymmetric signatures and valid exp claims.", cvss=f["cvss"])
 
-                # DOM Content & Secret Scanning
                 html_markup = resp.text
                 if current_route == root_url:
                     soup = BeautifulSoup(html_markup, "html.parser")
@@ -578,7 +606,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, engine_mode: s
                     if re.search(pattern, html_markup):
                         add_defect("Security", "Critical", f"Exposed secret: {name}", "Credentials exposed in DOM markup.", current_route, "OWASP A07:2021", "CWE-798", "Revoke compromised key and store in vault.", cvss=8.9)
 
-                # Site Link Crawler
                 if len(visited) < target_limit:
                     soup = BeautifulSoup(html_markup, "html.parser")
                     for a in soup.find_all("a", href=True):
@@ -605,7 +632,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Correct Order: Scan Engine first, followed by Executive Summary and Specialized Audits
 tab1, tab_summary, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "⚡ Scan Engine", 
     "📊 Executive Summary",
@@ -654,14 +680,20 @@ with tab1:
         if scan["defects"]:
             for d in scan["defects"]:
                 cvss_label = f" | CVSS: {d['cvss']}" if d.get('cvss') else ""
-                with st.expander(f"[{d['severity']}]{cvss_label} {d['category']} — {d['title']}"):
-                    st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}\n\n**Fix Guidance:** `{d.get('fix', 'N/A')}`")
+                st.markdown(f"""
+                <div class="error-card">
+                    <strong style="color: #ff2a5f;">[{d['severity']}] {d['category']}</strong> — <b>{d['title']}</b>{cvss_label}<br>
+                    <span style="color: #8e8e93; font-size: 13px;">Route: <code>{d['route']}</code></span><br>
+                    <p style="margin-top: 6px; font-size: 14px; color: #f5f5f7;">{d['description']}</p>
+                    <code style="background: #08080a; padding: 4px 8px; border-radius: 4px; color: #00e699; font-size: 12px;">Fix: {d.get('fix', 'N/A')}</code>
+                </div>
+                """, unsafe_allow_html=True)
         else:
             st.success("No defects or security issues discovered on target.")
 
-# --- TAB 2: EXECUTIVE SUMMARY ---
+# --- TAB 2: EXECUTIVE SUMMARY (CONVERTED PDF JSON INTO VISUAL/TEXT FORMAT) ---
 with tab_summary:
-    st.subheader("📊 C-Level Executive Security Summary")
+    st.subheader("📊 C-Level Executive Security Summary & Visual Report Viewer")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         defects = scan.get("defects", [])
@@ -723,10 +755,28 @@ with tab_summary:
                 ))
                 fig_cvss_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
                 st.plotly_chart(fig_cvss_gauge, use_container_width=True)
-        else:
-            st.dataframe(pd.DataFrame(defects) if defects else "No defects discovered.")
+
+        st.markdown("---")
+        st.markdown("### 📝 Visualized Report Data Stream")
+        
+        # Formatted visual/text breakdown of the PDF's internal JSON content
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            st.markdown("#### 📌 Scan Metadata")
+            st.code(json.dumps({
+                "url": scan["url"],
+                "timestamp": scan["timestamp"],
+                "engine": scan["browser"],
+                "total_routes_crawled": len(scan.get("routes", []))
+            }, indent=2), language="json")
+        with col_v2:
+            st.markdown("#### 🎯 Scorecard Breakdown")
+            st.code(json.dumps(scan["scores"], indent=2), language="json")
+
+        st.markdown("#### 📄 Complete Raw JSON Telemetry Data")
+        st.markdown(f'<div class="json-view-container"><pre>{json.dumps(scan, indent=4)}</pre></div>', unsafe_allow_html=True)
     else:
-        st.info("⚡ Run an active audit scan in the Scan Engine tab to populate the Executive Summary dashboard.")
+        st.info("⚡ Run an active audit scan in the Scan Engine tab to populate the Executive Summary & Visual Report dashboard.")
 
 # --- TAB 3: PHISHING AUDIT ---
 with tab2:

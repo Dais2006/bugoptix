@@ -37,81 +37,216 @@ install_playwright_browsers()
 from playwright.async_api import async_playwright
 
 # ════════════════════════════════════════════════════════════
-#  STYLING & INTERFACE MATRIX
+#  STYLING & INTERFACE MATRIX (TRENDING FLOATING ANIMATIONS)
 # ════════════════════════════════════════════════════════════
 st.set_page_config(page_title="BugOptix Pro | Enterprise Quality Suite", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-*, *::before, *::after { font-family: 'Inter', sans-serif; box-sizing: border-box; }
-html, body, [class*="css"] { background-color: #0b0f19 !important; color: #c9d1d9; }
+*, *::before, *::after {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    box-sizing: border-box;
+}
+
+/* Base Body Styling with Ambient Mesh Gradient */
+html, body, [class*="css"] {
+    background-color: #05070f !important;
+    background-image: 
+        radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(236, 72, 153, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+    color: #f1f5f9;
+}
+
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Dashboard Hero */
+/* Keyframe Animations */
+@keyframes float {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(0.5deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2), inset 0 0 15px rgba(99, 102, 241, 0.1); }
+    50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.4), inset 0 0 25px rgba(168, 85, 247, 0.2); }
+    100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2), inset 0 0 15px rgba(99, 102, 241, 0.1); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Floating Hero Container */
 .hero {
-    background: linear-gradient(135deg, #0e1e38 0%, #172a45 50%, #0e1e38 100%);
-    border: 1px solid #1f3c6d;
-    border-radius: 16px;
-    padding: 30px 40px;
-    margin-bottom: 24px;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    padding: 35px 45px;
+    margin-bottom: 28px;
     position: relative;
     overflow: hidden;
+    animation: float 6s ease-in-out infinite, pulseGlow 8s infinite alternate;
 }
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+    pointer-events: none;
+}
+
 .hero-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    background: rgba(88, 166, 255, 0.12);
-    border: 1px solid rgba(88, 166, 255, 0.3);
-    border-radius: 20px;
-    padding: 4px 14px;
+    gap: 8px;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2));
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: 30px;
+    padding: 6px 16px;
     font-size: 11px;
-    color: #79c0ff;
-    font-weight: 700;
-    margin-bottom: 12px;
-    letter-spacing: 0.8px;
+    color: #f472b6;
+    font-weight: 800;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
+    margin-bottom: 14px;
 }
+
 .hero-title {
-    font-size: 2.5rem;
+    font-size: 3rem;
     font-weight: 900;
-    background: linear-gradient(135deg, #58a6ff 0%, #a5d6ff 60%, #79c0ff 100%);
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin: 0;
+    letter-spacing: -1px;
 }
 
-/* Severity Indicators */
-.badge {
-    padding: 4px 10px;
-    border-radius: 12px;
+.hero-sub {
+    color: #94a3b8;
+    font-size: 1.1rem;
+    margin-top: 8px;
+    font-weight: 400;
+}
+
+/* Glassmorphism Score Cards with Hover Floating Effect */
+.score-card {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    overflow: hidden;
+}
+
+.score-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.score-value {
+    font-size: 3.2rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -1px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.score-label {
     font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 10px;
     font-weight: 700;
+}
+
+/* Severity Badges */
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
     text-transform: uppercase;
     display: inline-block;
+    letter-spacing: 0.5px;
 }
-.badge-Critical { background: rgba(255, 70, 70, 0.15); color: #ff4646; border: 1px solid rgba(255, 70, 70, 0.3); }
-.badge-High { background: rgba(255, 123, 114, 0.15); color: #ff7b72; border: 1px solid rgba(255, 123, 114, 0.3); }
-.badge-Medium { background: rgba(227, 179, 65, 0.15); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.3); }
-.badge-Low { background: rgba(86, 211, 100, 0.15); color: #56d364; border: 1px solid rgba(86, 211, 100, 0.3); }
 
-/* Score Indicators */
-.score-card {
-    background: #0f1420;
-    border: 1px solid #21262d;
+.badge-Critical {
+    background: rgba(244, 63, 94, 0.15);
+    color: #fb7185;
+    border: 1px solid rgba(244, 63, 94, 0.4);
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.2);
+}
+
+.badge-High {
+    background: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
+    border: 1px solid rgba(251, 146, 60, 0.4);
+}
+
+.badge-Medium {
+    background: rgba(250, 204, 21, 0.15);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.4);
+}
+
+.badge-Low {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+/* Custom Tabs Styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.4);
+    padding: 8px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 48px;
     border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    transition: transform 0.2s;
+    color: #94a3b8;
+    font-weight: 600;
+    border: none !important;
+    transition: all 0.3s ease;
 }
-.score-value { font-size: 3rem; font-weight: 800; line-height: 1; }
-.score-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
 
-/* Remediation Details */
-.remedy-box { background: #070913; border-left: 4px solid #58a6ff; padding: 12px 16px; border-radius: 4px; margin-top: 10px; }
-.compliance-tag { font-size: 10px; background: #21262d; color: #c9d1d9; padding: 2px 6px; border-radius: 4px; margin-right: 4px;}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(168, 85, 247, 0.4) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Compliance Tags */
+.compliance-tag {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(30, 41, 59, 0.8);
+    color: #38bdf8;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    margin-right: 6px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -211,7 +346,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                         add_defect("SEO", "Medium", f"Missing {n}", f"{n} helps search engines discover pages.", root_url)
             except Exception:
                 pass
-
 
         while queue and len(visited) < crawl_limit:
             current_route = queue.pop(0)
@@ -319,15 +453,14 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
     summary["duration"] = round((datetime.now() - start_time).total_seconds(), 2)
     return summary
 
-
 # ════════════════════════════════════════════════════════════
 #  DASHBOARD CONTROL & VIEWS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero">
-    <div class="hero-badge">ENTERPRISE EDITION</div>
+    <div class="hero-badge">✨ ENTERPRISE EDITION v2.0</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">AI-Powered Risk Analysis & Compliance Quality Engine</div>
+    <div class="hero-sub">AI-Driven Risk Intelligence & Dynamic UI Security Suite</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -342,7 +475,6 @@ with tab1:
     if st.button("Dispatch Enterprise Scan", type="primary"):
         with st.spinner("Analyzing target infrastructure..."):
             try:
-                # FIXED: Use asyncio.run() to handle the event loop in a background thread
                 result = asyncio.run(perform_crawl_and_scan(target_url.strip(), crawl_depth, browser_choice))
                 st.session_state["active_scan"] = result
                 VaultManager.append_scan(result)
@@ -354,18 +486,18 @@ with tab1:
         scan = st.session_state["active_scan"]
         scores = scan["scores"]
         
-        st.subheader("📊 Quality Index Scores")
+        st.markdown("### 📊 Quality Index Scores")
         sc1, sc2, sc3, sc4, sc5 = st.columns(5)
         def display_card(col, value, label, color):
             col.markdown(f'<div class="score-card"><div class="score-value" style="color: {color};">{int(value)}</div><div class="score-label">{label}</div></div>', unsafe_allow_html=True)
-        display_card(sc1, scores["overall"], "Overall Index", "#58a6ff")
-        display_card(sc2, scores["security"], "Security", "#ff7b72")
-        display_card(sc3, scores["performance"], "Performance", "#56d364")
-        display_card(sc4, scores["accessibility"], "Accessibility", "#e3b341")
-        display_card(sc5, scores["ui"], "UI / Layout", "#d2a8ff")
+        display_card(sc1, scores["overall"], "Overall Index", "#38bdf8")
+        display_card(sc2, scores["security"], "Security", "#fb7185")
+        display_card(sc3, scores["performance"], "Performance", "#4ade80")
+        display_card(sc4, scores["accessibility"], "Accessibility", "#facc15")
+        display_card(sc5, scores["ui"], "UI / Layout", "#c084fc")
 
         st.markdown("---")
-        st.subheader("🛑 Defect Findings")
+        st.markdown("### 🛑 Defect Findings")
         for d in scan["defects"]:
             with st.expander(f"[{d['severity']}] {d['category']} — {d['title']}"):
                 st.markdown(f"**Route:** `{d['route']}`\n\n**Details:** {d['description']}")
@@ -413,7 +545,6 @@ with tab4:
         scan = st.session_state["active_scan"]
         export_format = st.selectbox("Format:", ["Detailed TXT Report", "JSON Document", "CSV Ledger", "Compliance PDF"])
         
-        # Prepare Data
         if export_format == "Detailed TXT Report":
             report_text = f"BUGOPTIX ENTERPRISE REPORT\n" + "="*50 + f"\nTarget: {scan['url']}\nDate: {scan['timestamp']}\nScore: {scan['scores']['overall']}/100\n\n"
             report_text += "DETECTED DEFECTS:\n" + "-"*50 + "\n"
@@ -429,7 +560,6 @@ with tab4:
             st.download_button("Download CSV", df_defects.to_csv(index=False), "defects.csv", "text/csv")
             
         elif export_format == "Compliance PDF":
-            # PDF Generation logic using standard string formatting
             pdf = f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>>>>> >>endobj\n4 0 obj<</Length 450>>stream\nBT\n/F1 14 Tf\n40 720 Td\n(BUGOPTIX ENTERPRISE COMPLIANCE REPORT) Tj\n/F1 11 Tf\n0 -40 Td\n(Target: {scan['url']}) Tj\n0 -20 Td\n(Date: {scan['timestamp']}) Tj\n0 -20 Td\n(Score: {scan['scores']['overall']}/100) Tj\n0 -40 Td\n(Findings: {len(scan['defects'])} defects identified) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000250 00000 n\ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n740\n%%EOF"
             st.download_button("Download PDF", pdf.encode(), "compliance_report.pdf", "application/pdf")
     else:

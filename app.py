@@ -8,11 +8,20 @@ import re
 import httpx
 import time
 from datetime import datetime
-from collections import defaultdict
+from collections import defaultdict, Counter
 from urllib.parse import urlparse, urljoin, parse_qs
+from io import BytesIO
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+# ReportLab imports for PDF Executive Summary Generation
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 # Async runtime safety for Streamlit on Windows / Multi-thread loops
 try:
@@ -289,7 +298,87 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  DYNAMIC TESTING CORE (SELF-HEALING BROWSER PIPELINE)
+#  PDF EXECUTIVE REPORT GENERATOR ENGINE
+# ════════════════════════════════════════════════════════════
+def generate_pdf_report(scan_data: dict) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#ff4600"), spaceAfter=12)
+    sub_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#555555"), spaceAfter=20)
+    h2_style = ParagraphStyle('H2Style', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor("#111113"), spaceBefore=14, spaceAfter=8)
+    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#222222"))
+    
+    story = []
+    
+    # Header Title
+    story.append(Paragraph("BUGOPTIX PRO — EXECUTIVE AUDIT REPORT", title_style))
+    story.append(Paragraph(f"Target Domain: <b>{scan_data['url']}</b> | Generated: {scan_data['timestamp']} | Overall Score: <b>{scan_data['scores']['overall']}/100</b>", sub_style))
+    
+    # Score Summary Table
+    scores = scan_data['scores']
+    score_table_data = [
+        ["Overall Score", "Security", "Performance", "Accessibility", "UI Rating"],
+        [f"{scores['overall']}/100", f"{scores['security']}/100", f"{scores['performance']}/100", f"{scores['accessibility']}/100", f"{scores['ui']}/100"]
+    ]
+    t_scores = Table(score_table_data, colWidths=[100, 100, 100, 100, 100])
+    t_scores.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 1, colors.HexColor("#dddddd")),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_scores)
+    story.append(Spacer(1, 15))
+
+    # Findings Table
+    story.append(Paragraph("Key Findings & Vulnerability Matrix", h2_style))
+    defects = scan_data.get("defects", [])
+    
+    if defects:
+        defect_table_data = [["Severity", "Category", "Title", "CVSS", "Route"]]
+        for d in defects[:15]:  # Top findings
+            defect_table_data.append([
+                d.get("severity", "Low"),
+                d.get("category", "General"),
+                Paragraph(d.get("title", ""), cell_style),
+                str(d.get("cvss", "0.0")),
+                Paragraph(d.get("route", ""), cell_style)
+            ])
+        t_defects = Table(defect_table_data, colWidths=[65, 80, 180, 50, 150])
+        t_defects.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#ff4600")),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
+            ('FONTSIZE', (0,0), (-1,-1), 8),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(t_defects)
+    else:
+        story.append(Paragraph("No critical defects or security risks were identified.", cell_style))
+
+    # Screenshot Evidence if present
+    if scan_data.get("screenshot"):
+        try:
+            story.append(Spacer(1, 15))
+            story.append(Paragraph("Visual Evidence (DOM Render)", h2_style))
+            img_data = base64.b64decode(scan_data["screenshot"])
+            img_io = BytesIO(img_data)
+            story.append(Image(img_io, width=450, height=250))
+        except Exception:
+            pass
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+# ════════════════════════════════════════════════════════════
+#  DYNAMIC CRAWL & SCAN CORE
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str, is_unlimited: bool) -> dict:
     start_time = datetime.now()
@@ -353,14 +442,13 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                 visited.add(current_route)
                 summary["routes"].append(current_route)
 
-                # Self-healing check: Re-launch browser if closed or disconnected
                 if not browser or not browser.is_connected():
                     browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
 
                 context = None
                 try:
                     context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 800})
-                    page = await context.new_page()
+                    page = await context.close() if False else await context.new_page()
 
                     def log_response(res):
                         try:
@@ -476,17 +564,18 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  APPLICATION DASHBOARD
+#  APPLICATION DASHBOARD & VISUALIZATION ENGINE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">
     <div class="nike-tag">JUST SCAN IT.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">Enterprise Automated Crawl Engine & Passive JWT Security Intelligence</div>
+    <div class="hero-sub">Enterprise Automated Crawl Engine & Passive Security Intelligence</div>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab_summary, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📊 Executive Summary",
     "⚡ Scan Engine", 
     "🛡️ Phishing Audit", 
     "🔑 JWT Auto-Analyzer", 
@@ -495,6 +584,133 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔗 Pipeline"
 ])
 
+# ════════════════════════════════════════════════════════════
+#  TAB 0: EXECUTIVE SUMMARY & ANALYTICS CHARTS
+# ════════════════════════════════════════════════════════════
+with tab_summary:
+    st.subheader("📊 C-Level Executive Security Summary")
+    
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
+        defects = scan.get("defects", [])
+        scores = scan["scores"]
+        
+        # PDF Download Section
+        pdf_bytes = generate_pdf_report(scan)
+        col_pdf1, col_pdf2 = st.columns([3, 1])
+        with col_pdf1:
+            st.markdown(f"**Target Host:** `{scan['url']}` | **Scanned At:** `{scan['timestamp']}`")
+        with col_pdf2:
+            st.download_button(
+                label="📄 Download Executive PDF Report",
+                data=pdf_bytes,
+                file_name=f"executive_summary_{scan['url'].replace('https://','').replace('http://','').replace('/','_')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
+        st.markdown("---")
+
+        # Row 1: Gauges & Visual Posture
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            # Risk Gauge (Overall Score)
+            fig_gauge = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=scores["overall"],
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': "Security Posture Score", 'font': {'size': 18, 'color': '#ffffff'}},
+                gauge={
+                    'axis': {'range': [0, 100], 'tickcolor': "#ffffff"},
+                    'bar': {'color': "#ff4600"},
+                    'steps': [
+                        {'range': [0, 50], 'color': "rgba(255, 42, 95, 0.3)"},
+                        {'range': [50, 80], 'color': "rgba(255, 183, 0, 0.3)"},
+                        {'range': [80, 100], 'color': "rgba(0, 230, 153, 0.3)"}
+                    ],
+                }
+            ))
+            fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
+            st.plotly_chart(fig_gauge, use_container_width=True)
+
+        with col_g2:
+            # CVSS Max Risk Gauge
+            max_cvss = scan["metrics"].get("max_cvss", 0.0)
+            fig_cvss_gauge = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=max_cvss,
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': "Peak CVSS Severity Threat", 'font': {'size': 18, 'color': '#ffffff'}},
+                gauge={
+                    'axis': {'range': [0, 10.0], 'tickcolor': "#ffffff"},
+                    'bar': {'color': "#ff2a5f"},
+                    'steps': [
+                        {'range': [0, 3.9], 'color': "rgba(0, 230, 153, 0.3)"},
+                        {'range': [4.0, 6.9], 'color': "rgba(255, 183, 0, 0.3)"},
+                        {'range': [7.0, 10.0], 'color': "rgba(255, 42, 95, 0.4)"}
+                    ],
+                }
+            ))
+            fig_cvss_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
+            st.plotly_chart(fig_cvss_gauge, use_container_width=True)
+
+        st.markdown("---")
+
+        # Row 2: Charts (Severity Pie, Category Breakdown, CVSS Distribution)
+        col_c1, col_c2, col_c3 = st.columns(3)
+        
+        with col_c1:
+            st.markdown("##### 🥧 Severity Distribution")
+            if defects:
+                sev_counts = Counter([d["severity"] for d in defects])
+                df_sev = pd.DataFrame(list(sev_counts.items()), columns=["Severity", "Count"])
+                fig_pie = px.pie(df_sev, names="Severity", values="Count", color="Severity",
+                                 color_discrete_map={"Critical": "#ff2a5f", "High": "#ff8700", "Medium": "#ffb700", "Low": "#00e699"},
+                                 hole=0.4)
+                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.info("No security defects identified.")
+
+        with col_c2:
+            st.markdown("##### 📊 Category Breakdown")
+            if defects:
+                cat_counts = Counter([d["category"] for d in defects])
+                df_cat = pd.DataFrame(list(cat_counts.items()), columns=["Category", "Count"])
+                fig_cat = px.bar(df_cat, x="Category", y="Count", color="Category", text="Count")
+                fig_cat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
+                st.plotly_chart(fig_cat, use_container_width=True)
+            else:
+                st.info("No category defects available.")
+
+        with col_c3:
+            st.markdown("##### 📈 CVSS Score Spread")
+            if defects:
+                cvss_scores = [d.get("cvss", 0.0) for d in defects if d.get("cvss", 0.0) > 0]
+                if cvss_scores:
+                    df_cvss = pd.DataFrame(cvss_scores, columns=["CVSS"])
+                    fig_cvss = px.histogram(df_cvss, x="CVSS", nbins=10, color_discrete_sequence=["#ff4600"])
+                    fig_cvss.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
+                    st.plotly_chart(fig_cvss, use_container_width=True)
+                else:
+                    st.info("No CVSS rated vulnerabilities.")
+            else:
+                st.info("No CVSS data available.")
+
+        # Visual Evidence (Screenshot)
+        st.markdown("---")
+        st.markdown("##### 🖼️ Visual Evidence & Screenshot Preview")
+        if scan.get("screenshot"):
+            st.image(f"data:image/png;base64,{scan['screenshot']}", caption="Captured DOM State", use_column_width=True)
+        else:
+            st.info("No DOM screenshot captured during scan.")
+    else:
+        st.info("⚡ Run an active audit scan in the Scan Engine tab to generate the Executive Summary dashboard.")
+
+# ════════════════════════════════════════════════════════════
+#  EXISTING APPLICATION TABS
+# ════════════════════════════════════════════════════════════
 with tab1:
     col_u, col_b, col_unlim, col_c = st.columns([3, 1, 1, 1])
     with col_u: target_url = st.text_input("Target Domain:", "https://example.com")

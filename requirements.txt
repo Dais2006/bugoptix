@@ -1,4 +1,7 @@
 streamlit
 playwright
+nest_asyncio
 httpx
 pandas
+plotly
+reportlab

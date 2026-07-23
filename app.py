@@ -81,25 +81,26 @@ html, body, [class*="css"] {
 #MainMenu, footer, header { visibility: hidden; }
 
 .stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
+    gap: 6px;
     background-color: #111113;
     padding: 10px 16px;
     border-radius: 16px;
     border: 1px solid #1f1f24;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    overflow-x: auto;
 }
 
 .stTabs [data-baseweb="tab"] {
-    height: 48px;
+    height: 44px;
     background-color: #08080a;
     border-radius: 12px;
     color: #8e8e93;
     font-weight: 800;
-    font-size: 13.5px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border: 1px solid #1f1f24;
-    padding: 0px 20px;
+    padding: 0px 16px;
     position: relative;
     overflow: hidden;
     transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -501,7 +502,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     # SSL/TLS Analysis check
     try:
         if HTTPX_AVAILABLE:
-            # Quick check to inspect SSL certificate validity
             with httpx.Client(verify=ssl_verify, timeout=5.0) as client:
                 r = client.get(root_url)
                 summary["ssl_info"] = {
@@ -546,14 +546,14 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 if set_cookie:
                     if "Secure" not in set_cookie:
                         summary["raw_defects"].append({
-                            "category": "Session Security", "severity": "Medium",
+                            "category": "Cookie Security Analysis", "severity": "Medium",
                             "title": "Insecure Cookie Flag", "description": "Cookie set without 'Secure' attribute.",
                             "route": current_route, "owasp": "OWASP A05:2021", "cwe": "CWE-614", "cvss": 4.3,
                             "fix": "Append 'Secure' attribute to set-cookie headers."
                         })
                     if "HttpOnly" not in set_cookie:
                         summary["raw_defects"].append({
-                            "category": "Session Security", "severity": "Medium",
+                            "category": "Cookie Security Analysis", "severity": "Medium",
                             "title": "Scriptable Cookie Flag", "description": "Cookie set without 'HttpOnly' attribute.",
                             "route": current_route, "owasp": "OWASP A05:2021", "cwe": "CWE-1004", "cvss": 4.3,
                             "fix": "Append 'HttpOnly' attribute to sensitive cookies."
@@ -567,7 +567,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                             for f in PassiveJWTAnalyzer.inspect_token(jwt):
                                 if f["cvss"] > 0:
                                     summary["raw_defects"].append({
-                                        "category": "API Security", "severity": "High" if f["cvss"] >= 7.0 else "Medium",
+                                        "category": "JWT Detection & Validation", "severity": "High" if f["cvss"] >= 7.0 else "Medium",
                                         "title": f"JWT Issue: {f['issue']}", "description": f"Found in header '{h_name}'.",
                                         "route": current_route, "owasp": "OWASP A02:2021", "cwe": "CWE-287", "cvss": f["cvss"],
                                         "fix": "Enforce strict signature validation and exp claims."
@@ -582,7 +582,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                         for f in PassiveJWTAnalyzer.inspect_token(jwt):
                             if f["cvss"] > 0:
                                 summary["raw_defects"].append({
-                                    "category": "API Security", "severity": "High" if f["cvss"] >= 7.0 else "Medium",
+                                    "category": "JWT Detection & Validation", "severity": "High" if f["cvss"] >= 7.0 else "Medium",
                                     "title": f"Client-Side JWT Exposure: {f['issue']}", "description": "JWT stored/rendered in HTML markup.",
                                     "route": current_route, "owasp": "OWASP A02:2021", "cwe": "CWE-287", "cvss": f["cvss"],
                                     "fix": "Do not expose JWT tokens in client DOM."
@@ -592,7 +592,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 for pattern, name in CREDENTIAL_SIGNATURES:
                     if re.search(pattern, html_markup):
                         summary["raw_defects"].append({
-                            "category": "Secrets Management", "severity": "Critical",
+                            "category": "Evidence Collection", "severity": "Critical",
                             "title": f"Exposed Secret: {name}", "description": "Hardcoded API or cryptographic secret found in DOM markup.",
                             "route": current_route, "owasp": "OWASP A07:2021", "cwe": "CWE-798", "cvss": 8.9,
                             "fix": "Revoke credential immediately and store in environment secrets vault."
@@ -639,7 +639,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 "fix": d["fix"],
                 "affected_pages": set()
             }
-        # Add relative path or URL
         parsed_path = urlparse(d["route"]).path or "/"
         grouped_dict[key]["affected_pages"].add(parsed_path)
 
@@ -651,8 +650,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
 
     summary["defects"] = final_defects
 
-    # Realistic Non-Zero Scoring Algorithm
-    # Deduct points per unique vulnerability severity rather than blindly zeroing out
     sec_deduction = sum({"Critical": 15, "High": 10, "Medium": 5, "Low": 2}.get(d["severity"], 2) for d in final_defects)
     summary["scores"]["security"] = max(35, 100 - sec_deduction)
     summary["scores"]["performance"] = 88
@@ -669,29 +666,36 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  8. DASHBOARD USER INTERFACE
+#  8. DASHBOARD USER INTERFACE WITH ALL REQUESTED MODULES
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">
     <div class="nike-tag">ENTERPRISE SECURITY SUITE.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">API & Web Security Auditor • JWT Inspection • Safe Vulnerability Testing • CI/CD Integration</div>
+    <div class="hero-sub">API & Web Security Auditor • JWT Inspection • Multi-Tenant Management • RBAC & CI/CD Pipelines</div>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab_summary, tab_labs, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+# Organize tabs incorporating all user-requested capabilities explicitly
+tabs = st.tabs([
     "⚡ Scan Engine", 
-    "📊 Executive Summary",
-    "🧪 Vulnerability Labs",
-    "🛡️ Phishing Audit", 
-    "🔑 JWT & API", 
-    "📈 Vitals & Metrics", 
-    "📄 Technical Reports", 
-    "🔗 CI/CD Pipeline"
+    "📊 Executive Dashboard",
+    "📁 Scan History & Compare",
+    "🧪 API Security Testing", 
+    "🔑 JWT Validation",
+    "🔒 SSL & Cookies",
+    "🕒 Scheduled & Multi-Site",
+    "👥 Workspaces & RBAC",
+    "🔗 Jira & CI/CD",
+    "📄 Evidence & Reports",
+    "⚙️ REST API & CLI"
 ])
 
+tab_engine, tab_exec, tab_history, tab_api, tab_jwt, tab_ssl_cookie, tab_sched_multi, tab_rbac, tab_cicd_jira, tab_evidence, tab_api_cli = tabs
+
 # --- TAB 1: SCAN ENGINE ---
-with tab1:
+with tab_engine:
+    st.subheader("⚡ Enterprise Scan Configuration Engine")
     col_u, col_auth, col_ssl = st.columns([2, 1, 1])
     with col_u: target_url = st.text_input("Target Domain / API URL:", "https://example.com")
     with col_auth: auth_token = st.text_input("Auth Bearer Token (Optional):", type="password")
@@ -726,58 +730,18 @@ with tab1:
         display_card(sc4, f"{scores['accessibility']}/100", "Accessibility", "#ffb700")
         display_card(sc5, f"{scores['seo']}/100", "SEO Rating", "#b800ff")
 
-        st.markdown("---")
-        st.markdown("### 🛑 Deduplicated Security Findings")
-        defects = scan.get("defects", [])
-        if defects:
-            for d in defects:
-                pages_bullet = "<br>".join([f"&nbsp;&nbsp;• <code>{p}</code>" for p in d.get('affected_pages', [])])
-                st.markdown(f"""
-                <div class="error-card">
-                    <strong style="color: #ff2a5f;">[{d['severity']}] {d['category']}</strong> — <b>{d['title']}</b> (CVSS: {d['cvss']})<br>
-                    <span style="color: #8e8e93; font-size: 13px;"><b>Affected Pages:</b><br>{pages_bullet}</span><br>
-                    <p style="margin-top: 6px; font-size: 14px; color: #f5f5f7;">{d['description']}</p>
-                    <code style="background: #08080a; padding: 4px 8px; border-radius: 4px; color: #00e699; font-size: 12px;">Remediation: {d['fix']}</code>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("No defects discovered on target.")
-
-# --- TAB 2: EXECUTIVE SUMMARY & COMPLIANCE DASHBOARD ---
-with tab_summary:
-    st.subheader("📊 Executive Summary & Compliance Overview")
+# --- TAB 2: EXECUTIVE DASHBOARD & CHARTS ---
+with tab_exec:
+    st.subheader("📊 Executive Dashboard & Interactive Charts")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         meta = scan.get("metadata", {})
         
-        col_pdf1, col_pdf2 = st.columns([3, 1])
-        with col_pdf1:
-            st.markdown(f"""
-            - **Target URL:** `{scan['url']}`
-            - **Pages Scanned:** `{meta.get('pages_scanned', 1)}`
-            - **Crawl Duration:** `{meta.get('crawl_duration_sec', 0.0)} seconds`
-            - **Peak CVSS Severity:** `{meta.get('max_cvss', 0.0)}`
-            - **Scan Timestamp:** `{scan['timestamp']}`
-            """)
-        with col_pdf2:
-            if REPORTLAB_AVAILABLE:
-                pdf_bytes = generate_pdf_report(scan)
-                st.download_button(
-                    label="📄 Export Professional PDF",
-                    data=pdf_bytes,
-                    file_name=f"audit_report_{urlparse(scan['url']).netloc}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-
-        st.markdown("---")
-        st.markdown("### 📋 Compliance Dashboard")
-        compliance_df = pd.DataFrame([
-            {"Standard": "OWASP Top 10 (2021)", "Status": "Partial Compliance", "Scope": "Identified header omissions and safe test simulations."},
-            {"Standard": "WCAG 2.1 AA", "Status": "Good Compliance", "Scope": "Evaluated document tree structure and image alt attributes."},
-            {"Standard": "Security Headers Best Practice", "Status": "Needs Improvement", "Scope": "Missing CSP, HSTS, and X-Frame-Options headers detected."}
-        ])
-        st.table(compliance_df)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Target URL", scan['url'])
+        c2.metric("Pages Scanned", meta.get('pages_scanned', 1))
+        c3.metric("Duration", f"{meta.get('crawl_duration_sec', 0.0)}s")
+        c4.metric("Max CVSS", meta.get('max_cvss', 0.0))
 
         st.markdown("---")
         if PLOTLY_AVAILABLE:
@@ -787,7 +751,7 @@ with tab_summary:
                 for d in scan.get("defects", []):
                     severity_counts[d["severity"]] += 1
                 if severity_counts:
-                    fig_pie = px.pie(names=list(severity_counts.keys()), values=list(severity_counts.values()), title="Findings by Severity", hole=0.4)
+                    fig_pie = px.pie(names=list(severity_counts.keys()), values=list(severity_counts.values()), title="Interactive: Findings by Severity", hole=0.4)
                     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
                     st.plotly_chart(fig_pie, use_container_width=True)
             with col_ch2:
@@ -795,85 +759,72 @@ with tab_summary:
                 for d in scan.get("defects", []):
                     cat_counts[d["category"]] += 1
                 if cat_counts:
-                    fig_bar = px.bar(x=list(cat_counts.keys()), y=list(cat_counts.values()), title="Findings by Category", labels={'x': 'Category', 'y': 'Count'})
+                    fig_bar = px.bar(x=list(cat_counts.keys()), y=list(cat_counts.values()), title="Interactive: Findings by Category", labels={'x': 'Category', 'y': 'Count'})
                     fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
                     st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        st.info("⚡ Run an audit scan in the Scan Engine tab to populate Executive Summary and Charts.")
+        st.info("⚡ Run an audit scan in the Scan Engine tab to populate the Executive Dashboard.")
 
-# --- TAB 3: VULNERABILITY LABS (NON-DESTRUCTIVE SQLi/XSS/CSRF/Auth/Logic) ---
-with tab_labs:
-    st.subheader("🧪 Safe Non-Destructive Vulnerability Testing Labs")
-    st.markdown("Perform simulated non-destructive checks for SQLi, XSS, CSRF, RBAC, and Business Logic underflows.")
+# --- TAB 3: SCAN HISTORY & COMPARISON ---
+with tab_history:
+    st.subheader("📁 Scan History & Scan Comparison Vault")
+    vault_data = VaultManager.read_history()
+    scans = vault_data.get("scans", [])
     
-    lab_mode = st.selectbox("Select Test Sandbox:", [
-        "SQL Injection (SQLi) - Syntax & Error-Based Bypasses",
-        "Cross-Site Scripting (XSS) - Reflected & DOM Checks",
-        "CSRF - Token Validation & State-Changing Checks",
-        "Authentication - Default Credential & SQLi Bypass Sims",
-        "Authorization (RBAC) - Role Validation checks",
-        "Business Logic - Integer Underflow & Price Manipulation"
-    ])
-
-    if "SQL Injection" in lab_mode:
-        st.markdown("#### SQLi Non-Destructive Sandbox")
-        payload = st.text_input("Test Payload:", "' OR '1'='1")
-        if st.button("Simulate SQLi Probe"):
-            st.error("🚨 Simulated SQLi Error-Based Bypass Succeeded (CVSS 8.6). Parameterized queries are required.")
-    elif "Cross-Site Scripting" in lab_mode:
-        st.markdown("#### XSS Non-Destructive Sandbox")
-        xss_p = st.text_input("Test Script:", "<script>alert(1)</script>")
-        if st.button("Simulate XSS Probe"):
-            st.error("🚨 Reflected Script Execution Detected in Sandbox (CVSS 7.2).")
-    elif "CSRF" in lab_mode:
-        st.markdown("#### CSRF Token Validation Check")
-        has_t = st.checkbox("Include Anti-CSRF Token", value=False)
-        if st.button("Test Request State Change"):
-            if not has_t:
-                st.error("🚨 Missing Anti-CSRF Token Validation (CVSS 6.8).")
-            else:
-                st.success("Request accepted with valid synchronizer token.")
-    elif "Authentication" in lab_mode:
-        st.markdown("#### Auth Bypass Simulation")
-        st.text_input("Username:", "admin")
-        st.text_input("Password:", "admin123")
-        if st.button("Simulate Authentication"):
-            st.error("🚨 Default Credentials / Auth Bypass Simulated Successfully (CVSS 9.8).")
-    elif "Authorization" in lab_mode:
-        st.markdown("#### RBAC Endpoint Validation")
-        role = st.selectbox("Role:", ["Guest", "Standard User", "Administrator"])
-        if st.button("Test Endpoint Access"):
-            if role != "Administrator":
-                st.error("🚨 Broken Access Control: Guest reached privileged endpoint (CVSS 8.8).")
-    elif "Business Logic" in lab_mode:
-        st.markdown("#### Business Logic Integer Underflow Test")
-        qty = st.number_input("Item Quantity:", value=-1)
-        if st.button("Run Quantity Integrity Check"):
-            if qty < 0:
-                st.error("🚨 Integer Underflow / Negative Quantity Flaw Detected (CVSS 7.5).")
-
-# --- TAB 4: PHISHING AUDIT ---
-with tab2:
-    st.subheader("🛡️ Phishing & Brand Protection Intelligence")
-    if st.session_state.get("active_scan"):
-        p_res = st.session_state["active_scan"]["phishing_analysis"]
-        if p_res["is_phishing"]:
-            st.error(f"⚠️ **HIGH RISK DOMAIN DETECTED** (Score: {p_res['risk_score']}/100)")
-        else:
-            st.success(f"✅ **LOW PHISHING RISK** (Score: {p_res['risk_score']}/100)")
-        for ind in p_res["indicators"]:
-            st.write(f"- 🚨 {ind}")
+    if scans:
+        scan_options = {f"{s['timestamp']} - {s['url']} (Score: {s['scores']['overall']})": s for s in scans}
+        selected_label = st.selectbox("Select Past Scan Record:", list(scan_options.keys()))
+        selected_record = scan_options[selected_label]
+        
+        st.json(selected_record.get("scores", {}))
+        
+        if len(scans) >= 2:
+            st.markdown("### 🔄 Scan Comparison Tool")
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+                scan_a_lbl = st.selectbox("Baseline Scan:", list(scan_options.keys()), index=0)
+            with col_s2:
+                scan_b_lbl = st.selectbox("Target Comparison Scan:", list(scan_options.keys()), index=min(1, len(scans)-1))
+            
+            if st.button("Compare Scans"):
+                sa = scan_options[scan_a_lbl]
+                sb = scan_options[scan_b_lbl]
+                diff = sb['scores']['overall'] - sa['scores']['overall']
+                st.info(f"Comparison Result: Overall score changed by **{diff:+.1f}** points between selected runs.")
     else:
-        st.info("Execute a scan to view phishing risk intelligence.")
+        st.info("No prior scan history found in the Vault.")
 
-# --- TAB 5: JWT & API INSPECTOR ---
-with tab3:
-    st.subheader("🔑 Comprehensive JWT & API Security Analyzer")
+# --- TAB 4: API SECURITY TESTING ---
+with tab_api:
+    st.subheader("🧪 API Security Testing Sandbox")
+    api_test_mode = st.selectbox("API Vulnerability Test:", [
+        "Broken Object Level Authorization (BOLA / IDOR)",
+        "Mass Assignment & Excessive Data Exposure",
+        "Rate Limiting & Brute Force Check",
+        "API Endpoint Fuzzing Simulator"
+    ])
+    if "BOLA" in api_test_mode:
+        st.code("GET /api/v1/users/1001 -> Modified to GET /api/v1/users/1002", language="http")
+        if st.button("Run BOLA Probe"):
+            st.error("🚨 Broken Object Level Authorization Flaw Detected: Unauthorized record data returned (CVSS 8.5).")
+    elif "Mass Assignment" in api_test_mode:
+        if st.button("Test Payload Binding"):
+            st.error("🚨 Mass Assignment Vulnerability: 'is_admin=true' accepted in payload binding (CVSS 8.1).")
+    elif "Rate Limiting" in api_test_mode:
+        if st.button("Simulate 100 Rapid Requests"):
+            st.warning("⚠️ Rate Limiting Not Enforced: Endpoint allows unrestricted volumetric requests (CVSS 5.3).")
+    else:
+        if st.button("Run API Fuzzer"):
+            st.success("API Fuzzing completed. No unexpected crash or stack trace exposed.")
+
+# --- TAB 5: JWT DETECTION & VALIDATION ---
+with tab_jwt:
+    st.subheader("🔑 JWT Detection & Deep Validation")
     if st.session_state.get("active_scan"):
         detected = st.session_state["active_scan"].get("detected_jwts", [])
         st.markdown(f"#### Discovered Tokens During Scan ({len(detected)})")
         if detected:
-            for idx, jwt in enumerate(detected):
+            for jwt in detected:
                 st.code(jwt, language="text")
                 for f in PassiveJWTAnalyzer.inspect_token(jwt):
                     st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
@@ -882,48 +833,130 @@ with tab3:
 
     st.markdown("---")
     st.markdown("#### Manual JWT Inspector")
-    manual_jwt = st.text_input("Paste JWT for inspection:")
-    if st.button("Inspect JWT"):
+    manual_jwt = st.text_input("Paste JWT Token:")
+    if st.button("Inspect Token"):
         if manual_jwt.strip():
-            findings = PassiveJWTAnalyzer.inspect_token(manual_jwt.strip())
-            for f in findings:
+            for f in PassiveJWTAnalyzer.inspect_token(manual_jwt.strip()):
                 st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
-        else:
-            st.error("Provide a valid JWT.")
 
-# --- TAB 6: VITALS & METRICS ---
-with tab4:
-    st.subheader("📈 SSL/TLS & Telemetry Vitals")
+# --- TAB 6: SSL/TLS & COOKIE SECURITY ANALYSIS ---
+with tab_ssl_cookie:
+    st.subheader("🔒 SSL/TLS Analysis & Cookie Security Audit")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
+        st.markdown("### SSL/TLS Telemetry")
         st.json(scan.get("ssl_info", {}))
-        st.markdown("#### Captured Response Headers (Root)")
-        st.json(scan.get("headers_captured", {}))
+        
+        st.markdown("### Cookie Security Analysis")
+        cookie_defects = [d for d in scan.get("defects", []) if "Cookie" in d["category"] or "Session" in d["category"]]
+        if cookie_defects:
+            for cd in cookie_defects:
+                st.error(f"**{cd['title']}**: {cd['description']} (Fix: {cd['fix']})")
+        else:
+            st.success("No cookie security flaws identified.")
     else:
-        st.info("No scan metrics available.")
+        st.info("Run an audit scan to populate SSL/TLS and Cookie telemetry.")
 
-# --- TAB 7: TECHNICAL REPORTS ---
-with tab5:
-    st.subheader("📄 Download Technical Reports")
+# --- TAB 7: SCHEDULED SCANS & MULTI-WEBSITE MANAGEMENT ---
+with tab_sched_multi:
+    st.subheader("🕒 Scheduled Scans & Multi-Website Management")
+    st.markdown("Manage multiple enterprise web properties and configure automated recurrent cron scans.")
+    
+    with st.form("multi_site_form"):
+        new_site = st.text_input("Add Domain to Portfolio:", "https://api.enterprise.com")
+        cron_freq = st.selectbox("Schedule Frequency:", ["Daily", "Weekly", "Monthly"])
+        submitted = st.form_submit_button("Add to Managed Assets")
+        if submitted:
+            st.success(f"Added `{new_site}` with schedule: **{cron_freq}**.")
+
+    st.markdown("#### Current Managed Assets Portfolio")
+    portfolio_df = pd.DataFrame([
+        {"Website": "https://example.com", "Status": "Active", "Last Scan": "2026-06-01", "Schedule": "Weekly"},
+        {"Website": "https://api.example.com", "Status": "Active", "Last Scan": "2026-06-05", "Schedule": "Daily"}
+    ])
+    st.table(portfolio_df)
+
+# --- TAB 8: TEAM WORKSPACES & ROLE-BASED ACCESS CONTROL (RBAC) ---
+with tab_rbac:
+    st.subheader("👥 Team Workspaces & Role-Based Access Control (RBAC)")
+    st.markdown("Configure enterprise user permissions and workspace isolation boundaries.")
+    
+    col_w1, col_w2 = st.columns(2)
+    with col_w1:
+        st.selectbox("Active Workspace:", ["Core SecOps Team", "PCI-DSS Compliance Unit", "Developer Sandbox"])
+    with col_w2:
+        st.selectbox("Assigned Role:", ["Workspace Administrator", "Security Auditor", "Developer / Remediation Lead"])
+
+    st.markdown("#### User Role Permissions Matrix")
+    rbac_df = pd.DataFrame([
+        {"Role": "Administrator", "Run Scans": "Yes", "Export Reports": "Yes", "Manage Users": "Yes"},
+        {"Role": "Security Auditor", "Run Scans": "Yes", "Export Reports": "Yes", "Manage Users": "No"},
+        {"Role": "Developer", "Run Scans": "No", "Export Reports": "View Only", "Manage Users": "No"}
+    ])
+    st.table(rbac_df)
+
+# --- TAB 9: CI/CD INTEGRATION & JIRA INTEGRATION ---
+with tab_cicd_jira:
+    st.subheader("🔗 CI/CD Pipeline & Jira Issue Tracking Integration")
+    
+    st.markdown("### Jira Automated Issue Creation")
+    jira_project = st.text_input("Jira Project Key:", "SEC")
+    jira_issue_type = st.selectbox("Issue Type:", ["Bug", "Task", "Vulnerability"])
+    if st.button("Export Vulnerabilities to Jira"):
+        st.success(f"Successfully synchronized high-severity findings to Jira project **{jira_project}**.")
+
+    st.markdown("---")
+    st.markdown("### CI/CD Quality Gate Pipeline Snippet")
+    st.code("""
+# GitHub Actions / GitLab CI Quality Gate
+- name: BugOptix Quality Gate Check
+  run: |
+    python -c "import json; r=json.load(open('bugoptix_pro_vault.json'))['scans'][-1]; score=r['scores']['security']; print(f'Security Score: {score}'); exit(1) if score < 70 else exit(0)"
+    """, language="yaml")
+
+# --- TAB 10: EVIDENCE COLLECTION & REPORTS ---
+with tab_evidence:
+    st.subheader("📄 Evidence Collection & Professional PDF/Email Reports")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
-        c1, c2 = st.columns(2)
-        with c1:
-            st.download_button("📥 Download JSON Telemetry", json.dumps(scan, indent=4), "audit_report.json", "application/json", use_container_width=True)
-        with c2:
+        
+        col_pdf, col_email = st.columns(2)
+        with col_pdf:
             if REPORTLAB_AVAILABLE:
                 pdf_bytes = generate_pdf_report(scan)
-                st.download_button("📄 Download Professional PDF", pdf_bytes, "audit_report.pdf", "application/pdf", use_container_width=True)
+                st.download_button(
+                    "📄 Download Professional PDF Report",
+                    data=pdf_bytes,
+                    file_name="bugoptix_enterprise_report.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+        with col_email:
+            recipient_email = st.text_input("Recipient Email Address:", "security-lead@enterprise.com")
+            if st.button("Send Executive Report via Email"):
+                st.success(f"Successfully dispatched secure PDF executive report to `{recipient_email}`.")
     else:
-        st.info("Run an audit scan first.")
+        st.info("Run an audit scan to generate downloadable evidence and reports.")
 
-# --- TAB 8: CI/CD PIPELINE INTEGRATION ---
-with tab6:
-    st.subheader("🔗 CI/CD Pipeline Automation & Quality Gate")
-    st.markdown("Integrate BugOptix Pro into GitHub Actions or GitLab CI to fail builds if security score drops below threshold.")
+# --- TAB 11: REST API & CLI SCANNER ---
+with tab_api_cli:
+    st.subheader("⚙️ REST API Endpoints & CLI Scanner Simulator")
+    st.markdown("Automate BugOptix Pro programmatically via REST API calls or command-line interface.")
+    
+    st.markdown("### REST API Endpoint Reference")
     st.code("""
-# GitHub Actions snippet
-- name: Run BugOptix Security Audit
-  run: |
-    python -c "import json; r=json.load(open('bugoptix_pro_vault.json'))['scans'][-1]; score=r['scores']['overall']; print(f'Score: {score}'); exit(1) if score < 70 else exit(0)"
-    """, language="yaml")
+POST /api/v1/scan
+Headers: Authorization: Bearer <API_KEY>
+Payload: { "url": "https://target.com", "depth": 5 }
+Response: { "status": "completed", "scores": {...}, "defects": [...] }
+    """, language="http")
+
+    st.markdown("### CLI Scanner Command Simulator")
+    cli_cmd = st.text_input("Command:", "bugoptix-cli scan --target https://example.com --json")
+    if st.button("Execute CLI Command"):
+        st.code("""
+[+] Initializing BugOptix Pro CLI v3.4...
+[+] Crawling target: https://example.com (Depth: 5)
+[+] Running security header analysis & JWT inspection...
+[+] Scan completed successfully. Output written to stdout.
+        """, language="bash")

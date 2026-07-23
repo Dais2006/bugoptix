@@ -36,9 +36,9 @@ install_playwright_browsers()
 from playwright.async_api import async_playwright
 
 # ════════════════════════════════════════════════════════════
-#  NIKE-INSPIRED SLEEK OBSIDIAN DESIGN SYSTEM
+#  NIKE-INSPIRED OBSIDIAN DESIGN SYSTEM
 # ════════════════════════════════════════════════════════════
-st.set_page_config(page_title="BugOptix Pro | Elite Enterprise Auditor", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="BugOptix Pro | Enterprise Auditor", page_icon="⚡", layout="wide")
 
 st.markdown("""
 <style>
@@ -49,7 +49,6 @@ st.markdown("""
     box-sizing: border-box; 
 }
 
-/* Nike-inspired Deep Obsidian & Electric Accents */
 html, body, [class*="css"] {
     background-color: #080808 !important;
     background-image: 
@@ -61,13 +60,11 @@ html, body, [class*="css"] {
 
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Custom Sleek Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #0c0c0e; }
 ::-webkit-scrollbar-thumb { background: #26262a; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #ff4600; }
 
-/* Nike Style Bold Hero Banner */
 .hero-banner {
     background: linear-gradient(135deg, #111113 0%, #08080a 100%);
     border: 1px solid #1f1f24;
@@ -118,7 +115,6 @@ html, body, [class*="css"] {
     font-weight: 400;
 }
 
-/* Nike Metrics Glow Cards */
 .metric-card {
     background: #111113;
     border: 1px solid #1f1f24;
@@ -150,7 +146,6 @@ html, body, [class*="css"] {
     font-weight: 700;
 }
 
-/* Badge Tags */
 .compliance-tag {
     font-family: 'JetBrains Mono', monospace !important;
     font-size: 11px;
@@ -294,7 +289,7 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  DYNAMIC TESTING CORE (STABLE PLAYWRIGHT & AUTOMATIC SCAN)
+#  DYNAMIC TESTING CORE (SELF-HEALING BROWSER PIPELINE)
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: str, is_unlimited: bool) -> dict:
     start_time = datetime.now()
@@ -349,7 +344,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
         if browser_type == "Firefox": b_engine = p.firefox
         elif browser_type == "WebKit": b_engine = p.webkit
 
-        # Launch single browser instance safely
         browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
 
         try:
@@ -359,63 +353,69 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                 visited.add(current_route)
                 summary["routes"].append(current_route)
 
-                # Each page runs inside its own isolated context safely
-                context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 800})
-                page = await context.new_page()
+                # Self-healing check: Re-launch browser if closed or disconnected
+                if not browser or not browser.is_connected():
+                    browser = await b_engine.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
 
-                def log_response(res):
-                    try:
-                        rt = res.request.resource_type
-                        summary["network_log"].append({"url": res.url, "status": res.status, "type": rt})
-                        summary["metrics"]["resource_breakdown"][rt] += 1
-
-                        if parsed_root.scheme == "https" and res.url.startswith("http://"):
-                            add_defect("Security", "High", "Mixed Content Detected", f"Insecure HTTP resource loaded over HTTPS connection: {res.url}", current_route, "OWASP A02:2021", "CWE-311", cvss=6.5)
-
-                        cookies = res.headers.get("set-cookie", "")
-                        if cookies:
-                            if "Secure" not in cookies:
-                                add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", cvss=4.3)
-                            if "HttpOnly" not in cookies:
-                                add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", cvss=4.3)
-
-                        for h_name, h_val in res.headers.items():
-                            jwt_matches = re.findall(JWT_REGEX, h_val)
-                            for jwt in jwt_matches:
-                                if jwt not in summary["detected_jwts"]:
-                                    summary["detected_jwts"].append(jwt)
-                                    findings = PassiveJWTAnalyzer.inspect_token(jwt)
-                                    for f in findings:
-                                        if f["cvss"] > 0:
-                                            add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in response header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
-                    except Exception:
-                        pass
-
-                page.on("response", log_response)
-
+                context = None
                 try:
-                    resp = await page.goto(current_route, wait_until="load", timeout=25000)
+                    context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 800})
+                    page = await context.new_page()
+
+                    def log_response(res):
+                        try:
+                            rt = res.request.resource_type
+                            summary["network_log"].append({"url": res.url, "status": res.status, "type": rt})
+                            summary["metrics"]["resource_breakdown"][rt] += 1
+
+                            if parsed_root.scheme == "https" and res.url.startswith("http://"):
+                                add_defect("Security", "High", "Mixed Content Detected", f"Insecure HTTP resource loaded over HTTPS connection: {res.url}", current_route, "OWASP A02:2021", "CWE-311", cvss=6.5)
+
+                            cookies = res.headers.get("set-cookie", "")
+                            if cookies:
+                                if "Secure" not in cookies:
+                                    add_defect("Security", "Medium", "Insecure Cookie", "Cookie lacks 'Secure' flag.", current_route, "OWASP A05:2021", "CWE-614", cvss=4.3)
+                                if "HttpOnly" not in cookies:
+                                    add_defect("Security", "Medium", "Scriptable Cookie", "Cookie lacks 'HttpOnly' flag.", current_route, "OWASP A05:2021", "CWE-1004", cvss=4.3)
+
+                            for h_name, h_val in res.headers.items():
+                                jwt_matches = re.findall(JWT_REGEX, h_val)
+                                for jwt in jwt_matches:
+                                    if jwt not in summary["detected_jwts"]:
+                                        summary["detected_jwts"].append(jwt)
+                                        findings = PassiveJWTAnalyzer.inspect_token(jwt)
+                                        for f in findings:
+                                            if f["cvss"] > 0:
+                                                add_defect("Security", "High" if f["cvss"] >= 7.0 else "Medium", f"Automatic JWT Defect: {f['issue']}", f"Found in response header '{h_name}'.", current_route, "OWASP A02:2021", "CWE-287", cvss=f["cvss"])
+                        except Exception:
+                            pass
+
+                    page.on("response", log_response)
+
+                    resp = await page.goto(current_route, wait_until="load", timeout=20000)
 
                     if current_route == root_url:
-                        perf_data = await page.evaluate("""() => {
-                            const nav = performance.getEntriesByType('navigation')[0];
-                            return nav ? {
-                                ttfb: nav.responseStart - nav.requestStart,
-                                dom_interactive: nav.domInteractive,
-                                dom_complete: nav.domComplete,
-                                transfer_size: nav.transferSize
-                            } : null;
-                        }""")
-                        if perf_data:
-                            summary["metrics"]["ttfb"] = round(perf_data["ttfb"], 2)
-                            summary["metrics"]["dom_interactive"] = round(perf_data["dom_interactive"], 2)
-                            summary["metrics"]["dom_complete"] = round(perf_data["dom_complete"], 2)
-                            summary["metrics"]["transfer_size_kb"] = round(perf_data["transfer_size"] / 1024, 2)
-
-                        summary["metrics"]["dom_nodes"] = await page.evaluate("() => document.querySelectorAll('*').length")
-                        summary["metrics"]["req_count"] = len(summary["network_log"])
+                        try:
+                            perf_data = await page.evaluate("""() => {
+                                const nav = performance.getEntriesByType('navigation')[0];
+                                return nav ? {
+                                    ttfb: nav.responseStart - nav.requestStart,
+                                    dom_interactive: nav.domInteractive,
+                                    dom_complete: nav.domComplete,
+                                    transfer_size: nav.transferSize
+                                } : null;
+                            }""")
+                            if perf_data:
+                                summary["metrics"]["ttfb"] = round(perf_data["ttfb"], 2)
+                                summary["metrics"]["dom_interactive"] = round(perf_data["dom_interactive"], 2)
+                                summary["metrics"]["dom_complete"] = round(perf_data["dom_complete"], 2)
+                                summary["metrics"]["transfer_size_kb"] = round(perf_data["transfer_size"] / 1024, 2)
+                        except Exception:
+                            pass
 
                         try:
+                            summary["metrics"]["dom_nodes"] = await page.evaluate("() => document.querySelectorAll('*').length")
+                            summary["metrics"]["req_count"] = len(summary["network_log"])
                             ss_bytes = await page.screenshot(full_page=False)
                             summary["screenshot"] = base64.b64encode(ss_bytes).decode("utf-8")
                         except Exception:
@@ -430,7 +430,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
 
                     html_markup = await page.content()
 
-                    # Automatic JWT Extraction in HTML/DOM
                     html_jwts = re.findall(JWT_REGEX, html_markup)
                     for jwt in html_jwts:
                         if jwt not in summary["detected_jwts"]:
@@ -460,11 +459,16 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                                 queue.append(link)
 
                 except Exception as e:
-                    add_defect("Security", "Critical", "Render Timeout or Error", str(e), current_route)
+                    add_defect("Security", "Low", "Route Navigation Failure", str(e), current_route)
                 finally:
-                    await context.close()
+                    if context:
+                        try:
+                            await context.close()
+                        except Exception:
+                            pass
         finally:
-            await browser.close()
+            if browser and browser.is_connected():
+                await browser.close()
 
     overall = sum(summary["scores"].values()) / 5.0
     summary["scores"]["overall"] = round(overall, 1)
@@ -472,7 +476,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  APPLICATION DASHBOARD & NIKE UI SYSTEM
+#  APPLICATION DASHBOARD
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">

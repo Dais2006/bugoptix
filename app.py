@@ -14,14 +14,26 @@ from io import BytesIO
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 
-# ReportLab imports for PDF Executive Summary Generation
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+# Safe Plotly imports with fallback checks
+PLOTLY_AVAILABLE = False
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    pass
+
+# Safe ReportLab imports for PDF Executive Summary Generation
+REPORTLAB_AVAILABLE = False
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    pass
 
 # Async runtime safety for Streamlit on Windows / Multi-thread loops
 try:
@@ -301,6 +313,8 @@ class VaultManager:
 #  PDF EXECUTIVE REPORT GENERATOR ENGINE
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
+    if not REPORTLAB_AVAILABLE:
+        return b""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
@@ -341,7 +355,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     
     if defects:
         defect_table_data = [["Severity", "Category", "Title", "CVSS", "Route"]]
-        for d in defects[:15]:  # Top findings
+        for d in defects[:15]:
             defect_table_data.append([
                 d.get("severity", "Low"),
                 d.get("category", "General"),
@@ -362,7 +376,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     else:
         story.append(Paragraph("No critical defects or security risks were identified.", cell_style))
 
-    # Screenshot Evidence if present
     if scan_data.get("screenshot"):
         try:
             story.append(Spacer(1, 15))
@@ -448,7 +461,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, browser_type: 
                 context = None
                 try:
                     context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 800})
-                    page = await context.close() if False else await context.new_page()
+                    page = await context.new_page()
 
                     def log_response(res):
                         try:
@@ -574,6 +587,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+if not PLOTLY_AVAILABLE or not REPORTLAB_AVAILABLE:
+    st.warning("⚠️ Some optional dependencies (`plotly` or `reportlab`) are missing. Add them to `requirements.txt` to enable rich interactivity.")
+
 tab_summary, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Executive Summary",
     "⚡ Scan Engine", 
@@ -595,110 +611,111 @@ with tab_summary:
         defects = scan.get("defects", [])
         scores = scan["scores"]
         
-        # PDF Download Section
-        pdf_bytes = generate_pdf_report(scan)
         col_pdf1, col_pdf2 = st.columns([3, 1])
         with col_pdf1:
             st.markdown(f"**Target Host:** `{scan['url']}` | **Scanned At:** `{scan['timestamp']}`")
         with col_pdf2:
-            st.download_button(
-                label="📄 Download Executive PDF Report",
-                data=pdf_bytes,
-                file_name=f"executive_summary_{scan['url'].replace('https://','').replace('http://','').replace('/','_')}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+            if REPORTLAB_AVAILABLE:
+                pdf_bytes = generate_pdf_report(scan)
+                st.download_button(
+                    label="📄 Download Executive PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"executive_summary_{scan['url'].replace('https://','').replace('http://','').replace('/','_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            else:
+                st.info("Install `reportlab` to download PDF reports.")
 
         st.markdown("---")
 
-        # Row 1: Gauges & Visual Posture
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            # Risk Gauge (Overall Score)
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=scores["overall"],
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Security Posture Score", 'font': {'size': 18, 'color': '#ffffff'}},
-                gauge={
-                    'axis': {'range': [0, 100], 'tickcolor': "#ffffff"},
-                    'bar': {'color': "#ff4600"},
-                    'steps': [
-                        {'range': [0, 50], 'color': "rgba(255, 42, 95, 0.3)"},
-                        {'range': [50, 80], 'color': "rgba(255, 183, 0, 0.3)"},
-                        {'range': [80, 100], 'color': "rgba(0, 230, 153, 0.3)"}
-                    ],
-                }
-            ))
-            fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
-            st.plotly_chart(fig_gauge, use_container_width=True)
+        if PLOTLY_AVAILABLE:
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=scores["overall"],
+                    domain={'x': [0, 1], 'y': [0, 1]},
+                    title={'text': "Security Posture Score", 'font': {'size': 18, 'color': '#ffffff'}},
+                    gauge={
+                        'axis': {'range': [0, 100], 'tickcolor': "#ffffff"},
+                        'bar': {'color': "#ff4600"},
+                        'steps': [
+                            {'range': [0, 50], 'color': "rgba(255, 42, 95, 0.3)"},
+                            {'range': [50, 80], 'color': "rgba(255, 183, 0, 0.3)"},
+                            {'range': [80, 100], 'color': "rgba(0, 230, 153, 0.3)"}
+                        ],
+                    }
+                ))
+                fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
+                st.plotly_chart(fig_gauge, use_container_width=True)
 
-        with col_g2:
-            # CVSS Max Risk Gauge
-            max_cvss = scan["metrics"].get("max_cvss", 0.0)
-            fig_cvss_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=max_cvss,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Peak CVSS Severity Threat", 'font': {'size': 18, 'color': '#ffffff'}},
-                gauge={
-                    'axis': {'range': [0, 10.0], 'tickcolor': "#ffffff"},
-                    'bar': {'color': "#ff2a5f"},
-                    'steps': [
-                        {'range': [0, 3.9], 'color': "rgba(0, 230, 153, 0.3)"},
-                        {'range': [4.0, 6.9], 'color': "rgba(255, 183, 0, 0.3)"},
-                        {'range': [7.0, 10.0], 'color': "rgba(255, 42, 95, 0.4)"}
-                    ],
-                }
-            ))
-            fig_cvss_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
-            st.plotly_chart(fig_cvss_gauge, use_container_width=True)
+            with col_g2:
+                max_cvss = scan["metrics"].get("max_cvss", 0.0)
+                fig_cvss_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=max_cvss,
+                    domain={'x': [0, 1], 'y': [0, 1]},
+                    title={'text': "Peak CVSS Severity Threat", 'font': {'size': 18, 'color': '#ffffff'}},
+                    gauge={
+                        'axis': {'range': [0, 10.0], 'tickcolor': "#ffffff"},
+                        'bar': {'color': "#ff2a5f"},
+                        'steps': [
+                            {'range': [0, 3.9], 'color': "rgba(0, 230, 153, 0.3)"},
+                            {'range': [4.0, 6.9], 'color': "rgba(255, 183, 0, 0.3)"},
+                            {'range': [7.0, 10.0], 'color': "rgba(255, 42, 95, 0.4)"}
+                        ],
+                    }
+                ))
+                fig_cvss_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280)
+                st.plotly_chart(fig_cvss_gauge, use_container_width=True)
 
-        st.markdown("---")
+            st.markdown("---")
 
-        # Row 2: Charts (Severity Pie, Category Breakdown, CVSS Distribution)
-        col_c1, col_c2, col_c3 = st.columns(3)
-        
-        with col_c1:
-            st.markdown("##### 🥧 Severity Distribution")
-            if defects:
-                sev_counts = Counter([d["severity"] for d in defects])
-                df_sev = pd.DataFrame(list(sev_counts.items()), columns=["Severity", "Count"])
-                fig_pie = px.pie(df_sev, names="Severity", values="Count", color="Severity",
-                                 color_discrete_map={"Critical": "#ff2a5f", "High": "#ff8700", "Medium": "#ffb700", "Low": "#00e699"},
-                                 hole=0.4)
-                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
-                st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.info("No security defects identified.")
-
-        with col_c2:
-            st.markdown("##### 📊 Category Breakdown")
-            if defects:
-                cat_counts = Counter([d["category"] for d in defects])
-                df_cat = pd.DataFrame(list(cat_counts.items()), columns=["Category", "Count"])
-                fig_cat = px.bar(df_cat, x="Category", y="Count", color="Category", text="Count")
-                fig_cat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
-                st.plotly_chart(fig_cat, use_container_width=True)
-            else:
-                st.info("No category defects available.")
-
-        with col_c3:
-            st.markdown("##### 📈 CVSS Score Spread")
-            if defects:
-                cvss_scores = [d.get("cvss", 0.0) for d in defects if d.get("cvss", 0.0) > 0]
-                if cvss_scores:
-                    df_cvss = pd.DataFrame(cvss_scores, columns=["CVSS"])
-                    fig_cvss = px.histogram(df_cvss, x="CVSS", nbins=10, color_discrete_sequence=["#ff4600"])
-                    fig_cvss.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
-                    st.plotly_chart(fig_cvss, use_container_width=True)
+            col_c1, col_c2, col_c3 = st.columns(3)
+            
+            with col_c1:
+                st.markdown("##### 🥧 Severity Distribution")
+                if defects:
+                    sev_counts = Counter([d["severity"] for d in defects])
+                    df_sev = pd.DataFrame(list(sev_counts.items()), columns=["Severity", "Count"])
+                    fig_pie = px.pie(df_sev, names="Severity", values="Count", color="Severity",
+                                     color_discrete_map={"Critical": "#ff2a5f", "High": "#ff8700", "Medium": "#ffb700", "Low": "#00e699"},
+                                     hole=0.4)
+                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
+                    st.plotly_chart(fig_pie, use_container_width=True)
                 else:
-                    st.info("No CVSS rated vulnerabilities.")
-            else:
-                st.info("No CVSS data available.")
+                    st.info("No security defects identified.")
 
-        # Visual Evidence (Screenshot)
+            with col_c2:
+                st.markdown("##### 📊 Category Breakdown")
+                if defects:
+                    cat_counts = Counter([d["category"] for d in defects])
+                    df_cat = pd.DataFrame(list(cat_counts.items()), columns=["Category", "Count"])
+                    fig_cat = px.bar(df_cat, x="Category", y="Count", color="Category", text="Count")
+                    fig_cat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
+                    st.plotly_chart(fig_cat, use_container_width=True)
+                else:
+                    st.info("No category defects available.")
+
+            with col_c3:
+                st.markdown("##### 📈 CVSS Score Spread")
+                if defects:
+                    cvss_scores = [d.get("cvss", 0.0) for d in defects if d.get("cvss", 0.0) > 0]
+                    if cvss_scores:
+                        df_cvss = pd.DataFrame(cvss_scores, columns=["CVSS"])
+                        fig_cvss = px.histogram(df_cvss, x="CVSS", nbins=10, color_discrete_sequence=["#ff4600"])
+                        fig_cvss.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=280)
+                        st.plotly_chart(fig_cvss, use_container_width=True)
+                    else:
+                        st.info("No CVSS rated vulnerabilities.")
+                else:
+                    st.info("No CVSS data available.")
+        else:
+            st.warning("Install `plotly` to render interactive charts and gauge metrics.")
+            st.dataframe(pd.DataFrame(defects) if defects else "No defects discovered.")
+
         st.markdown("---")
         st.markdown("##### 🖼️ Visual Evidence & Screenshot Preview")
         if scan.get("screenshot"):

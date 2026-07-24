@@ -257,7 +257,6 @@ JWT_REGEX = r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
 class TechStackProfiler:
     @staticmethod
     def identify_stack(headers: dict, html_content: str) -> dict:
-        """Inspects headers and HTML contents to determine language, framework, and database signatures."""
         headers_lower = {k.lower(): v for k, v in headers.items()}
         
         detected_languages = []
@@ -265,12 +264,10 @@ class TechStackProfiler:
         detected_frameworks = []
         description_notes = []
 
-        # Server Header check
         server = headers_lower.get("server", "")
         powered_by = headers_lower.get("x-powered-by", "")
         combined_sig = f"{server} {powered_by} {html_content[:5000]}".lower()
 
-        # Language Detection
         if "php" in combined_sig or "phpsessid" in str(headers_lower.get("set-cookie", "")).lower():
             detected_languages.append("PHP")
             description_notes.append("Built on PHP runtime environments, commonly deployed with Apache or Nginx servers.")
@@ -291,7 +288,6 @@ class TechStackProfiler:
             detected_languages.append("HTML5 / Static / Generic Web Stack")
             description_notes.append("Standard modern multi-tier web application architecture.")
 
-        # Database Inference Signatures
         if "wp-" in html_content or "wordpress" in combined_sig:
             detected_databases.append("MySQL / MariaDB (Inferred via WordPress CMS)")
             detected_frameworks.append("WordPress CMS")
@@ -392,7 +388,7 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  5. PROFESSIONAL PDF GENERATOR (WITH TECH & DATABASE DETAILS)
+#  5. PROFESSIONAL PDF GENERATOR (FIXED TABLE & OVERALL INDEX)
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
@@ -429,7 +425,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_meta)
     story.append(Spacer(1, 8))
 
-    # Tech Stack & Database Details Section Added to PDF Report
     story.append(Paragraph("1. Target Technology Stack & Database Architecture", h2_style))
     tech = scan_data.get("tech_stack", {})
     tech_data = [
@@ -536,7 +531,7 @@ def run_async_isolated(coro):
         return future.result()
 
 # ════════════════════════════════════════════════════════════
-#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH TECH STACK
+#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE (FIXED STATE & SCORING)
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
@@ -569,7 +564,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     visited = set()
     queue = [root_url]
 
-    # SSL/TLS Analysis check
     try:
         if HTTPX_AVAILABLE:
             with httpx.Client(verify=ssl_verify, timeout=5.0) as client:
@@ -595,12 +589,10 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 
                 if current_route == root_url:
                     summary["headers_captured"] = dict(resp.headers)
-                    # Perform technology stack profiling on the root response
                     summary["tech_stack"] = TechStackProfiler.identify_stack(dict(resp.headers), html_markup)
 
                 resp_headers = {k.lower(): v for k, v in resp.headers.items()}
                 
-                # Check security headers
                 for hdr, (sev, desc, owasp, cwe, cvss, fix) in SECURITY_HEADERS.items():
                     if hdr not in resp_headers:
                         summary["raw_defects"].append({
@@ -615,7 +607,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                             "fix": fix
                         })
 
-                # Cookie security checks
                 set_cookie = resp.headers.get("set-cookie", "")
                 if set_cookie:
                     if "Secure" not in set_cookie:
@@ -633,7 +624,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                             "fix": "Append 'HttpOnly' attribute to sensitive cookies."
                         })
 
-                # JWT Detection in Headers
                 for h_name, h_val in resp.headers.items():
                     for jwt in re.findall(JWT_REGEX, h_val):
                         if jwt not in summary["detected_jwts"]:
@@ -647,7 +637,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                                         "fix": "Enforce strict signature validation and exp claims."
                                     })
 
-                # HTML JWT Detection
                 for jwt in re.findall(JWT_REGEX, html_markup):
                     if jwt not in summary["detected_jwts"]:
                         summary["detected_jwts"].append(jwt)
@@ -660,7 +649,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                                     "fix": "Do not expose JWT tokens in client DOM."
                                 })
 
-                # Secret Key Inspection
                 for pattern, name in CREDENTIAL_SIGNATURES:
                     if re.search(pattern, html_markup):
                         summary["raw_defects"].append({
@@ -670,7 +658,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                             "fix": "Revoke credential immediately and store in environment secrets vault."
                         })
 
-                # Accessibility checks on root
                 if current_route == root_url and BS4_AVAILABLE:
                     soup = BeautifulSoup(html_markup, "html.parser")
                     imgs_no_alt = soup.find_all("img", alt=False)
@@ -682,7 +669,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                             "fix": "Add meaningful descriptive alt tags to images."
                         })
 
-                # Crawler Link Discovery
                 if len(visited) < target_limit and BS4_AVAILABLE:
                     soup = BeautifulSoup(html_markup, "html.parser")
                     for a in soup.find_all("a", href=True):
@@ -693,9 +679,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception as e:
                 pass
 
-    # ════════════════════════════════════════════════════════════
-    #  DEDUPLICATION LOGIC (GROUPING FINDINGS ACROSS ROUTES)
-    # ════════════════════════════════════════════════════════════
     grouped_dict = {}
     for d in summary["raw_defects"]:
         key = (d["title"], d["category"])
@@ -723,11 +706,11 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     summary["defects"] = final_defects
 
     sec_deduction = sum({"Critical": 15, "High": 10, "Medium": 5, "Low": 2}.get(d["severity"], 2) for d in final_defects)
-    summary["scores"]["security"] = max(35, 100 - sec_deduction)
+    summary["scores"]["security"] = max(0, min(100, 100 - sec_deduction))
     summary["scores"]["performance"] = 88
     summary["scores"]["accessibility"] = 92
     summary["scores"]["seo"] = 95
-    summary["scores"]["overall"] = round(sum(summary["scores"].values()) / 4.0, 1)
+    summary["scores"]["overall"] = max(0.0, min(100.0, round(sum(summary["scores"].values()) / 4.0, 1)))
 
     duration_sec = round((datetime.now() - start_time).total_seconds(), 2)
     summary["metadata"] = {
@@ -769,15 +752,15 @@ tab_engine, tab_exec, tab_history, tab_api, tab_jwt, tab_ssl_cookie, tab_sched_m
 with tab_engine:
     st.subheader("⚡ Enterprise Scan Configuration Engine")
     col_u, col_auth, col_ssl = st.columns([2, 1, 1])
-    with col_u: target_url = st.text_input("Target Domain / API URL:", "https://example.com")
-    with col_auth: auth_token = st.text_input("Auth Bearer Token (Optional):", type="password")
-    with col_ssl: ssl_verify = st.checkbox("Verify SSL Certificate", value=True)
+    with col_u: target_url = st.text_input("Target Domain / API URL:", "https://example.com", key="engine_target_url")
+    with col_auth: auth_token = st.text_input("Auth Bearer Token (Optional):", type="password", key="engine_auth_token")
+    with col_ssl: ssl_verify = st.checkbox("Verify SSL Certificate", value=True, key="engine_ssl_verify")
 
     col_unlim, col_c = st.columns([1, 2])
-    with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False)
-    with col_c: crawl_depth = st.slider("Crawl Page Limit:", 1, 50, 5, disabled=is_unlimited)
+    with col_unlim: is_unlimited = st.checkbox("Unlimited Crawl", value=False, key="engine_is_unlimited")
+    with col_c: crawl_depth = st.slider("Crawl Page Limit:", 1, 50, 5, disabled=is_unlimited, key="engine_crawl_depth")
 
-    if st.button("RUN ENTERPRISE AUDIT", type="primary"):
+    if st.button("RUN ENTERPRISE AUDIT", type="primary", key="engine_run_audit"):
         with st.spinner("Executing secure crawl, tech stack analysis, and compliance checks..."):
             try:
                 result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
@@ -1030,11 +1013,11 @@ with tab_api_cli:
     
     st.markdown("### REST API Endpoint Reference")
     st.code("""
-POST /api/v1/scan
-Headers: Authorization: Bearer <API_KEY>
-Payload: { "url": "https://target.com", "depth": 5 }
-Response: { "status": "completed", "scores": {...}, "defects": [...] }
-    """, language="http")
+    POST /api/v1/scan
+    Headers: Authorization: Bearer <API_KEY>
+    Payload: { "url": "https://target.com", "depth": 5 }
+    Response: { "status": "completed", "scores": {...}, "defects": [...] }
+        """, language="http")
 
     st.markdown("### CLI Scanner Command Simulator")
     cli_cmd = st.text_input("Command:", "bugoptix-cli scan --target https://example.com --json")

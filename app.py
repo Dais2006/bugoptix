@@ -248,7 +248,7 @@ class TechStackProfiler:
         """
         Dynamically extracts and profiles technologies per target URL based on live headers, 
         cookies, meta tags, and script signatures, avoiding static defaults.
-      """
+        """
         languages = set()
         frameworks = set()
         databases = set()
@@ -571,15 +571,27 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     return buffer.getvalue()
 
 # ════════════════════════════════════════════════════════════
-#  6. ISOLATED ASYNC EXECUTION WORKER
+#  6. SAFE ASYNC EXECUTION WORKER (EVENT LOOP FIX FOR STREAMLIT)
 # ════════════════════════════════════════════════════════════
-def run_async_isolated(coro):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(asyncio.run, coro)
-        return future.result()
+def run_async_safe(coro):
+    """
+    Safely runs asynchronous coroutines within Streamlit without hitting event loop 
+    deprecation or thread collision exceptions.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result()
+    else:
+        return asyncio.run(coro)
 
 # ════════════════════════════════════════════════════════════
-#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE (FIXED URL SCOPE & SCORING)
+#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
@@ -666,7 +678,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                         if parsed_link.netloc == parsed_root.netloc and link not in visited and link not in queue:
                             queue.append(link)
 
-            except Exception as e:
+            except Exception:
                 pass
 
     summary["tech_stack"] = TechStackProfiler.identify_stack(summary["headers_captured"], accumulated_html, root_url)
@@ -765,7 +777,7 @@ with tab_engine:
         else:
             with st.spinner(f"Executing secure crawl and accurate tech stack analysis for {target_url.strip()}..."):
                 try:
-                    result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
+                    result = run_async_safe(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
                     st.session_state["active_scan"] = result
                     VaultManager.append_scan(result)
                     st.success("Audit Execution Finished Successfully with Empirical Precision Telemetry!")

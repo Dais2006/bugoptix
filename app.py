@@ -835,7 +835,7 @@ with tab_exec:
                 if severity_counts:
                     fig_pie = px.pie(names=list(severity_counts.keys()), values=list(severity_counts.values()), title="Interactive: Findings by Severity", hole=0.4)
                     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
-                    st.plotly_chart(fig_pie, use_container_width=True)
+                    st.plotly_chart(fig_pie, width="stretch")  # Updated to modern parameter
             with col_ch2:
                 cat_counts = defaultdict(int)
                 for d in scan.get("defects", []):
@@ -843,7 +843,7 @@ with tab_exec:
                 if cat_counts:
                     fig_bar = px.bar(x=list(cat_counts.keys()), y=list(cat_counts.values()), title="Interactive: Findings by Category", labels={'x': 'Category', 'y': 'Count'})
                     fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    st.plotly_chart(fig_bar, width="stretch")  # Updated to modern parameter
     else:
         st.info("⚡ Run an audit scan in the Scan Engine tab to populate the Executive Dashboard.")
 
@@ -1011,7 +1011,7 @@ with tab_evidence:
                     data=pdf_bytes,
                     file_name="bugoptix_enterprise_report.pdf",
                     mime="application/pdf",
-                    use_container_width=True
+                    width="stretch"  # Updated to modern parameter
                 )
         with col_email:
             recipient_email = st.text_input("Recipient Email Address:", "security-lead@enterprise.com")

@@ -247,7 +247,7 @@ class TechStackProfiler:
     def identify_stack(headers: dict, html_content: str, target_url: str) -> dict:
         """
         Dynamically extracts and profiles technologies per target URL based on live headers, 
-        cookies, meta tags, and script signatures, avoiding static defaults or cross-URL pollution.
+        cookies, meta tags, and script signatures, avoiding static defaults.
         """
         languages = set()
         frameworks = set()

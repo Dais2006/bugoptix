@@ -410,7 +410,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     tech = scan_data.get("tech_stack", {})
     tech_data = [
         [Paragraph("<b>Languages / Runtimes:</b>", body_style), Paragraph(", ".join(tech.get('languages', ['HTML5 / JavaScript'])), body_style)],
-        [Paragraph("<b>Frameworks:</b>", body_style), Paragraph(", ".join(tech.get('frameworks', ['Custom App']))), body_style)],
+        [Paragraph("<b>Frameworks:</b>", body_style), Paragraph(", ".join(tech.get('frameworks', ['Custom App'])), body_style)],
         [Paragraph("<b>Database Backend:</b>", body_style), Paragraph(", ".join(tech.get('databases', ['Relational Backend'])), body_style)],
         [Paragraph("<b>Architecture Summary:</b>", body_style), Paragraph(tech.get('description', ''), body_style)]
     ]

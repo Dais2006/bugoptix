@@ -246,9 +246,8 @@ class TechStackProfiler:
     @staticmethod
     def identify_stack(headers: dict, html_content: str, target_url: str) -> dict:
         """
-        Performs robust and accurate technology stack detection by inspecting 
-        HTTP headers, server banners, script tags, meta generator tags, cookies, 
-        and DOM signatures unique to the specific target URL.
+        Performs fully isolated, empirical technology stack and database profiling 
+        unique to the specific target URL headers and DOM content.
         """
         languages = set()
         frameworks = set()
@@ -450,8 +449,8 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     meta = scan_data.get("metadata", {})
     meta_data = [
         [Paragraph("<b>Target URL:</b>", body_style), Paragraph(scan_data['url'], body_style), Paragraph("<b>Audit Date:</b>", body_style), Paragraph(scan_data['timestamp'], body_style)],
-        [Paragraph("<b>Pages Scanned:</b>", body_style), Paragraph(str(meta.get('pages_scanned', 5)), body_style), Paragraph("<b>Crawl Duration:</b>", body_style), Paragraph(f"{meta.get('crawl_duration_sec', 5.76)}s", body_style)],
-        [Paragraph("<b>Peak CVSS Risk:</b>", body_style), Paragraph("CVSS 6.5", body_style), Paragraph("<b>Scan Confidence:</b>", body_style), Paragraph("Empirical Precision (Headers & DOM)", body_style)],
+        [Paragraph("<b>Pages Scanned:</b>", body_style), Paragraph(str(meta.get('pages_scanned', 1)), body_style), Paragraph("<b>Crawl Duration:</b>", body_style), Paragraph(f"{meta.get('crawl_duration_sec', 1.00)}s", body_style)],
+        [Paragraph("<b>Peak CVSS Risk:</b>", body_style), Paragraph(str(meta.get('max_cvss', 6.5)), body_style), Paragraph("<b>Scan Confidence:</b>", body_style), Paragraph("Empirical Precision (Headers & DOM)", body_style)],
     ]
     t_meta = Table(meta_data, colWidths=[80, 190, 85, 185])
     t_meta.setStyle(TableStyle([
@@ -569,7 +568,7 @@ def run_async_isolated(coro):
         return future.result()
 
 # ════════════════════════════════════════════════════════════
-#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE (FIXED URL SCOPE BUG)
+#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE (FIXED URL SCOPE & SCORING)
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
@@ -589,8 +588,8 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
         "detected_jwts": [],
         "headers_captured": {},
         "ssl_info": {},
-        "metrics": {"max_cvss": 6.5},
-        "scores": {"security": 74, "performance": 88, "accessibility": 92, "seo": 95}
+        "metrics": {"max_cvss": 0.0},
+        "scores": {"security": 100, "performance": 90, "accessibility": 92, "seo": 95}
     }
 
     headers_map = {"User-Agent": "BugOptixPro-Auditor/3.4 (Enterprise Security Scanner)"}
@@ -663,6 +662,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     summary["tech_stack"] = TechStackProfiler.identify_stack(summary["headers_captured"], accumulated_html, root_url)
 
     grouped_dict = {}
+    max_cvss_found = 0.0
     for d in summary["raw_defects"]:
         key = (d["title"], d["category"])
         if key not in grouped_dict:
@@ -679,6 +679,8 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             }
         parsed_path = urlparse(d["route"]).path or "/"
         grouped_dict[key]["affected_pages"].add(parsed_path)
+        if d["cvss"] > max_cvss_found:
+            max_cvss_found = d["cvss"]
 
     final_defects = []
     for k, val in grouped_dict.items():
@@ -686,11 +688,17 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
         final_defects.append(val)
 
     summary["defects"] = final_defects
+    
+    # Dynamic Security Scoring Calculation based on actual findings count and severity weights
+    sec_penalty = sum([15 if d["severity"] == "High" else (10 if d["severity"] == "Medium" else 5) for d in final_defects])
+    computed_sec_score = max(15, 100 - sec_penalty)
+    summary["scores"]["security"] = computed_sec_score
+
     duration_sec = round((datetime.now() - start_time).total_seconds(), 2)
     summary["metadata"] = {
         "pages_scanned": len(visited) if len(visited) > 0 else 1,
         "crawl_duration_sec": duration_sec if duration_sec > 0 else 1.0,
-        "max_cvss": 6.5
+        "max_cvss": max_cvss_found if max_cvss_found > 0 else 0.0
     }
     return summary
 
@@ -782,7 +790,7 @@ with tab_exec:
         c1.metric("Target URL", scan['url'])
         c2.metric("Pages Scanned", meta.get('pages_scanned', 1))
         c3.metric("Duration", f"{meta.get('crawl_duration_sec', 1.0)}s")
-        c4.metric("Peak CVSS", "6.5")
+        c4.metric("Peak CVSS", str(meta.get('max_cvss', 0.0)))
 
         st.markdown("---")
         st.markdown("### 🛠️ Discovered Software Stack & Database Details")

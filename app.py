@@ -247,7 +247,7 @@ class TechStackProfiler:
     def identify_stack(headers: dict, html_content: str, target_url: str) -> dict:
         """
         Dynamically extracts and profiles technologies per target URL based on live headers, 
-        cookies, meta tags, and script signatures, avoiding static defaults.
+        cookies, meta tags, and script signatures, avoiding static defaults or cross-URL pollution.
         """
         languages = set()
         frameworks = set()
@@ -835,7 +835,7 @@ with tab_exec:
                 if severity_counts:
                     fig_pie = px.pie(names=list(severity_counts.keys()), values=list(severity_counts.values()), title="Interactive: Findings by Severity", hole=0.4)
                     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
-                    st.plotly_chart(fig_pie, width="stretch")  # Updated to modern parameter
+                    st.plotly_chart(fig_pie, use_container_width=True)
             with col_ch2:
                 cat_counts = defaultdict(int)
                 for d in scan.get("defects", []):
@@ -843,7 +843,7 @@ with tab_exec:
                 if cat_counts:
                     fig_bar = px.bar(x=list(cat_counts.keys()), y=list(cat_counts.values()), title="Interactive: Findings by Category", labels={'x': 'Category', 'y': 'Count'})
                     fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
-                    st.plotly_chart(fig_bar, width="stretch")  # Updated to modern parameter
+                    st.plotly_chart(fig_bar, use_container_width=True)
     else:
         st.info("⚡ Run an audit scan in the Scan Engine tab to populate the Executive Dashboard.")
 
@@ -1011,7 +1011,7 @@ with tab_evidence:
                     data=pdf_bytes,
                     file_name="bugoptix_enterprise_report.pdf",
                     mime="application/pdf",
-                    width="stretch"  # Updated to modern parameter
+                    use_container_width=True
                 )
         with col_email:
             recipient_email = st.text_input("Recipient Email Address:", "security-lead@enterprise.com")

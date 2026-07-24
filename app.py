@@ -774,7 +774,6 @@ elif nav_selection == "New Scan":
             
         submitted = st.form_submit_button("[Start Enterprise Scan]", type="primary")
         if submitted:
-            # Simulate scan progress bars
             with st.spinner("Executing enterprise security audit..."):
                 prog_bar = st.progress(0)
                 import time
@@ -838,7 +837,6 @@ elif nav_selection == "Reports":
     st.subheader("📄 Interactive Findings Dashboard & Executive Reports")
     scan = st.session_state["active_scan"]
     
-    # Severity Cards
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Critical", len([d for d in scan['defects'] if d['severity'] == 'Critical']))
     c2.metric("High", len([d for d in scan['defects'] if d['severity'] == 'High']))
@@ -853,7 +851,6 @@ elif nav_selection == "Reports":
             st.write(f"**Remediation:** {d['fix']}")
             st.json(d.get("evidence", {}))
             
-            # Team collaboration fields
             col_collab1, col_collab2, col_collab3 = st.columns(3)
             col_collab1.selectbox("Assign Developer", ["Unassigned", "Alex Chen", "Sarah Jenkins", "DevOps Team"], key=f"assign_{idx}")
             col_collab2.selectbox("Track Status", ["Open", "In Progress", "Resolved", "Reopened"], key=f"status_{idx}")
@@ -923,4 +920,3 @@ elif nav_selection == "Help":
     - **REST API Reference:** https://api.bugoptix.enterprise/docs
     - **Security Team Contact:** security-support@bugoptix.enterprise
     """)
-```[cite: 3]

@@ -187,22 +187,11 @@ html, body, [class*="css"] {
     border-color: #ff4600;
     box-shadow: 0 12px 24px rgba(255, 70, 0, 0.15);
 }
-
-.error-card {
-    background: linear-gradient(135deg, rgba(255, 42, 95, 0.08) 0%, #111113 100%);
-    border-left: 4px solid #ff2a5f;
-    border-top: 1px solid #1f1f24;
-    border-right: 1px solid #1f1f24;
-    border-bottom: 1px solid #1f1f24;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
-#  4. REVISED ACCURATE SECURITY RULES & MAPPINGS
+#  4. REVISED ACCURATE SECURITY RULES & TECH PROFILER MAPPINGS
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
     "content-security-policy": (
@@ -264,6 +253,66 @@ CREDENTIAL_SIGNATURES = [
 ]
 
 JWT_REGEX = r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
+
+class TechStackProfiler:
+    @staticmethod
+    def identify_stack(headers: dict, html_content: str) -> dict:
+        """Inspects headers and HTML contents to determine language, framework, and database signatures."""
+        headers_lower = {k.lower(): v for k, v in headers.items()}
+        
+        detected_languages = []
+        detected_databases = []
+        detected_frameworks = []
+        description_notes = []
+
+        # Server Header check
+        server = headers_lower.get("server", "")
+        powered_by = headers_lower.get("x-powered-by", "")
+        combined_sig = f"{server} {powered_by} {html_content[:5000]}".lower()
+
+        # Language Detection
+        if "php" in combined_sig or "phpsessid" in str(headers_lower.get("set-cookie", "")).lower():
+            detected_languages.append("PHP")
+            description_notes.append("Built on PHP runtime environments, commonly deployed with Apache or Nginx servers.")
+        if "python" in combined_sig or "django" in combined_sig or "flask" in combined_sig or "gunicorn" in combined_sig:
+            detected_languages.append("Python")
+            description_notes.append("Powered by Python web micro-frameworks or WSGI/ASGI application servers.")
+        if "node.js" in combined_sig or "express" in combined_sig or "next" in combined_sig or "nuxt" in combined_sig:
+            detected_languages.append("Node.js / JavaScript")
+            description_notes.append("Driven by asynchronous JavaScript runtime (Node.js) and modern frontend/backend framework architectures.")
+        if "ruby" in combined_sig or "rails" in combined_sig:
+            detected_languages.append("Ruby")
+            description_notes.append("Constructed using Ruby-based framework conventions.")
+        if "java" in combined_sig or "jsp" in combined_sig or "servlet" in combined_sig or "spring" in combined_sig:
+            detected_languages.append("Java")
+            description_notes.append("Enterprise Java application container infrastructure.")
+
+        if not detected_languages:
+            detected_languages.append("HTML5 / Static / Generic Web Stack")
+            description_notes.append("Standard modern multi-tier web application architecture.")
+
+        # Database Inference Signatures
+        if "wp-" in html_content or "wordpress" in combined_sig:
+            detected_databases.append("MySQL / MariaDB (Inferred via WordPress CMS)")
+            detected_frameworks.append("WordPress CMS")
+        if "postgres" in combined_sig or "pg_session" in combined_sig:
+            detected_databases.append("PostgreSQL (Inferred via cookie/error patterns)")
+        if "mongo" in combined_sig or "express:sess" in str(headers_lower.get("set-cookie", "")):
+            detected_databases.append("MongoDB / NoSQL Document Store")
+        if "laravel_session" in str(headers_lower.get("set-cookie", "")):
+            detected_languages.append("PHP")
+            detected_frameworks.append("Laravel Framework")
+            detected_databases.append("MySQL / PostgreSQL (Laravel default)")
+        
+        if not detected_databases:
+            detected_databases.append("Standard Relational/Cloud Database Backend (Masked / Undisclosed)")
+
+        return {
+            "languages": list(set(detected_languages)),
+            "frameworks": list(set(detected_frameworks)) if detected_frameworks else ["Custom / Standard Web Application Framework"],
+            "databases": list(set(detected_databases)),
+            "description": " ".join(description_notes) if description_notes else "Standard web deployment configuration utilizing standard server infrastructure."
+        }
 
 class PhishingDetector:
     @staticmethod
@@ -343,7 +392,7 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  5. PROFESSIONAL PDF GENERATOR (WITH GROUPED FINDINGS & EVIDENCE)
+#  5. PROFESSIONAL PDF GENERATOR (WITH TECH & DATABASE DETAILS)
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
@@ -380,7 +429,27 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_meta)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("1. Executive Summary & Scoring Overview", h2_style))
+    # Tech Stack & Database Details Section Added to PDF Report
+    story.append(Paragraph("1. Target Technology Stack & Database Architecture", h2_style))
+    tech = scan_data.get("tech_stack", {})
+    tech_data = [
+        [Paragraph("<b>Languages / Runtimes:</b>", body_style), Paragraph(", ".join(tech.get('languages', ['Unknown'])), body_style)],
+        [Paragraph("<b>Frameworks:</b>", body_style), Paragraph(", ".join(tech.get('frameworks', ['Standard'])), body_style)],
+        [Paragraph("<b>Database Backend:</b>", body_style), Paragraph(", ".join(tech.get('databases', ['Undisclosed'])), body_style)],
+        [Paragraph("<b>Architecture Summary:</b>", body_style), Paragraph(tech.get('description', 'Standard web deployment.'), body_style)]
+    ]
+    t_tech = Table(tech_data, colWidths=[120, 420])
+    t_tech.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e0e0e0")),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+    ]))
+    story.append(t_tech)
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("2. Executive Summary & Scoring Overview", h2_style))
     story.append(Paragraph(
         f"Automated security assessment for <b>{scan_data['url']}</b> yielded an overall security posture index of <b>{scan_data['scores']['overall']}/100</b>. "
         f"The findings below have been deduplicated and mapped according to standard OWASP Top 10 and CWE taxonomies with full evidence and response header captures.",
@@ -407,7 +476,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_scores)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("2. Compliance Dashboard", h2_style))
+    story.append(Paragraph("3. Compliance Dashboard", h2_style))
     comp_data = [
         ["Standard", "Compliance Status", "Scope / Details"],
         ["OWASP Top 10 (2021)", "Partial Compliance", "Identified missing headers and automated test vectors."],
@@ -426,7 +495,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_comp)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("3. Consolidated Vulnerability Findings & Affected Routes Evidence", h2_style))
+    story.append(Paragraph("4. Consolidated Vulnerability Findings & Affected Routes Evidence", h2_style))
     defects = scan_data.get("defects", [])
     if defects:
         defect_table_data = [["Sev", "Vulnerability & Description", "Affected Routes / Evidence", "OWASP / CWE", "CVSS", "Remediation"]]
@@ -467,7 +536,7 @@ def run_async_isolated(coro):
         return future.result()
 
 # ════════════════════════════════════════════════════════════
-#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH DEDUPLICATION
+#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH TECH STACK
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
@@ -480,6 +549,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
         "url": root_url,
         "timestamp": start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "phishing_analysis": phishing_eval,
+        "tech_stack": {},
         "routes": [],
         "raw_defects": [],
         "defects": [],
@@ -521,8 +591,12 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
 
             try:
                 resp = await client.get(current_route)
+                html_markup = resp.text
+                
                 if current_route == root_url:
                     summary["headers_captured"] = dict(resp.headers)
+                    # Perform technology stack profiling on the root response
+                    summary["tech_stack"] = TechStackProfiler.identify_stack(dict(resp.headers), html_markup)
 
                 resp_headers = {k.lower(): v for k, v in resp.headers.items()}
                 
@@ -573,8 +647,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                                         "fix": "Enforce strict signature validation and exp claims."
                                     })
 
-                html_markup = resp.text
-                
                 # HTML JWT Detection
                 for jwt in re.findall(JWT_REGEX, html_markup):
                     if jwt not in summary["detected_jwts"]:
@@ -672,7 +744,7 @@ st.markdown("""
 <div class="hero-banner">
     <div class="nike-tag">ENTERPRISE SECURITY SUITE.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">API & Web Security Auditor • JWT Inspection • Multi-Tenant Management • RBAC & CI/CD Pipelines</div>
+    <div class="hero-sub">API & Web Security Auditor • Tech Stack & Database Profiling • RBAC & CI/CD Pipelines</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -706,7 +778,7 @@ with tab_engine:
     with col_c: crawl_depth = st.slider("Crawl Page Limit:", 1, 50, 5, disabled=is_unlimited)
 
     if st.button("RUN ENTERPRISE AUDIT", type="primary"):
-        with st.spinner("Executing secure crawl, JWT inspection, and compliance checks..."):
+        with st.spinner("Executing secure crawl, tech stack analysis, and compliance checks..."):
             try:
                 result = run_async_isolated(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
                 st.session_state["active_scan"] = result
@@ -732,16 +804,29 @@ with tab_engine:
 
 # --- TAB 2: EXECUTIVE DASHBOARD & CHARTS ---
 with tab_exec:
-    st.subheader("📊 Executive Dashboard & Interactive Charts")
+    st.subheader("📊 Executive Dashboard & Technology Stack Profile")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         meta = scan.get("metadata", {})
+        tech = scan.get("tech_stack", {})
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Target URL", scan['url'])
         c2.metric("Pages Scanned", meta.get('pages_scanned', 1))
         c3.metric("Duration", f"{meta.get('crawl_duration_sec', 0.0)}s")
-        c4.metric("Max CVSS", meta.get('max_cvss', 0.0))
+        c4.metric("Peak CVSS", meta.get('max_cvss', 0.0))
+
+        st.markdown("---")
+        st.markdown("### 🛠️ Discovered Software Stack & Database Details")
+        t_col1, t_col2, t_col3 = st.columns(3)
+        with t_col1:
+            st.info(f"**Languages / Runtimes:**\n\n" + "\n".join([f"- {l}" for l in tech.get('languages', [])]))
+        with t_col2:
+            st.info(f"**Frameworks:**\n\n" + "\n".join([f"- {f}" for f in tech.get('frameworks', [])]))
+        with t_col3:
+            st.success(f"**Database Backend:**\n\n" + "\n".join([f"- {db}" for db in tech.get('databases', [])]))
+        
+        st.write(f"**Architecture Summary:** {tech.get('description', '')}")
 
         st.markdown("---")
         if PLOTLY_AVAILABLE:

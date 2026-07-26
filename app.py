@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from collections import defaultdict
 from urllib.parse import urlparse, urljoin
+import html
 from io import BytesIO
 import concurrent.futures
 
@@ -408,7 +409,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
 
     meta = scan_data.get("metadata", {})
     meta_data = [
-        [Paragraph("<b>Target URL:</b>", body_style), Paragraph(scan_data['url'], body_style), Paragraph("<b>Audit Date:</b>", body_style), Paragraph(scan_data['timestamp'], body_style)],
+        [Paragraph("<b>Target URL:</b>", body_style), Paragraph(html.escape(scan_data['url']), body_style), Paragraph("<b>Audit Date:</b>", body_style), Paragraph(scan_data['timestamp'], body_style)],
         [Paragraph("<b>Pages Scanned:</b>", body_style), Paragraph(str(meta.get('pages_scanned', 1)), body_style), Paragraph("<b>Crawl Duration:</b>", body_style), Paragraph(f"{meta.get('crawl_duration_sec', 1.00)}s", body_style)],
         [Paragraph("<b>Peak CVSS Risk:</b>", body_style), Paragraph(str(meta.get('max_cvss', 6.5)), body_style), Paragraph("<b>Scan Confidence:</b>", body_style), Paragraph("Empirical Precision (Headers & DOM)", body_style)],
     ]
@@ -465,10 +466,11 @@ def generate_pdf_report(scan_data: dict) -> bytes:
         defect_table_data = [["Sev", "Vulnerability & Description", "Exact Page / Endpoint URL (Where Error Detected)", "CVSS", "Remediation"]]
         for d in defects:
             exact_url = d.get('route', scan_data['url'])
+            escaped_url = html.escape(exact_url)
             defect_table_data.append([
                 d.get("severity", "Low"),
                 Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}", cell_style),
-                Paragraph(f"<a href='{exact_url}'>{exact_url}</a>", link_style),
+                Paragraph(f"<a href='{escaped_url}'>{escaped_url}</a>", link_style),
                 str(d.get("cvss", "0.0")),
                 Paragraph(d.get("fix", "Review server configuration."), cell_style)
             ])

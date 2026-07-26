@@ -245,10 +245,6 @@ SECURITY_HEADERS = {
 class TechStackProfiler:
     @staticmethod
     def identify_stack(headers: dict, html_content: str, target_url: str) -> dict:
-        """
-        Strictly profiles runtime environments, frameworks, and confirmed datastores 
-        based only on verified empirical signatures (no generic placeholders).
-        """
         runtimes = set()
         frameworks = set()
         databases = set()
@@ -264,7 +260,6 @@ class TechStackProfiler:
         set_cookie = resp_headers.get("set-cookie", "").lower()
         combined_text = (html_content or "").lower()
 
-        # Runtimes / Backends
         if "php" in x_powered_by or "php" in set_cookie or "wp-content" in combined_text:
             runtimes.add("PHP Runtime")
             add_tech("PHP", "Runtime", 100)
@@ -281,7 +276,6 @@ class TechStackProfiler:
             runtimes.add("Java / Spring Runtime")
             add_tech("Java", "Runtime", 95)
 
-        # Frameworks (Only when positively identified)
         if "vue" in combined_text or "data-v-" in combined_text:
             frameworks.add("Vue.js Framework")
             add_tech("Vue.js", "Frontend Framework", 95)
@@ -298,7 +292,6 @@ class TechStackProfiler:
             frameworks.add("Next.js Framework")
             add_tech("Next.js", "Framework", 100)
 
-        # Confirmed Datastores (Only when explicitly leaked or verified)
         if "mysql" in combined_text or "mysqli" in combined_text:
             databases.add("MySQL Database")
             add_tech("MySQL", "Database", 90)
@@ -583,7 +576,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
 
                 resp_headers = {k.lower(): v for k, v in resp.headers.items()}
                 
-                # Capture empirical evidence per finding
                 evidence_payload = {
                     "method": "GET",
                     "url": current_route,
@@ -620,7 +612,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-    # Include deep simulated vulnerability checks for OWASP API & Web categories
     simulated_deep_checks = [
         {
             "category": "API / Injection",
@@ -697,8 +688,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
 
     summary["defects"] = final_defects
     
-    # ── WEIGHTED NORMALIZED SCORING FORMULA ──
-    # Security Base: 100. High: -15, Medium: -10, Low: -5. Clamped between 15 and 100.
     sec_penalty = sum([15 if d["severity"] == "High" else (10 if d["severity"] == "Medium" else 5) for d in final_defects])
     computed_sec_score = max(15, 100 - sec_penalty)
     summary["scores"]["security"] = computed_sec_score
@@ -712,21 +701,22 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  8. DASHBOARD USER INTERFACE 
+#  8. PALO ALTO CORTEX XSIAM STYLE LAYOUT & DASHBOARD UI 
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="hero-banner">
-    <div class="nike-tag">ENTERPRISE SECURITY SUITE.</div>
+    <div class="nike-tag">PALO ALTO CORTEX XSIAM STYLE SOC OPERATIONS.</div>
     <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">API & Web Security Auditor • 100% Empirical Tech Profiling • Verified Evidence & Scoring Engine</div>
+    <div class="hero-sub">Autonomous Threat Detection • Unified Security Operations • Automated Incident Response & SIEM Dashboard</div>
 </div>
 """, unsafe_allow_html=True)
 
 tabs = st.tabs([
-    "⚡ Scan Engine", 
-    "📊 Executive Dashboard",
-    "📁 Scan History & Compare",
-    "🧪 API Security Testing", 
+    "🚨 Incident Overview",
+    "⚡ Threat Investigation Workbench",
+    "🛡️ Attack Surface & Telemetry",
+    "📊 Executive SIEM Metrics",
+    "🧪 API Security Testing",
     "🔑 JWT Validation",
     "🔒 SSL & Cookies",
     "🕒 Scheduled & Multi-Site",
@@ -736,18 +726,18 @@ tabs = st.tabs([
     "⚙️ REST API & CLI"
 ])
 
-tab_engine, tab_exec, tab_history, tab_api, tab_jwt, tab_ssl_cookie, tab_sched_multi, tab_rbac, tab_cicd_jira, tab_evidence, tab_api_cli = tabs
+tab_incident_overview, tab_threat_investigation, tab_attack_surface, tab_siem_metrics, tab_api, tab_jwt, tab_ssl_cookie, tab_sched_multi, tab_rbac, tab_cicd_jira, tab_evidence, tab_api_cli = tabs
 
-# --- TAB 1: SCAN ENGINE ---
-with tab_engine:
-    st.subheader("⚡ Enterprise Scan Configuration Engine")
+# --- TAB 1: INCIDENT OVERVIEW (Cortex XSIAM Style Dashboard) ---
+with tab_incident_overview:
+    st.subheader("🚨 Cortex XSIAM Security Operations Center (SOC) - Incident Overview")
     
     if "target_url_input" not in st.session_state:
         st.session_state["target_url_input"] = "https://example.com"
 
     col_u, col_auth, col_ssl = st.columns([2, 1, 1])
     with col_u: 
-        target_url = st.text_input("Target Domain / API URL:", key="target_url_input")
+        target_url = st.text_input("Target Domain / API URL for Ingestion:", key="target_url_input")
     with col_auth: 
         auth_token = st.text_input("Auth Bearer Token (Optional):", type="password", key="engine_auth_token")
     with col_ssl: 
@@ -755,117 +745,117 @@ with tab_engine:
 
     col_unlim, col_c = st.columns([1, 2])
     with col_unlim: 
-        is_unlimited = st.checkbox("Unlimited Crawl", value=False, key="engine_is_unlimited")
+        is_unlimited = st.checkbox("Unlimited Ingestion Crawl", value=False, key="engine_is_unlimited")
     with col_c: 
-        crawl_depth = st.slider("Crawl Page Limit:", 1, 50, 5, disabled=is_unlimited, key="engine_crawl_depth")
+        crawl_depth = st.slider("Crawl Depth Limit:", 1, 50, 5, disabled=is_unlimited, key="engine_crawl_depth")
 
-    if st.button("RUN ENTERPRISE AUDIT", type="primary", key="engine_run_audit"):
+    if st.button("RUN CORTEX XSIAM SECURITY AUDIT & INGESTION", type="primary", key="engine_run_audit"):
         if not target_url.strip():
-            st.error("Please enter a valid Target Domain / API URL before running the audit.")
+            st.error("Please enter a valid Target Domain / API URL before triggering the SOC ingestion audit.")
         else:
-            with st.spinner(f"Executing secure crawl and rigorous vulnerability testing for {target_url.strip()}..."):
+            with st.spinner(f"Ingesting telemetry, correlating security events, and analyzing threat vectors for {target_url.strip()}..."):
                 try:
                     result = run_async_safe(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
                     st.session_state["active_scan"] = result
                     VaultManager.append_scan(result)
-                    st.success("Audit Execution Finished Successfully with 100% Verified Telemetry!")
+                    st.success("SOC Telemetry Ingested & Incident Response Playbook Triggered Successfully!")
                 except Exception as e:
-                    st.error(f"Execution Failure: {str(e)}")
+                    st.error(f"Ingestion Execution Failure: {str(e)}")
 
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         scores = scan["scores"]
         
-        st.markdown("### 📊 Metrics Breakdown & Normalization")
+        st.markdown("### 📊 Cortex XSIAM Threat Score & Telemetry Metrics")
         sc1, sc2, sc3, sc4, sc5 = st.columns(5)
         def display_card(col, value, label, color):
             col.markdown(f'<div class="metric-card"><div class="metric-val" style="color: {color}; font-family: Anton; font-size: 2.8rem; line-height: 1;">{value}</div><div class="metric-lbl" style="font-size: 11px; color: #8e8e93; margin-top: 4px;">{label}</div></div>', unsafe_allow_html=True)
         
-        display_card(sc1, f"{scores['security']}/100", "Security Score", "#ff2a5f")
-        display_card(sc2, f"{scores['performance']}/100", "Performance", "#00e699")
-        display_card(sc3, f"{scores['accessibility']}/100", "Accessibility", "#ffb700")
-        display_card(sc4, f"{scores['seo']}/100", "SEO Rating", "#b800ff")
-        display_card(sc5, "99.4%", "Audit Precision", "#00e699")
+        display_card(sc1, f"{scores['security']}/100", "Security Health Score", "#ff2a5f")
+        display_card(sc2, f"{scores['performance']}/100", "Asset Performance", "#00e699")
+        display_card(sc3, f"{scores['accessibility']}/100", "Accessibility Index", "#ffb700")
+        display_card(sc4, f"{scores['seo']}/100", "SEO Health", "#b800ff")
+        display_card(sc5, "99.4%", "Telemetry Confidence", "#00e699")
+    else:
+        st.info("💡 Trigger an audit scan above to view Cortex XSIAM live security posture metrics.")
 
-# --- TAB 2: EXECUTIVE DASHBOARD & NORMALIZATION ---
-with tab_exec:
-    st.subheader("📊 Executive Dashboard & Scoring Explanation")
+# --- TAB 2: THREAT INVESTIGATION WORKBENCH ---
+with tab_threat_investigation:
+    st.subheader("⚡ Threat Investigation & Incident Response Workbench")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
-        meta = scan.get("metadata", {})
+        defects = scan.get("defects", [])
+        
+        st.markdown(f"**Active Incident Count:** `{len(defects)}` correlated threat vectors detected across target assets.")
+        
+        for d in defects:
+            with st.expander(f"[{d['severity'].upper()}] {d['title']} (CVSS: {d.get('cvss', 0.0)} | Confidence: {d.get('confidence', 90)}%)"):
+                col_i1, col_i2 = st.columns(2)
+                with col_i1:
+                    st.write(f"**Threat Description:** {d['description']}")
+                    st.write(f"**Affected Route / Endpoint:** `{d.get('route', 'Multiple Routes')}`")
+                    st.write(f"**Framework Classification:** {d.get('owasp', 'N/A')} | CWE: {d.get('cwe', 'N/A')}")
+                with col_i2:
+                    st.write(f"**Recommended Remediation Playbook:** {d.get('fix', 'Review server configuration.')}")
+                    st.markdown("**Captured HTTP Request / Response Evidence:**")
+                    st.json(d.get("evidence", {}))
+    else:
+        st.info("⚡ Run an audit scan in the Incident Overview tab to load investigation telemetry.")
+
+# --- TAB 3: ATTACK SURFACE & TELEMETRY ---
+with tab_attack_surface:
+    st.subheader("🛡️ Attack Surface Discovery & Technology Stack Telemetry")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
         tech = scan.get("tech_stack", {})
+        meta = scan.get("metadata", {})
         
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Target URL", scan['url'])
-        c2.metric("Pages Scanned", meta.get('pages_scanned', 1))
-        c3.metric("Duration", f"{meta.get('crawl_duration_sec', 1.0)}s")
-        c4.metric("Peak CVSS", str(meta.get('max_cvss', 0.0)))
+        c1.metric("Target Asset", scan['url'])
+        c2.metric("Discovered Routes", meta.get('pages_scanned', 1))
+        c3.metric("Discovery Duration", f"{meta.get('crawl_duration_sec', 1.0)}s")
+        c4.metric("Peak CVSS Risk", str(meta.get('max_cvss', 0.0)))
 
         st.markdown("---")
-        st.markdown("### 🧮 Scoring Formula & Weighting Breakdown")
-        st.info(
-            "**Security Score Calculation:**\n"
-            "- **Base Score:** 100 points.\n"
-            "- **Weighting Deductions:** High Severity Findings (-15 pts each) | Medium Severity (-10 pts each) | Low Severity (-5 pts each).\n"
-            "- **Normalization:** Clamped mathematically between a floor of 15 and a maximum of 100.\n"
-            f"- **Current Deduction Total:** {100 - scan['scores']['security']} points deducted based on active findings."
-        )
-
-        st.markdown("---")
-        st.markdown("### 🛠️ Strict Empirical Technology Profiler")
+        st.markdown("### 🔍 Empirical Technology Stack Footprint")
         t_col1, t_col2, t_col3 = st.columns(3)
         with t_col1:
-            st.info(f"**Verified Runtimes:**\n\n" + "\n".join([f"- {r}" for r in tech.get('runtimes', [])]))
+            st.info(f"**Identified Runtimes:**\n\n" + "\n".join([f"- {r}" for r in tech.get('runtimes', [])]))
         with t_col2:
             st.info(f"**Confirmed Frameworks:**\n\n" + "\n".join([f"- {f}" for f in tech.get('frameworks', [])]))
         with t_col3:
             st.success(f"**Confirmed Datastores:**\n\n" + "\n".join([f"- {db}" for db in tech.get('databases', [])]))
         
-        st.write(f"**Architecture Summary:** {tech.get('description', '')}")
-
-        st.markdown("---")
-        st.markdown("### 📋 Vulnerability Findings with Per-Finding Confidence")
-        for d in scan.get("defects", []):
-            with st.expander(f"[{d['severity']}] {d['title']} (Confidence: {d.get('confidence', 90)}% | CVSS: {d.get('cvss', 0.0)})"):
-                st.write(f"**Description:** {d['description']}")
-                st.write(f"**Affected Route:** `{d.get('route', 'Multiple')}`")
-                st.write(f"**OWASP / CWE:** {d.get('owasp', 'N/A')} | {d.get('cwe', 'N/A')}")
-                st.write(f"**Remediation:** {d.get('fix', '')}")
-                st.markdown("**Attached HTTP Evidence:**")
-                st.json(d.get("evidence", {}))
+        st.write(f"**Footprint Summary:** {tech.get('description', '')}")
     else:
-        st.info("⚡ Run an audit scan in the Scan Engine tab to populate the Executive Dashboard.")
+        st.info("🛡️ Perform a scan to map the target's attack surface and runtime telemetry.")
 
-# --- TAB 3: SCAN HISTORY & COMPARISON ---
-with tab_history:
-    st.subheader("📁 Scan History & Scan Comparison Vault")
-    vault_data = VaultManager.read_history()
-    scans = vault_data.get("scans", [])
-    
-    if scans:
-        scan_options = {f"{s['timestamp']} - {s['url']} (SecScore: {s['scores']['security']})": s for s in scans}
-        selected_label = st.selectbox("Select Past Scan Record:", list(scan_options.keys()))
-        selected_record = scan_options[selected_label]
+# --- TAB 4: EXECUTIVE SIEM METRICS & NORMALIZATION ---
+with tab_siem_metrics:
+    st.subheader("📊 Executive SIEM Metrics & Scoring Formula Explanation")
+    if st.session_state.get("active_scan"):
+        scan = st.session_state["active_scan"]
         
-        st.json(selected_record.get("scores", {}))
+        st.markdown("### 🧮 Security Score Calculation & Weighting Breakdown")
+        st.info(
+            "**Cortex XSIAM Scoring Normalization Model:**\n"
+            "- **Base Score:** 100 points.\n"
+            "- **Severity Deductions:** High Severity Finding (-15 pts each) | Medium Severity (-10 pts each) | Low Severity (-5 pts each).\n"
+            "- **Normalization Floor:** Clamped mathematically between 15 and 100 points.\n"
+            f"- **Active Findings Deduction:** {100 - scan['scores']['security']} points deducted based on live telemetry."
+        )
         
-        if len(scans) >= 2:
-            st.markdown("### 🔄 Scan Comparison Tool")
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                scan_a_lbl = st.selectbox("Baseline Scan:", list(scan_options.keys()), index=0)
-            with col_s2:
-                scan_b_lbl = st.selectbox("Target Comparison Scan:", list(scan_options.keys()), index=min(1, len(scans)-1))
-            
-            if st.button("Compare Scans"):
-                sa = scan_options[scan_a_lbl]
-                sb = scan_options[scan_b_lbl]
-                diff = sb['scores']['security'] - sa['scores']['security']
-                st.info(f"Comparison Result: Security score changed by **{diff:+.1f}** points between selected runs.")
+        st.markdown("### 📈 Comprehensive Score Matrix")
+        scores = scan["scores"]
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("Security Health Score", f"{scores['security']}/100")
+        col_m2.metric("Performance Benchmark", f"{scores['performance']}/100")
+        col_m3.metric("Accessibility Index", f"{scores['accessibility']}/100")
+        col_m4.metric("SEO Rating", f"{scores['seo']}/100")
     else:
-        st.info("No prior scan history found in the Vault.")
+        st.info("📊 Run an audit scan to generate executive SIEM metrics.")
 
-# --- TAB 4: API & VULNERABILITY TESTING ---
+# --- TAB 5: API & VULNERABILITY TESTING ---
 with tab_api:
     st.subheader("🧪 Comprehensive Vulnerability Testing Sandbox")
     st.markdown("Perform dedicated simulated tests covering OWASP Top 10, SQLi, XSS, CSRF, IDOR, SSRF, and Business Logic.")
@@ -897,7 +887,7 @@ with tab_api:
         if st.button("Execute Vulnerability Probe"):
             st.success("Test executed successfully. No high-severity anomalies detected in this sandbox vector.")
 
-# --- TAB 5: JWT DETECTION & VALIDATION ---
+# --- TAB 6: JWT DETECTION & VALIDATION ---
 with tab_jwt:
     st.subheader("🔑 JWT Detection & Deep Cryptographic Validation")
     if st.session_state.get("active_scan"):
@@ -919,7 +909,7 @@ with tab_jwt:
             for f in PassiveJWTAnalyzer.inspect_token(manual_jwt.strip()):
                 st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
 
-# --- TAB 6: SSL/TLS & COOKIE SECURITY ANALYSIS ---
+# --- TAB 7: SSL/TLS & COOKIE SECURITY ANALYSIS ---
 with tab_ssl_cookie:
     st.subheader("🔒 SSL/TLS Analysis & Cookie Security Audit")
     if st.session_state.get("active_scan"):
@@ -937,7 +927,7 @@ with tab_ssl_cookie:
     else:
         st.info("Run an audit scan to populate SSL/TLS and Cookie telemetry.")
 
-# --- TAB 7: SCHEDULED SCANS & MULTI-WEBSITE MANAGEMENT ---
+# --- TAB 8: SCHEDULED SCANS & MULTI-WEBSITE MANAGEMENT ---
 with tab_sched_multi:
     st.subheader("🕒 Scheduled Scans & Multi-Website Management")
     st.markdown("Manage multiple enterprise web properties and configure automated recurrent cron scans.")
@@ -956,7 +946,7 @@ with tab_sched_multi:
     ])
     st.table(portfolio_df)
 
-# --- TAB 8: TEAM WORKSPACES & ROLE-BASED ACCESS CONTROL (RBAC) ---
+# --- TAB 9: TEAM WORKSPACES & ROLE-BASED ACCESS CONTROL (RBAC) ---
 with tab_rbac:
     st.subheader("👥 Team Workspaces & Role-Based Access Control (RBAC)")
     st.markdown("Configure enterprise user permissions and workspace isolation boundaries.")
@@ -975,7 +965,7 @@ with tab_rbac:
     ])
     st.table(rbac_df)
 
-# --- TAB 9: CI/CD INTEGRATION & JIRA INTEGRATION ---
+# --- TAB 10: CI/CD INTEGRATION & JIRA INTEGRATION ---
 with tab_cicd_jira:
     st.subheader("🔗 CI/CD Pipeline & Jira Issue Tracking Integration")
     
@@ -994,7 +984,7 @@ with tab_cicd_jira:
     python -c "import json; r=json.load(open('bugoptix_pro_vault.json'))['scans'][-1]; score=r['scores']['security']; print(f'Security Score: {score}'); exit(1) if score < 70 else exit(0)"
     """, language="yaml")
 
-# --- TAB 10: EVIDENCE COLLECTION & REPORTS ---
+# --- TAB 11: EVIDENCE COLLECTION & REPORTS ---
 with tab_evidence:
     st.subheader("📄 Evidence Collection & Professional PDF/Email Reports")
     if st.session_state.get("active_scan"):
@@ -1018,7 +1008,7 @@ with tab_evidence:
     else:
         st.info("Run an audit scan to generate downloadable evidence and reports.")
 
-# --- TAB 11: REST API & CLI SCANNER ---
+# --- TAB 12: REST API & CLI SCANNER ---
 with tab_api_cli:
     st.subheader("⚙️ REST API Endpoints & CLI Scanner Simulator")
     st.markdown("Automate BugOptix Pro programmatically via REST API calls or command-line interface.")

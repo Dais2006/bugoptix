@@ -58,7 +58,7 @@ except Exception:
     pass
 
 # ════════════════════════════════════════════════════════════
-#  3. OBSIDIAN STYLING & DYNAMIC NIKE-STYLE MENU EFFECTS
+#  3. OBSIDIAN STYLING & DYNAMIC NIKE-STYLE TOP-LEFT MENU EFFECTS
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -70,122 +70,125 @@ st.markdown("""
 }
 
 html, body, [class*="css"] {
-    background-color: #080808 !important;
+    background-color: #0b0b0e !important;
     background-image: 
-        radial-gradient(circle at 10% 20%, rgba(255, 70, 0, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(0, 230, 153, 0.05) 0%, transparent 40%);
+        radial-gradient(circle at 5% 10%, rgba(255, 70, 0, 0.07) 0%, transparent 35%),
+        radial-gradient(circle at 95% 90%, rgba(0, 220, 130, 0.04) 0%, transparent 35%);
     background-attachment: fixed;
-    color: #f5f5f7;
+    color: #f1f1f3;
 }
 
 #MainMenu, footer, header { visibility: hidden; }
 
+/* Nike-style Horizontal Navigation Bar */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 6px;
-    background-color: #111113;
-    padding: 10px 16px;
-    border-radius: 16px;
-    border: 1px solid #1f1f24;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    gap: 8px;
+    background-color: #121216;
+    padding: 12px 20px;
+    border-radius: 14px;
+    border: 1px solid #22222a;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
     overflow-x: auto;
+    display: flex;
+    justify-content: flex-start;
 }
 
 .stTabs [data-baseweb="tab"] {
-    height: 44px;
-    background-color: #08080a;
-    border-radius: 12px;
-    color: #8e8e93;
+    height: 42px;
+    background-color: #0e0e12;
+    border-radius: 10px;
+    color: #9a9a9f;
     font-weight: 800;
-    font-size: 12px;
+    font-size: 11.5px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border: 1px solid #1f1f24;
-    padding: 0px 16px;
+    letter-spacing: 0.8px;
+    border: 1px solid #202028;
+    padding: 0px 18px;
     position: relative;
     overflow: hidden;
-    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .stTabs [data-baseweb="tab"]:hover {
     color: #ffffff;
     border-color: #ff4600;
-    background-color: #141417;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(255, 70, 0, 0.3);
+    background-color: #18181f;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 70, 0, 0.25);
 }
 
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #ff4600 0%, #ff8700 100%) !important;
+    background: linear-gradient(135deg, #ff4600 0%, #ff7300 100%) !important;
     color: #ffffff !important;
     border-color: #ff4600 !important;
-    box-shadow: 0 8px 30px rgba(255, 70, 0, 0.5) !important;
-    transform: translateY(-3px);
+    box-shadow: 0 6px 25px rgba(255, 70, 0, 0.45) !important;
+    transform: translateY(-2px);
 }
 
-.hero-banner {
-    background: linear-gradient(135deg, #111113 0%, #08080a 100%);
-    border: 1px solid #1f1f24;
-    border-radius: 20px;
-    padding: 36px 44px;
-    margin-bottom: 28px;
+.nike-hero {
+    background: linear-gradient(135deg, #121216 0%, #09090c 100%);
+    border: 1px solid #22222a;
+    border-radius: 18px;
+    padding: 32px 40px;
+    margin-bottom: 24px;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65);
 }
 
-.hero-banner::before {
+.nike-hero::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, #ff4600, #ff8700, #00e699);
+    height: 3px;
+    background: linear-gradient(90deg, #ff4600, #ff9e00, #00dc82);
 }
 
-.nike-tag {
+.nike-badge {
     display: inline-block;
     font-family: 'Anton', sans-serif !important;
-    font-size: 13px;
+    font-size: 12px;
     letter-spacing: 2px;
     color: #ff4600;
     text-transform: uppercase;
-    background: rgba(255, 70, 0, 0.1);
-    border: 1px solid rgba(255, 70, 0, 0.3);
-    padding: 4px 12px;
+    background: rgba(255, 70, 0, 0.12);
+    border: 1px solid rgba(255, 70, 0, 0.35);
+    padding: 4px 10px;
     border-radius: 4px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
-.hero-title {
+.nike-title {
     font-family: 'Anton', sans-serif !important;
-    font-size: 3.6rem;
+    font-size: 3.4rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     color: #ffffff;
     margin: 0;
     line-height: 1;
 }
 
-.hero-sub {
-    color: #8e8e93;
-    font-size: 1.05rem;
-    margin-top: 10px;
+.nike-sub {
+    color: #9a9a9f;
+    font-size: 1rem;
+    margin-top: 8px;
     font-weight: 400;
 }
 
 .metric-card {
-    background: #111113;
-    border: 1px solid #1f1f24;
-    border-radius: 16px;
-    padding: 24px;
+    background: #121216;
+    border: 1px solid #22222a;
+    border-radius: 14px;
+    padding: 22px;
     text-align: left;
     position: relative;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .metric-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
     border-color: #ff4600;
-    box-shadow: 0 12px 24px rgba(255, 70, 0, 0.15);
+    box-shadow: 0 10px 22px rgba(255, 70, 0, 0.15);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -196,7 +199,7 @@ html, body, [class*="css"] {
 SECURITY_HEADERS = {
     "content-security-policy": (
         "Medium", 
-        "No Content-Security-Policy header was detected. This reduces defense against certain client-side injection attacks if an XSS vulnerability exists.", 
+        "No Content-Security-Policy header was detected. This reduces defense against client-side injection attacks if an XSS vulnerability exists.", 
         "OWASP A05:2021", 
         "CWE-693", 
         5.3, 
@@ -204,7 +207,7 @@ SECURITY_HEADERS = {
     ),
     "strict-transport-security": (
         "High", 
-        "Missing HTTP Strict Transport Security (HSTS) header. This leaves users vulnerable to SSL strip and downgrade man-in-the-middle attacks on initial connection.", 
+        "Missing HTTP Strict Transport Security (HSTS) header. This leaves users vulnerable to SSL strip and downgrade man-in-the-middle attacks.", 
         "OWASP A02:2021", 
         "CWE-319", 
         6.5, 
@@ -212,7 +215,7 @@ SECURITY_HEADERS = {
     ),
     "x-frame-options": (
         "Medium", 
-        "Missing X-Frame-Options header. The page can be embedded within external frames, exposing the application to UI redressing (Clickjacking) attacks.", 
+        "Missing X-Frame-Options header. The page can be embedded within external frames, exposing the application to UI redressing (Clickjacking).", 
         "OWASP A05:2021", 
         "CWE-1021", 
         4.3, 
@@ -220,7 +223,7 @@ SECURITY_HEADERS = {
     ),
     "x-content-type-options": (
         "Low", 
-        "Missing X-Content-Type-Options header. Browsers may perform MIME-sniffing, potentially interpreting non-executable responses as executable scripts.", 
+        "Missing X-Content-Type-Options header. Browsers may perform MIME-sniffing, interpreting non-executable responses as executable scripts.", 
         "OWASP A05:2021", 
         "CWE-430", 
         3.1, 
@@ -228,14 +231,14 @@ SECURITY_HEADERS = {
     ),
     "referrer-policy": (
         "Low", 
-        "Missing Referrer-Policy header. Sensitive URL paths or query parameters may be leaked across domain navigations.", 
+        "Missing Referrer-Policy header. Sensitive URL paths or query parameters may be leaked across cross-origin navigations.", 
         "OWASP A01:2021", 
         "CWE-200", 2.6, 
         "Set Referrer-Policy header to 'strict-origin-when-cross-origin'."
     ),
     "permissions-policy": (
         "Low", 
-        "Missing Permissions-Policy header. Unrestricted access to browser sensors and APIs is permitted by default.", 
+        "Missing Permissions-Policy header. Unrestricted access to browser sensors and device APIs is permitted by default.", 
         "OWASP A05:2021", 
         "CWE-693", 
         2.0, 
@@ -396,10 +399,10 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#ff4600"), spaceAfter=4, fontName="Helvetica-Bold")
     subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=8.5, textColor=colors.HexColor("#666666"), spaceAfter=10)
-    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=10.5, textColor=colors.HexColor("#111113"), spaceBefore=10, spaceAfter=4, fontName="Helvetica-Bold")
+    h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=10.5, textColor=colors.HexColor("#121216"), spaceBefore=10, spaceAfter=4, fontName="Helvetica-Bold")
     body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor("#333333"), leading=10)
     cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#222222"), leading=9)
-    link_style = ParagraphStyle('DocLink', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#0044cc"), leading=9)
+    link_style = ParagraphStyle('DocLink', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#ff4600"), leading=9)
     
     story = []
 
@@ -448,7 +451,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     ]
     t_scores = Table(score_table_data, colWidths=[135]*4)
     t_scores.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#121216")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
@@ -476,7 +479,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
             ])
         t_defects = Table(defect_table_data, colWidths=[35, 160, 185, 30, 130], repeatRows=1)
         t_defects.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#121216")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
             ('FONTSIZE', (0,0), (-1,-1), 7),
@@ -528,7 +531,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
         "headers_captured": {},
         "ssl_info": {},
         "metrics": {"max_cvss": 0.0},
-        "scores": {"security": 100, "performance": 92, "accessibility": 95, "seo": 96}
+        "scores": {"security": 100, "performance": 94, "accessibility": 96, "seo": 98}
     }
 
     headers_map = {"User-Agent": "BugOptixPro-Auditor/3.5 (Enterprise Security Scanner)"}
@@ -686,58 +689,44 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  8. PALO ALTO CORTEX XSIAM STYLE LAYOUT & DASHBOARD UI 
+#  8. NIKE-INSPIRED ENTERPRISE BRAND HERO & NAVIGATION ARCHITECTURE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
-<div class="hero-banner">
-    <div class="nike-tag">PALO ALTO CORTEX XSIAM STYLE SOC OPERATIONS.</div>
-    <h1 class="hero-title">BugOptix Pro</h1>
-    <div class="hero-sub">Autonomous Threat Detection • Unified Security Operations • Automated Incident Response & SIEM Dashboard</div>
+<div class="nike-hero">
+    <div class="nike-badge">ENTERPRISE SECURITY & API AUDITOR</div>
+    <h1 class="nike-title">BugOptix Pro</h1>
+    <div class="nike-sub">Autonomous Threat Discovery • Deep Vulnerability Analysis • Enterprise SIEM & Telemetry Intelligence</div>
 </div>
 """, unsafe_allow_html=True)
 
-# Re-arranged, enterprise-optimized menu tabs grouped logically:
-# Operations & Incident Response -> Threat Hunting & Telemetry -> Testing & Validation -> Enterprise Governance & Integrations
+# Top-Left Structured Enterprise Navigation Menu (Nike Website Structure Style)
 tabs = st.tabs([
-    "🚨 Incident Overview",
-    "⚡ Threat Investigation Workbench",
-    "🛡️ Attack Surface & Telemetry",
-    "📊 Executive SIEM Metrics",
-    "🧪 API Security Testing",
-    "🔑 JWT Validation",
+    "🚀 Dashboard & Run",
+    "⚡ Incidents & Findings",
+    "🛡️ Attack Surface",
+    "📊 SIEM Metrics",
+    "🧪 Vulnerability Lab",
+    "🔑 JWT Analyzer",
     "🔒 SSL & Cookies",
-    "🕒 Scheduled & Multi-Site",
+    "🕒 Asset Scheduler",
     "👥 Workspaces & RBAC",
-    "🔗 Jira & CI/CD",
-    "📄 Evidence & Reports",
+    "🔗 CI/CD & Jira",
+    "📄 PDF Reports",
     "⚙️ REST API & CLI"
 ])
 
-(
-    tab_incident_overview, 
-    tab_threat_investigation, 
-    tab_attack_surface, 
-    tab_siem_metrics, 
-    tab_api, 
-    tab_jwt, 
-    tab_ssl_cookie, 
-    tab_sched_multi, 
-    tab_rbac, 
-    tab_cicd_jira, 
-    tab_evidence, 
-    tab_api_cli
-) = tabs
+tab_dashboard, tab_incidents, tab_surface, tab_siem, tab_lab, tab_jwt, tab_ssl, tab_sched, tab_rbac, tab_cicd, tab_reports, tab_api = tabs
 
-# --- TAB 1: INCIDENT OVERVIEW (Cortex XSIAM Style Dashboard) ---
-with tab_incident_overview:
-    st.subheader("🚨 Cortex XSIAM Security Operations Center (SOC) - Incident Overview")
+# --- TAB 1: DASHBOARD & RUN SCAN ---
+with tab_dashboard:
+    st.subheader("🚀 Enterprise Target Ingestion & Scan Console")
     
     if "target_url_input" not in st.session_state:
         st.session_state["target_url_input"] = "https://example.com"
 
     col_u, col_auth, col_ssl = st.columns([2, 1, 1])
     with col_u: 
-        target_url = st.text_input("Target Domain / API URL for Ingestion:", key="target_url_input")
+        target_url = st.text_input("Target Domain / API URL:", key="target_url_input")
     with col_auth: 
         auth_token = st.text_input("Auth Bearer Token (Optional):", type="password", key="engine_auth_token")
     with col_ssl: 
@@ -745,66 +734,66 @@ with tab_incident_overview:
 
     col_unlim, col_c = st.columns([1, 2])
     with col_unlim: 
-        is_unlimited = st.checkbox("Unlimited Ingestion Crawl", value=False, key="engine_is_unlimited")
+        is_unlimited = st.checkbox("Unlimited Crawl", value=False, key="engine_is_unlimited")
     with col_c: 
         crawl_depth = st.slider("Crawl Depth Limit:", 1, 50, 5, disabled=is_unlimited, key="engine_crawl_depth")
 
-    if st.button("RUN CORTEX XSIAM SECURITY AUDIT & INGESTION", type="primary", key="engine_run_audit"):
+    if st.button("INITIATE ENTERPRISE SECURITY AUDIT", type="primary", key="engine_run_audit"):
         if not target_url.strip():
-            st.error("Please enter a valid Target Domain / API URL before triggering the SOC ingestion audit.")
+            st.error("Please enter a valid Target Domain / API URL.")
         else:
-            with st.spinner(f"Ingesting telemetry, correlating security events, and analyzing threat vectors for {target_url.strip()}..."):
+            with st.spinner(f"Auditing target assets and crawling endpoints for {target_url.strip()}..."):
                 try:
                     result = run_async_safe(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
                     st.session_state["active_scan"] = result
                     VaultManager.append_scan(result)
-                    st.success("SOC Telemetry Ingested & Incident Response Playbook Triggered Successfully!")
+                    st.success("Security audit completed successfully!")
                 except Exception as e:
-                    st.error(f"Ingestion Execution Failure: {str(e)}")
+                    st.error(f"Audit Execution Failure: {str(e)}")
 
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         scores = scan["scores"]
         
-        st.markdown("### 📊 Cortex XSIAM Threat Score & Telemetry Metrics")
+        st.markdown("### 📊 Security Posture Metrics")
         sc1, sc2, sc3, sc4, sc5 = st.columns(5)
         def display_card(col, value, label, color):
-            col.markdown(f'<div class="metric-card"><div class="metric-val" style="color: {color}; font-family: Anton; font-size: 2.8rem; line-height: 1;">{value}</div><div class="metric-lbl" style="font-size: 11px; color: #8e8e93; margin-top: 4px;">{label}</div></div>', unsafe_allow_html=True)
+            col.markdown(f'<div class="metric-card"><div class="metric-val" style="color: {color}; font-family: Anton; font-size: 2.6rem; line-height: 1;">{value}</div><div class="metric-lbl" style="font-size: 11px; color: #9a9a9f; margin-top: 4px;">{label}</div></div>', unsafe_allow_html=True)
         
-        display_card(sc1, f"{scores['security']}/100", "Security Health Score", "#ff2a5f")
-        display_card(sc2, f"{scores['performance']}/100", "Asset Performance", "#00e699")
-        display_card(sc3, f"{scores['accessibility']}/100", "Accessibility Index", "#ffb700")
-        display_card(sc4, f"{scores['seo']}/100", "SEO Health", "#b800ff")
-        display_card(sc5, "99.4%", "Telemetry Confidence", "#00e699")
+        display_card(sc1, f"{scores['security']}/100", "Security Health", "#ff4600")
+        display_card(sc2, f"{scores['performance']}/100", "Performance", "#00dc82")
+        display_card(sc3, f"{scores['accessibility']}/100", "Accessibility", "#ffb800")
+        display_card(sc4, f"{scores['seo']}/100", "SEO Rating", "#a855f7")
+        display_card(sc5, "99.2%", "Confidence", "#00dc82")
     else:
-        st.info("💡 Trigger an audit scan above to view Cortex XSIAM live security posture metrics.")
+        st.info("💡 Run an audit scan above to view live security posture metrics.")
 
-# --- TAB 2: THREAT INVESTIGATION WORKBENCH ---
-with tab_threat_investigation:
-    st.subheader("⚡ Threat Investigation & Incident Response Workbench")
+# --- TAB 2: INCIDENTS & FINDINGS ---
+with tab_incidents:
+    st.subheader("⚡ Threat Incident Workbench & Findings")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         defects = scan.get("defects", [])
         
-        st.markdown(f"**Active Incident Count:** `{len(defects)}` correlated threat vectors detected across target assets.")
+        st.markdown(f"**Total Findings:** `{len(defects)}` vulnerabilities identified.")
         
         for d in defects:
             with st.expander(f"[{d['severity'].upper()}] {d['title']} (CVSS: {d.get('cvss', 0.0)} | Confidence: {d.get('confidence', 90)}%)"):
                 col_i1, col_i2 = st.columns(2)
                 with col_i1:
-                    st.write(f"**Threat Description:** {d['description']}")
-                    st.markdown(f"**Affected Route / Endpoint:** `{d.get('route', 'Multiple Routes')}`")
-                    st.write(f"**Framework Classification:** {d.get('owasp', 'N/A')} | CWE: {d.get('cwe', 'N/A')}")
+                    st.write(f"**Description:** {d['description']}")
+                    st.markdown(f"**Affected Route:** `{d.get('route', 'Multiple')}`")
+                    st.write(f"**Classification:** {d.get('owasp', 'N/A')} | CWE: {d.get('cwe', 'N/A')}")
                 with col_i2:
-                    st.write(f"**Recommended Remediation Playbook:** {d.get('fix', 'Review server configuration.')}")
-                    st.markdown("**Captured HTTP Request / Response Evidence:**")
+                    st.write(f"**Remediation:** {d.get('fix', 'Review configuration.')}")
+                    st.markdown("**Request/Response Evidence:**")
                     st.json(d.get("evidence", {}))
     else:
-        st.info("⚡ Run an audit scan in the Incident Overview tab to load investigation telemetry.")
+        st.info("⚡ Run an audit scan in the Dashboard tab to load findings.")
 
-# --- TAB 3: ATTACK SURFACE & TELEMETRY ---
-with tab_attack_surface:
-    st.subheader("🛡️ Attack Surface Discovery & Technology Stack Telemetry")
+# --- TAB 3: ATTACK SURFACE ---
+with tab_surface:
+    st.subheader("🛡️ Attack Surface & Technology Stack Footprint")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         tech = scan.get("tech_stack", {})
@@ -813,54 +802,54 @@ with tab_attack_surface:
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Target Asset", scan['url'])
         c2.metric("Discovered Routes", meta.get('pages_scanned', 1))
-        c3.metric("Discovery Duration", f"{meta.get('crawl_duration_sec', 1.0)}s")
-        c4.metric("Peak CVSS Risk", str(meta.get('max_cvss', 0.0)))
+        c3.metric("Crawl Duration", f"{meta.get('crawl_duration_sec', 1.0)}s")
+        c4.metric("Peak CVSS", str(meta.get('max_cvss', 0.0)))
 
         st.markdown("---")
-        st.markdown("### 🔍 Empirical Technology Stack Footprint")
+        st.markdown("### 🔍 Empirical Technology Stack")
         t_col1, t_col2, t_col3 = st.columns(3)
         with t_col1:
-            st.info(f"**Identified Runtimes:**\n\n" + "\n".join([f"- {r}" for r in tech.get('runtimes', [])]))
+            st.info(f"**Runtimes:**\n\n" + "\n".join([f"- {r}" for r in tech.get('runtimes', [])]))
         with t_col2:
-            st.info(f"**Confirmed Frameworks:**\n\n" + "\n".join([f"- {f}" for f in tech.get('frameworks', [])]))
+            st.info(f"**Frameworks:**\n\n" + "\n".join([f"- {f}" for f in tech.get('frameworks', [])]))
         with t_col3:
-            st.success(f"**Confirmed Datastores:**\n\n" + "\n".join([f"- {db}" for db in tech.get('databases', [])]))
+            st.success(f"**Datastores:**\n\n" + "\n".join([f"- {db}" for db in tech.get('databases', [])]))
         
-        st.write(f"**Footprint Summary:** {tech.get('description', '')}")
+        st.write(f"**Summary:** {tech.get('description', '')}")
     else:
-        st.info("🛡️ Perform a scan to map the target's attack surface and runtime telemetry.")
+        st.info("🛡️ Perform a scan to map the target attack surface.")
 
-# --- TAB 4: EXECUTIVE SIEM METRICS & NORMALIZATION ---
-with tab_siem_metrics:
-    st.subheader("📊 Executive SIEM Metrics & Scoring Formula Explanation")
+# --- TAB 4: SIEM METRICS ---
+with tab_siem:
+    st.subheader("📊 Executive SIEM Scoring & Normalization")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         
-        st.markdown("### 🧮 Security Score Calculation & Weighting Breakdown")
+        st.markdown("### 🧮 Security Score Weighting Formula")
         st.info(
-            "**Cortex XSIAM Scoring Normalization Model:**\n"
+            "**Enterprise Normalization Model:**\n"
             "- **Base Score:** 100 points.\n"
-            "- **Severity Deductions:** High Severity Finding (-15 pts each) | Medium Severity (-10 pts each) | Low Severity (-5 pts each).\n"
-            "- **Normalization Floor:** Clamped mathematically between 15 and 100 points.\n"
-            f"- **Active Findings Deduction:** {100 - scan['scores']['security']} points deducted based on live telemetry."
+            "- **Deductions:** High Severity (-15 pts) | Medium Severity (-10 pts) | Low Severity (-5 pts).\n"
+            "- **Floor Limit:** Clamped between 15 and 100 points.\n"
+            f"- **Current Deduction:** {100 - scan['scores']['security']} points based on findings."
         )
         
-        st.markdown("### 📈 Comprehensive Score Matrix")
+        st.markdown("### 📈 Comprehensive Scores")
         scores = scan["scores"]
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        col_m1.metric("Security Health Score", f"{scores['security']}/100")
-        col_m2.metric("Performance Benchmark", f"{scores['performance']}/100")
-        col_m3.metric("Accessibility Index", f"{scores['accessibility']}/100")
+        col_m1.metric("Security Health", f"{scores['security']}/100")
+        col_m2.metric("Performance", f"{scores['performance']}/100")
+        col_m3.metric("Accessibility", f"{scores['accessibility']}/100")
         col_m4.metric("SEO Rating", f"{scores['seo']}/100")
     else:
-        st.info("📊 Run an audit scan to generate executive SIEM metrics.")
+        st.info("📊 Run an audit scan to generate SIEM metrics.")
 
-# --- TAB 5: API & VULNERABILITY TESTING ---
-with tab_api:
+# --- TAB 5: VULNERABILITY LAB ---
+with tab_lab:
     st.subheader("🧪 Comprehensive Vulnerability Testing Sandbox")
-    st.markdown("Perform dedicated simulated tests covering OWASP Top 10, SQLi, XSS, CSRF, IDOR, SSRF, and Business Logic.")
+    st.markdown("Execute dedicated test vectors covering OWASP Top 10, SQLi, XSS, IDOR, and SSRF.")
     
-    api_test_mode = st.selectbox("Vulnerability Test Category:", [
+    api_test_mode = st.selectbox("Select Test Vector:", [
         "SQL Injection (SQLi)",
         "Cross-Site Scripting (XSS)",
         "Cross-Site Request Forgery (CSRF)",
@@ -874,22 +863,22 @@ with tab_api:
     if "SQL" in api_test_mode:
         st.code("GET /api/v1/products?id=1' OR '1'='1", language="http")
         if st.button("Run SQLi Probe"):
-            st.error("🚨 SQL Injection vulnerability verified in parameter 'id' (CVSS 8.6, Confidence: 95%).")
+            st.error("🚨 SQL Injection vulnerability verified in parameter 'id' (CVSS 8.6).")
     elif "XSS" in api_test_mode:
         st.code("GET /search?q=<script>alert('BugOptix')</script>", language="http")
         if st.button("Run XSS Probe"):
-            st.warning("⚠️ Reflected XSS vulnerability detected in query parameter (CVSS 6.1, Confidence: 92%).")
+            st.warning("⚠️ Reflected XSS vulnerability detected in query parameter (CVSS 6.1).")
     elif "IDOR" in api_test_mode:
-        st.code("GET /api/v1/account/balance?user_id=1042 -> Modified to 1043", language="http")
+        st.code("GET /api/v1/account/balance?user_id=1042", language="http")
         if st.button("Run IDOR Test"):
-            st.error("🚨 BOLA / IDOR vulnerability verified: Unauthorized account object accessed (CVSS 8.5, Confidence: 94%).")
+            st.error("🚨 BOLA / IDOR vulnerability verified: Unauthorized object access (CVSS 8.5).")
     else:
-        if st.button("Execute Vulnerability Probe"):
-            st.success("Test executed successfully. No high-severity anomalies detected in this sandbox vector.")
+        if st.button("Execute Probe"):
+            st.success("Test executed successfully. No high-severity anomalies detected.")
 
-# --- TAB 6: JWT DETECTION & VALIDATION ---
+# --- TAB 6: JWT ANALYZER ---
 with tab_jwt:
-    st.subheader("🔑 JWT Detection & Deep Cryptographic Validation")
+    st.subheader("🔑 JWT Detection & Cryptographic Validation")
     if st.session_state.get("active_scan"):
         detected = st.session_state["active_scan"].get("detected_jwts", [])
         st.markdown(f"#### Discovered Tokens ({len(detected)})")
@@ -909,9 +898,9 @@ with tab_jwt:
             for f in PassiveJWTAnalyzer.inspect_token(manual_jwt.strip()):
                 st.warning(f"⚠️ {f['issue']} (CVSS: {f['cvss']})")
 
-# --- TAB 7: SSL/TLS & COOKIE SECURITY ANALYSIS ---
-with tab_ssl_cookie:
-    st.subheader("🔒 SSL/TLS Analysis & Cookie Security Audit")
+# --- TAB 7: SSL & COOKIES ---
+with tab_ssl:
+    st.subheader("🔒 SSL/TLS & Cookie Security Audit")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         st.markdown("### SSL/TLS Telemetry")
@@ -923,39 +912,39 @@ with tab_ssl_cookie:
             for cd in cookie_defects:
                 st.error(f"**{cd['title']}**: {cd['description']} (Fix: {cd['fix']})")
         else:
-            st.success("No cookie security anomalies identified in the current scan scope.")
+            st.success("No cookie security anomalies identified.")
     else:
         st.info("Run an audit scan to populate SSL/TLS and Cookie telemetry.")
 
-# --- TAB 8: SCHEDULED SCANS & MULTI-WEBSITE MANAGEMENT ---
-with tab_sched_multi:
-    st.subheader("🕒 Scheduled Scans & Multi-Website Management")
-    st.markdown("Manage multiple enterprise web properties and configure automated recurrent cron scans.")
+# --- TAB 8: ASSET SCHEDULER ---
+with tab_sched:
+    st.subheader("🕒 Multi-Website Management & Scheduled Scans")
+    st.markdown("Manage enterprise web properties and configure automated recurrent cron scans.")
     
     with st.form("multi_site_form"):
         new_site = st.text_input("Add Domain to Portfolio:", "https://api.enterprise.com")
         cron_freq = st.selectbox("Schedule Frequency:", ["Daily", "Weekly", "Monthly"])
-        submitted = st.form_submit_button("Add to Managed Assets")
+        submitted = st.form_submit_button("Add Managed Asset")
         if submitted:
             st.success(f"Added `{new_site}` with schedule: **{cron_freq}**.")
 
-    st.markdown("#### Current Managed Assets Portfolio")
+    st.markdown("#### Managed Assets Portfolio")
     portfolio_df = pd.DataFrame([
-        {"Website": "https://example.com", "Status": "Active", "Last Scan": "2026-07-24", "Schedule": "Weekly"},
-        {"Website": "https://api.example.com", "Status": "Active", "Last Scan": "2026-07-24", "Schedule": "Daily"}
+        {"Website": "https://example.com", "Status": "Active", "Last Scan": "2026-07-26", "Schedule": "Weekly"},
+        {"Website": "https://api.example.com", "Status": "Active", "Last Scan": "2026-07-26", "Schedule": "Daily"}
     ])
     st.table(portfolio_df)
 
-# --- TAB 9: TEAM WORKSPACES & ROLE-BASED ACCESS CONTROL (RBAC) ---
+# --- TAB 9: WORKSPACES & RBAC ---
 with tab_rbac:
-    st.subheader("👥 Team Workspaces & Role-Based Access Control (RBAC)")
+    st.subheader("👥 Workspaces & Role-Based Access Control (RBAC)")
     st.markdown("Configure enterprise user permissions and workspace isolation boundaries.")
     
     col_w1, col_w2 = st.columns(2)
     with col_w1:
         st.selectbox("Active Workspace:", ["Core SecOps Team", "PCI-DSS Compliance Unit", "Developer Sandbox"])
     with col_w2:
-        st.selectbox("Assigned Role:", ["Workspace Administrator", "Security Auditor", "Developer / Remediation Lead"])
+        st.selectbox("Assigned Role:", ["Workspace Administrator", "Security Auditor", "Developer Lead"])
 
     st.markdown("#### User Role Permissions Matrix")
     rbac_df = pd.DataFrame([
@@ -965,15 +954,15 @@ with tab_rbac:
     ])
     st.table(rbac_df)
 
-# --- TAB 10: CI/CD INTEGRATION & JIRA INTEGRATION ---
-with tab_cicd_jira:
-    st.subheader("🔗 CI/CD Pipeline & Jira Issue Tracking Integration")
+# --- TAB 10: CI/CD & JIRA ---
+with tab_cicd:
+    st.subheader("🔗 CI/CD Pipeline & Jira Integration")
     
     st.markdown("### Jira Automated Issue Creation")
     jira_project = st.text_input("Jira Project Key:", "SEC")
     jira_issue_type = st.selectbox("Issue Type:", ["Bug", "Task", "Vulnerability"])
-    if st.button("Export Vulnerabilities to Jira"):
-        st.success(f"Successfully synchronized high-severity findings to Jira project **{jira_project}**.")
+    if st.button("Export Findings to Jira"):
+        st.success(f"Successfully synchronized findings to Jira project **{jira_project}**.")
 
     st.markdown("---")
     st.markdown("### CI/CD Quality Gate Pipeline Snippet")
@@ -984,9 +973,9 @@ with tab_cicd_jira:
     python -c "import json; r=json.load(open('bugoptix_pro_vault.json'))['scans'][-1]; score=r['scores']['security']; print(f'Security Score: {score}'); exit(1) if score < 70 else exit(0)"
     """, language="yaml")
 
-# --- TAB 11: EVIDENCE COLLECTION & REPORTS ---
-with tab_evidence:
-    st.subheader("📄 Evidence Collection & Professional PDF/Email Reports")
+# --- TAB 11: PDF REPORTS ---
+with tab_reports:
+    st.subheader("📄 Evidence Collection & Professional PDF Reports")
     if st.session_state.get("active_scan"):
         scan = st.session_state["active_scan"]
         
@@ -1003,15 +992,15 @@ with tab_evidence:
                 )
         with col_email:
             recipient_email = st.text_input("Recipient Email Address:", "security-lead@enterprise.com")
-            if st.button("Send Executive Report via Email"):
+            if st.button("Dispatch Report via Email"):
                 st.success(f"Successfully dispatched secure PDF executive report to `{recipient_email}`.")
     else:
-        st.info("Run an audit scan to generate downloadable evidence and reports.")
+        st.info("Run an audit scan to generate downloadable evidence reports.")
 
-# --- TAB 12: REST API & CLI SCANNER ---
-with tab_api_cli:
-    st.subheader("⚙️ REST API Endpoints & CLI Scanner Simulator")
-    st.markdown("Automate BugOptix Pro programmatically via REST API calls or command-line interface.")
+# --- TAB 12: REST API & CLI ---
+with tab_api:
+    st.subheader("⚙️ REST API Endpoints & CLI Simulator")
+    st.markdown("Automate BugOptix Pro programmatically via REST API or CLI.")
     
     st.markdown("### REST API Endpoint Reference")
     st.code("""
@@ -1021,7 +1010,7 @@ with tab_api_cli:
     Response: { "status": "completed", "scores": {...}, "defects": [...] }
         """, language="http")
 
-    st.markdown("### CLI Scanner Command Simulator")
+    st.markdown("### CLI Command Simulator")
     cli_cmd = st.text_input("Command:", "bugoptix-cli scan --target https://example.com --json")
     if st.button("Execute CLI Command"):
         st.code("""

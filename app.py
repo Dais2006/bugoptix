@@ -696,6 +696,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Re-arranged, enterprise-optimized menu tabs grouped logically:
+# Operations & Incident Response -> Threat Hunting & Telemetry -> Testing & Validation -> Enterprise Governance & Integrations
 tabs = st.tabs([
     "🚨 Incident Overview",
     "⚡ Threat Investigation Workbench",
@@ -711,7 +713,20 @@ tabs = st.tabs([
     "⚙️ REST API & CLI"
 ])
 
-tab_incident_overview, tab_threat_investigation, tab_attack_surface, tab_siem_metrics, tab_api, tab_jwt, tab_ssl_cookie, tab_sched_multi, tab_rbac, tab_cicd_jira, tab_evidence, tab_api_cli = tabs
+(
+    tab_incident_overview, 
+    tab_threat_investigation, 
+    tab_attack_surface, 
+    tab_siem_metrics, 
+    tab_api, 
+    tab_jwt, 
+    tab_ssl_cookie, 
+    tab_sched_multi, 
+    tab_rbac, 
+    tab_cicd_jira, 
+    tab_evidence, 
+    tab_api_cli
+) = tabs
 
 # --- TAB 1: INCIDENT OVERVIEW (Cortex XSIAM Style Dashboard) ---
 with tab_incident_overview:

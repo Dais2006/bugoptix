@@ -190,7 +190,7 @@ html, body, [class*="css"] {
 """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
-#  4. ADVANCED SECURITY RULES & STRICT 100% ACCURATE TECH PROFILER
+#  4. ADVANCED SECURITY RULES & STRICT TECH PROFILER
 # ════════════════════════════════════════════════════════════
 SECURITY_HEADERS = {
     "content-security-policy": (
@@ -384,7 +384,7 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  5. PROFESSIONAL PDF GENERATOR WITH EVIDENCE ATTACHED
+#  5. PROFESSIONAL PDF GENERATOR WITH PRECISE ERROR URLS
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     if not REPORTLAB_AVAILABLE:
@@ -398,11 +398,12 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=10.5, textColor=colors.HexColor("#111113"), spaceBefore=10, spaceAfter=4, fontName="Helvetica-Bold")
     body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor("#333333"), leading=10)
     cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#222222"), leading=9)
+    link_style = ParagraphStyle('DocLink', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#0044cc"), leading=9)
     
     story = []
 
     story.append(Paragraph("BUGOPTIX PRO — ENTERPRISE API, WEB & SECURITY AUDIT REPORT", title_style))
-    story.append(Paragraph("CONFIDENTIAL | EMPIRICAL VULNERABILITY ASSESSMENT & FORMAL SCORING REPORT", subtitle_style))
+    story.append(Paragraph("CONFIDENTIAL | EMPIRICAL VULNERABILITY ASSESSMENT & EXACT ERROR URL MAPPING", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#ff4600"), spaceAfter=8))
 
     meta = scan_data.get("metadata", {})
@@ -438,15 +439,7 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_tech)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("2. Scoring Normalization & Formula Explanation", h2_style))
-    story.append(Paragraph(
-        "<b>Security Score Formula:</b> Base 100 points. Deductions are weighted by severity (High: -15 pts, Medium: -10 pts, Low: -5 pts). "
-        "Normalized via clamped subtraction (Minimum floor: 15/100).<br/>"
-        "<b>Performance / Accessibility / SEO:</b> Calculated from HTTP latency benchmarks, semantic HTML audits, and meta verification.",
-        body_style
-    ))
-    story.append(Spacer(1, 6))
-
+    story.append(Paragraph("2. Executive Scoring Matrix", h2_style))
     scores = scan_data['scores']
     score_table_data = [
         ["Security Score", "Performance", "Accessibility", "SEO Rating"],
@@ -466,21 +459,20 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     story.append(t_scores)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("3. Vulnerability Findings & Cryptographic Evidence", h2_style))
+    story.append(Paragraph("3. Vulnerability Findings & Precise Error Page Links", h2_style))
     defects = scan_data.get("defects", [])
     if defects:
-        defect_table_data = [["Sev", "Vulnerability & Description", "Evidence (Req / Resp Headers)", "Conf.", "CVSS", "Remediation"]]
+        defect_table_data = [["Sev", "Vulnerability & Description", "Exact Page / Endpoint URL (Where Error Detected)", "CVSS", "Remediation"]]
         for d in defects:
-            evidence_str = f"<b>Method:</b> {d.get('evidence', {}).get('method','GET')}<br/><b>Status:</b> {d.get('evidence', {}).get('status_code',200)}<br/><b>Timestamp:</b> {d.get('evidence', {}).get('timestamp','')}"
+            exact_url = d.get('route', scan_data['url'])
             defect_table_data.append([
                 d.get("severity", "Low"),
                 Paragraph(f"<b>{d.get('title', '')}</b><br/>{d.get('description', '')}", cell_style),
-                Paragraph(evidence_str, cell_style),
-                f"{d.get('confidence', 90)}%",
+                Paragraph(f"<a href='{exact_url}'>{exact_url}</a>", link_style),
                 str(d.get("cvss", "0.0")),
                 Paragraph(d.get("fix", "Review server configuration."), cell_style)
             ])
-        t_defects = Table(defect_table_data, colWidths=[35, 135, 130, 40, 32, 168], repeatRows=1)
+        t_defects = Table(defect_table_data, colWidths=[35, 160, 185, 30, 130], repeatRows=1)
         t_defects.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111113")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -513,7 +505,7 @@ def run_async_safe(coro):
         return asyncio.run(coro)
 
 # ════════════════════════════════════════════════════════════
-#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH DEEP SIMULATION
+#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH EXACT URL MAPPING
 # ════════════════════════════════════════════════════════════
 async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
@@ -658,33 +650,24 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
 
     summary["tech_stack"] = TechStackProfiler.identify_stack(summary["headers_captured"], accumulated_html, root_url)
 
-    grouped_dict = {}
+    final_defects = []
     max_cvss_found = 0.0
     for d in summary["raw_defects"]:
-        key = (d["title"], d["category"])
-        if key not in grouped_dict:
-            grouped_dict[key] = {
-                "title": d["title"],
-                "category": d["category"],
-                "severity": d["severity"],
-                "description": d["description"],
-                "owasp": d["owasp"],
-                "cwe": d["cwe"],
-                "cvss": d["cvss"],
-                "fix": d["fix"],
-                "confidence": d.get("confidence", 90),
-                "evidence": d.get("evidence", {}),
-                "affected_pages": set()
-            }
-        parsed_path = urlparse(d["route"]).path or "/"
-        grouped_dict[key]["affected_pages"].add(parsed_path)
+        final_defects.append({
+            "title": d["title"],
+            "category": d["category"],
+            "severity": d["severity"],
+            "description": d["description"],
+            "route": d["route"],
+            "owasp": d["owasp"],
+            "cwe": d["cwe"],
+            "cvss": d["cvss"],
+            "fix": d["fix"],
+            "confidence": d.get("confidence", 90),
+            "evidence": d.get("evidence", {})
+        })
         if d["cvss"] > max_cvss_found:
             max_cvss_found = d["cvss"]
-
-    final_defects = []
-    for k, val in grouped_dict.items():
-        val["affected_pages"] = sorted(list(val["affected_pages"]))
-        final_defects.append(val)
 
     summary["defects"] = final_defects
     
@@ -793,7 +776,7 @@ with tab_threat_investigation:
                 col_i1, col_i2 = st.columns(2)
                 with col_i1:
                     st.write(f"**Threat Description:** {d['description']}")
-                    st.write(f"**Affected Route / Endpoint:** `{d.get('route', 'Multiple Routes')}`")
+                    st.markdown(f"**Affected Route / Endpoint:** `{d.get('route', 'Multiple Routes')}`")
                     st.write(f"**Framework Classification:** {d.get('owasp', 'N/A')} | CWE: {d.get('cwe', 'N/A')}")
                 with col_i2:
                     st.write(f"**Recommended Remediation Playbook:** {d.get('fix', 'Review server configuration.')}")
@@ -995,7 +978,7 @@ with tab_evidence:
             if REPORTLAB_AVAILABLE:
                 pdf_bytes = generate_pdf_report(scan)
                 st.download_button(
-                    "📄 Download Professional PDF Report (With Evidence)",
+                    "📄 Download Professional PDF Report (With Precise Error Links)",
                     data=pdf_bytes,
                     file_name="bugoptix_enterprise_report.pdf",
                     mime="application/pdf",

@@ -689,3 +689,36 @@ with tab_reports:
 with tab_api:
     st.subheader("⚙️ REST API Endpoints & CLI Simulator")
     st.code("POST /api/v1/scan", language="http")
+
+# ════════════════════════════════════════════════════════════
+#  9. FULLY UPDATED PYTEST SUITE
+# ════════════════════════════════════════════════════════════
+# Run via pytest in your terminal: pytest app.py
+def test_phishing_detector_ip():
+    res = PhishingDetector.analyze_url("http://192.168.1.1/login")
+    assert res["is_phishing"] is True
+    assert "Host is a raw IP address" in res["indicators"]
+
+def test_phishing_detector_safe():
+    res = PhishingDetector.analyze_url("https://www.sttech.ac.in")
+    assert res["is_phishing"] is False
+    assert res["risk_score"] == 0
+
+def test_jwt_analyzer_none_alg():
+    # Header: {"alg":"none","typ":"JWT"}, Payload: {"user":"admin"}
+    token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VyIjoiYWRtaW4ifQ."
+    findings = PassiveJWTAnalyzer.inspect_token(token)
+    assert any("none" in f["issue"] for f in findings)
+    assert any(f["cvss"] == 9.1 for f in findings)
+
+def test_jwt_analyzer_missing_exp():
+    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWRtaW4ifQ.signature"
+    findings = PassiveJWTAnalyzer.inspect_token(token)
+    assert any("Expiration" in f["issue"] for f in findings)
+
+def test_tech_stack_profiler():
+    headers = {"server": "nginx", "x-powered-by": "PHP/8.1"}
+    html_content = "<div class='wp-content'>Test</div>"
+    profile = TechStackProfiler.identify_stack(headers, html_content, "https://example.com")
+    assert "PHP Runtime" in profile["runtimes"]
+    assert "WordPress CMS" in profile["frameworks"]

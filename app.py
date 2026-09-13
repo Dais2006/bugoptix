@@ -9,10 +9,6 @@ from urllib.parse import urlparse, urljoin
 import html
 from io import BytesIO
 import concurrent.futures
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
 
 import streamlit as st
 import pandas as pd
@@ -392,7 +388,7 @@ class VaultManager:
             pass
 
 # ════════════════════════════════════════════════════════════
-#  5. PROFESSIONAL PDF GENERATOR & EMAIL DISPATCH SERVICE
+#  5. PROFESSIONAL PDF GENERATOR
 # ════════════════════════════════════════════════════════════
 def generate_pdf_report(scan_data: dict) -> bytes:
     """Generates an executive PDF report with precise hyperlinked error URLs."""
@@ -411,8 +407,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     h2_style = ParagraphStyle('DocH2', parent=styles['Heading2'], fontSize=10, textColor=colors.HexColor("#121216"), spaceBefore=8, spaceAfter=4, fontName="Helvetica-Bold")
     body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor("#333333"), leading=10)
     cell_style = ParagraphStyle('DocCell', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor("#222222"), leading=9)
-    
-    # Styled exact URL path as active blue hyperlinked text
     link_style = ParagraphStyle('DocLink', parent=styles['Normal'], fontSize=6.5, textColor=colors.HexColor("#0056b3"), leading=8.5)
     
     story = []
@@ -481,7 +475,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
         for d in defects:
             exact_url = d.get('route', scan_data['url'])
             escaped_url = html.escape(exact_url)
-            # Render exact path as a hyperlinked text element in report table
             url_link_paragraph = Paragraph(f"<a href='{escaped_url}'><u>{escaped_url}</u></a>", link_style)
             
             defect_table_data.append([
@@ -506,54 +499,6 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
-
-def send_report_email(recipient_email: str, pdf_data: bytes, target_url: str, smtp_user: str = "", smtp_pass: str = "", smtp_server: str = "smtp.gmail.com", smtp_port: int = 587) -> tuple[bool, str]:
-    """Fully functioning SMTP email dispatch system with clear diagnostic error handling."""
-    
-    # Try environment defaults if user hasn't provided parameters explicitly
-    if not smtp_user:
-        smtp_user = os.getenv("SMTP_USER", "")
-    if not smtp_pass:
-        smtp_pass = os.getenv("SMTP_PASS", "")
-    if smtp_server == "smtp.gmail.com":
-        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-    if smtp_port == 587 and os.getenv("SMTP_PORT"):
-        try:
-            smtp_port = int(os.getenv("SMTP_PORT"))
-        except ValueError:
-            pass
-
-    msg = MIMEMultipart()
-    sender = smtp_user if smtp_user else "reports@bugoptix-pro.ai"
-    msg['From'] = sender
-    msg['To'] = recipient_email
-    msg['Subject'] = f"BugOptix Pro Security Report: {target_url}"
-
-    body = f"Attached is the enterprise vulnerability & security audit report for {target_url}.\n\nAudit Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    msg.attach(MIMEText(body, 'plain'))
-
-    attachment = MIMEApplication(pdf_data, _subtype="pdf")
-    attachment.add_header('Content-Disposition', 'attachment', filename=f"BugOptix_Report_{datetime.now().strftime('%Y%m%d')}.pdf")
-    msg.attach(attachment)
-
-    if not smtp_user or not smtp_pass:
-        return False, "SMTP credentials missing! Please enter your SMTP Username (email) and Password (or App Password) in the email dispatch panel."
-
-    try:
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=12) as server:
-                server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(smtp_server, smtp_port, timeout=12) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
-        return True, f"Report successfully dispatched via SMTP to {recipient_email}."
-    except Exception as e:
-        return False, f"SMTP Connection Failed: {str(e)}"
 
 # ════════════════════════════════════════════════════════════
 #  6. SAFE ASYNC EXECUTION WORKER
@@ -672,7 +617,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-    # Clean URL paths without trailing double slashes
     simulated_deep_checks = [
         {
             "category": "API / Injection",
@@ -763,7 +707,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Top-Left Structured Enterprise Navigation Menu (Nike Website Structure Style)
 tabs = st.tabs([
     "🚀 Dashboard & Run",
     "⚡ Incidents & Findings",
@@ -785,12 +728,9 @@ tab_dashboard, tab_incidents, tab_surface, tab_siem, tab_lab, tab_jwt, tab_ssl, 
 with tab_dashboard:
     st.subheader("🚀 Enterprise Target Ingestion & Scan Console")
     
-    if "target_url_input" not in st.session_state:
-        st.session_state["target_url_input"] = "https://www.stthomascollege.ac.in/"
-
     col_u, col_auth, col_ssl = st.columns([2, 1, 1])
     with col_u: 
-        target_url = st.text_input("Target Domain / API URL:", key="target_url_input")
+        target_url = st.text_input("Target Domain / API URL:", value="", placeholder="https://example.com", key="target_url_input")
     with col_auth: 
         auth_token = st.text_input("Auth Bearer Token (Optional):", type="password", key="engine_auth_token")
     with col_ssl: 
@@ -996,17 +936,14 @@ with tab_sched:
     st.markdown("Manage enterprise web properties and configure automated recurrent cron scans.")
     
     with st.form("multi_site_form"):
-        new_site = st.text_input("Add Domain to Portfolio:", "https://www.stthomascollege.ac.in/")
+        new_site = st.text_input("Add Domain to Portfolio:", placeholder="https://example.com")
         cron_freq = st.selectbox("Schedule Frequency:", ["Daily", "Weekly", "Monthly"])
         submitted = st.form_submit_button("Add Managed Asset")
         if submitted:
-            st.success(f"Added `{new_site}` with schedule: **{cron_freq}**.")
-
-    st.markdown("#### Managed Assets Portfolio")
-    portfolio_df = pd.DataFrame([
-        {"Website": "https://www.stthomascollege.ac.in/", "Status": "Active", "Last Scan": "2026-09-13", "Schedule": "Weekly"}
-    ])
-    st.table(portfolio_df)
+            if new_site.strip():
+                st.success(f"Added `{new_site}` with schedule: **{cron_freq}**.")
+            else:
+                st.error("Please enter a domain URL.")
 
 # --- TAB 9: WORKSPACES & RBAC ---
 with tab_rbac:
@@ -1046,140 +983,36 @@ with tab_cicd:
     python -c "import json; r=json.load(open('bugoptix_pro_vault.json'))['scans'][-1]; score=r['scores']['security']; print(f'Security Score: {score}'); exit(1) if score < 70 else exit(0)"
     """, language="yaml")
 
-# --- TAB 11: PDF REPORTS & EMAIL DISPATCH ---
+# --- TAB 11: PDF REPORTS ---
 with tab_reports:
     st.subheader("📄 Evidence Collection & PDF Security Reports")
     
-    # Check if there is an active scan, or default to the verified domain scan structure
     scan_to_report = st.session_state.get("active_scan", {
-        "url": "https://www.stthomascollege.ac.in/",
+        "url": "Target Target Not Specified",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "scores": {"security": 15, "performance": 94, "accessibility": 96, "seo": 98},
-        "metadata": {"pages_scanned": 1, "crawl_duration_sec": 1.9, "max_cvss": 8.6},
+        "scores": {"security": 100, "performance": 100, "accessibility": 100, "seo": 100},
+        "metadata": {"pages_scanned": 1, "crawl_duration_sec": 1.0, "max_cvss": 0.0},
         "tech_stack": {
             "runtimes": ["Unconfirmed Runtime Signature"], 
             "frameworks": ["Vanilla Web Stack / Unidentified Framework"], 
-            "databases": ["Datastore Signature Not Confirmed (No Leak Detected)"]
+            "databases": ["Datastore Signature Not Confirmed"]
         },
-        "defects": [
-            {
-                "severity": "Medium",
-                "title": "Missing CONTENT-SECURITY-POLICY Header",
-                "description": "No Content-Security-Policy header was detected. This reduces defense against client-side injection attacks if an XSS vulnerability exists.",
-                "route": "https://www.stthomascollege.ac.in/",
-                "cvss": 5.3,
-                "fix": "Implement a strict Content-Security-Policy restricting script execution to trusted domains."
-            },
-            {
-                "severity": "High",
-                "title": "Missing STRICT-TRANSPORT-SECURITY Header",
-                "description": "Missing HTTP Strict Transport Security (HSTS) header. This leaves users vulnerable to SSL strip and downgrade man-in-the-middle attacks.",
-                "route": "https://www.stthomascollege.ac.in/",
-                "cvss": 6.5,
-                "fix": "Enable HSTS header with max-age=31536000 and includeSubDomains."
-            },
-            {
-                "severity": "Medium",
-                "title": "Missing X-FRAME-OPTIONS Header",
-                "description": "Missing X-Frame-Options header. The page can be embedded within external frames, exposing the application to UI redressing (Clickjacking).",
-                "route": "https://www.stthomascollege.ac.in/",
-                "cvss": 4.3,
-                "fix": "Configure X-Frame-Options header to DENY or SAMEORIGIN."
-            },
-            {
-                "severity": "Low",
-                "title": "Missing X-CONTENT-TYPE-OPTIONS Header",
-                "description": "Missing X-Content-Type-Options header. Browsers may perform MIME-sniffing, interpreting non-executable responses as executable scripts.",
-                "route": "https://www.stthomascollege.ac.in/",
-                "cvss": 3.1,
-                "fix": "Set X-Content-Type-Options header to 'nosniff'."
-            },
-            {
-                "severity": "Low",
-                "title": "Missing REFERRER-POLICY Header",
-                "description": "Missing Referrer-Policy header. Sensitive URL paths or query parameters may be leaked across cross-origin navigations.",
-                "route": "https://www.stthomascollege.ac.in/",
-                "cvss": 2.6,
-                "fix": "Set Referrer-Policy header to 'strict-origin-when-cross-origin'."
-            },
-            {
-                "severity": "Low",
-                "title": "Missing PERMISSIONS-POLICY Header",
-                "description": "Missing Permissions-Policy header. Unrestricted access to browser sensors and device APIs is permitted by default.",
-                "route": "https://www.stthomascollege.ac.in/",
-                "cvss": 2.0,
-                "fix": "Define an explicit Permissions-Policy restricting sensitive APIs."
-            },
-            {
-                "severity": "High",
-                "title": "SQL Injection (SQLi) Simulation Vulnerability",
-                "description": "Simulated injection test indicated potential unsanitized parameter binding in database query layer.",
-                "route": "https://www.stthomascollege.ac.in/api/v1/search?q=test' OR '1'='1",
-                "cvss": 8.6,
-                "fix": "Use parameterized queries and prepared statements exclusively."
-            },
-            {
-                "severity": "Medium",
-                "title": "Cross-Site Scripting (XSS) Reflection Check",
-                "description": "Unescaped user input reflected directly into DOM response context.",
-                "route": "https://www.stthomascollege.ac.in/profile?user=<script>alert(1)</script>",
-                "cvss": 6.1,
-                "fix": "Implement robust context-aware output encoding."
-            },
-            {
-                "severity": "High",
-                "title": "Broken Object Level Authorization (BOLA / IDOR)",
-                "description": "API endpoint allows fetching adjacent user records by altering sequential integer identifiers without token validation.",
-                "route": "https://www.stthomascollege.ac.in/api/v1/users/1002",
-                "cvss": 8.5,
-                "fix": "Enforce strict ownership and role checks on all object resource queries."
-            }
-        ]
+        "defects": []
     })
 
     pdf_bytes = generate_pdf_report(scan_to_report)
     
+    # Dynamic unique timestamp suffix prevents Adobe Acrobat file lock errors upon multiple downloads
+    dynamic_filename = f"BugOptix_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
     st.markdown("### 📥 Download PDF Executive Security Report")
     st.download_button(
         label="📄 Download Executive Audit PDF (with Exact Error Path Links)",
         data=pdf_bytes,
-        file_name=f"BugOptix_Security_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
+        file_name=dynamic_filename,
         mime="application/pdf",
         type="primary"
     )
-
-    st.markdown("---")
-    st.markdown("### ✉️ Dispatch Report via SMTP Email")
-    st.info("Enter your SMTP credentials to send out reports via email directly.")
-
-    col_e1, col_e2 = st.columns(2)
-    with col_e1:
-        recipient_email = st.text_input("Recipient Email Address:", value="daisthomas794@gmail.com", key="report_email_recipient")
-        smtp_user = st.text_input("SMTP Sender Email / Username:", value=os.getenv("SMTP_USER", ""), key="smtp_user_input")
-    with col_e2:
-        smtp_server = st.text_input("SMTP Host:", value=os.getenv("SMTP_SERVER", "smtp.gmail.com"), key="smtp_host_input")
-        smtp_pass = st.text_input("SMTP App Password / Passcode:", value=os.getenv("SMTP_PASS", ""), type="password", key="smtp_pass_input")
-    
-    smtp_port = st.number_input("SMTP Port:", value=int(os.getenv("SMTP_PORT", 587)), key="smtp_port_input")
-
-    if st.button("Dispatch PDF Report to Email"):
-        if not recipient_email.strip():
-            st.error("Please provide a valid recipient email address.")
-        else:
-            with st.spinner("Connecting to mail server and dispatching attachment..."):
-                success, msg = send_report_email(
-                    recipient_email=recipient_email.strip(), 
-                    pdf_data=pdf_bytes, 
-                    target_url=scan_to_report["url"],
-                    smtp_user=smtp_user.strip(),
-                    smtp_pass=smtp_pass.strip(),
-                    smtp_server=smtp_server.strip(),
-                    smtp_port=int(smtp_port)
-                )
-                if success:
-                    st.success(f"✅ {msg}")
-                else:
-                    st.error(f"❌ {msg}")
 
 # --- TAB 12: REST API & CLI ---
 with tab_api:
@@ -1190,16 +1023,16 @@ with tab_api:
     st.code("""
     POST /api/v1/scan
     Headers: Authorization: Bearer <API_KEY>
-    Payload: { "url": "https://www.stthomascollege.ac.in/", "depth": 1 }
+    Payload: { "url": "https://example.com", "depth": 1 }
     Response: { "status": "completed", "scores": {...}, "defects": [...] }
         """, language="http")
 
     st.markdown("### CLI Command Simulator")
-    cli_cmd = st.text_input("Command:", "bugoptix-cli scan --target https://www.stthomascollege.ac.in/ --json")
+    cli_cmd = st.text_input("Command:", "bugoptix-cli scan --target https://example.com --json")
     if st.button("Execute CLI Command"):
         st.code("""
 [+] Initializing BugOptix Pro CLI v3.5...
-[+] Crawling target: https://www.stthomascollege.ac.in/ (Depth: 1)
+[+] Crawling target... (Depth: 1)
 [+] Running strict empirical tech profiling & vulnerability probes...
 [+] Scan completed successfully. Output written to stdout.
         """, language="bash")

@@ -1,6 +1,2 @@
-streamlit
-httpx
-beautifulsoup4
-pandas
-plotly
-reportlab
+flask
+gunicorn

@@ -14,6 +14,14 @@ import streamlit as st
 import pandas as pd
 
 # ════════════════════════════════════════════════════════════
+#  0. PLAYWRIGHT BINARY INSTALLER FOR STREAMLIT CLOUD
+# ════════════════════════════════════════════════════════════
+try:
+    os.system("playwright install")
+except Exception:
+    pass
+
+# ════════════════════════════════════════════════════════════
 #  1. PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
 # ════════════════════════════════════════════════════════════
 st.set_page_config(

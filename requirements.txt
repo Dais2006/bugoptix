@@ -1,4 +1,19 @@
-streamlit
-requests
-beautifulsoup4
-python-dotenv
+# UI & Dashboard Framework
+streamlit>=1.30.0
+
+# HTTP & API Security Auditing
+requests>=2.31.0
+urllib3>=2.0.0
+beautifulsoup4>=4.12.0
+
+# Security Tokens & Cryptography Analysis
+pyjwt>=2.8.0
+cryptography>=41.0.0
+
+# Environment & Configuration Management
+python-dotenv>=1.0.0
+
+# Optional: AI / NLP / Security Utilities (Uncomment if used in your project)
+# openai>=1.0.0
+# google-generativeai>=0.3.0
+# pandas>=2.0.0

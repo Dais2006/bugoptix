@@ -495,7 +495,7 @@ def generate_html_report(scan_data: dict) -> str:
     
     defects_html = ""
     for d in defects:
-        pages_li = "".join([f"<li><code>{p}</code></li>" for p in d.get('affected_pages', [d.get('route', '')])])
+        pages_li = "".join([f"<li><a href='{p}' target='_blank'><code>{p}</code></a></li>" for p in d.get('affected_pages', [d.get('route', '')])])
         defects_html += f"""
         <tr>
             <td><span class="badge {d.get('severity', 'Low').lower()}">{d.get('severity', 'Low')}</span></td>
@@ -524,6 +524,8 @@ def generate_html_report(scan_data: dict) -> str:
         table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }}
         th, td {{ border: 1px solid #2a2a32; padding: 10px; text-align: left; vertical-align: top; }}
         th {{ background: #1c1c21; color: #ffffff; }}
+        a {{ color: #ff4600; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
         .badge {{ padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; }}
         .badge.high {{ background: rgba(255, 42, 95, 0.2); color: #ff2a5f; border: 1px solid #ff2a5f; }}
         .badge.medium {{ background: rgba(255, 183, 0, 0.2); color: #ffb700; border: 1px solid #ffb700; }}
@@ -561,7 +563,7 @@ def generate_html_report(scan_data: dict) -> str:
                 <tr>
                     <th>Sev</th>
                     <th>Vulnerability & Description</th>
-                    <th>Affected Pages</th>
+                    <th>Affected Pages / Full Links</th>
                     <th>CVSS</th>
                     <th>Remediation</th>
                 </tr>
@@ -756,8 +758,9 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 "evidence": d.get("evidence", {}),
                 "affected_pages": set()
             }
-        parsed_path = urlparse(d["route"]).path or "/"
-        grouped_dict[key]["affected_pages"].add(parsed_path)
+        # Retain the full error URL instead of just the path
+        full_error_url = d["route"]
+        grouped_dict[key]["affected_pages"].add(full_error_url)
         if d["cvss"] > max_cvss_found:
             max_cvss_found = d["cvss"]
 
@@ -897,7 +900,7 @@ with tab_exec:
         for d in scan.get("defects", []):
             with st.expander(f"[{d['severity']}] {d['title']} (Confidence: {d.get('confidence', 90)}% | CVSS: {d.get('cvss', 0.0)})"):
                 st.write(f"**Description:** {d['description']}")
-                st.write(f"**Affected Route:** `{d.get('route', 'Multiple')}`")
+                st.write(f"**Affected Route / URL:** `{d.get('route', 'Multiple')}`")
                 st.write(f"**OWASP / CWE:** {d.get('owasp', 'N/A')} | {d.get('cwe', 'N/A')}")
                 st.write(f"**Remediation:** {d.get('fix', '')}")
                 st.markdown("**Attached HTTP Evidence:**")

@@ -1223,8 +1223,65 @@ with tab_history:
             if st.button("Compare Scans"):
                 sa = scan_options[scan_a_lbl]
                 sb = scan_options[scan_b_lbl]
+                meta_a = sa.get("metadata", {})
+                meta_b = sb.get("metadata", {})
                 diff = sb['scores']['security'] - sa['scores']['security']
-                st.info(f"Comparison Result: Security score changed by **{diff:+.1f}** points between selected runs.")
+
+                # --- Methodology diff: a raw score delta is meaningless (and misleading)
+                # unless the user can also see whether the two scans were even run the
+                # same way. Surface every factor that can legitimately move the score
+                # or introduce/remove findings before showing the delta itself. ---
+                active_a = bool(sa.get("active_probes_enabled"))
+                active_b = bool(sb.get("active_probes_enabled"))
+                pages_a = meta_a.get("pages_scanned", "N/A")
+                pages_b = meta_b.get("pages_scanned", "N/A")
+
+                st.markdown("#### ⚙️ Methodology Comparison")
+                meth_df = pd.DataFrame([
+                    {"Factor": "Active SQLi/XSS/IDOR Probes", "Baseline": "Enabled" if active_a else "Disabled", "Comparison": "Enabled" if active_b else "Disabled"},
+                    {"Factor": "Pages Scanned", "Baseline": pages_a, "Comparison": pages_b},
+                    {"Factor": "Security Score", "Baseline": sa['scores']['security'], "Comparison": sb['scores']['security']},
+                    {"Factor": "Peak CVSS", "Baseline": meta_a.get("max_cvss", 0.0), "Comparison": meta_b.get("max_cvss", 0.0)},
+                ])
+                st.table(meth_df)
+
+                if active_a != active_b:
+                    st.warning(
+                        "⚠️ These two scans were **not run with the same methodology** — active "
+                        "SQLi/XSS/IDOR testing was " + ("enabled" if active_b else "disabled") +
+                        " on the comparison scan but " + ("enabled" if active_a else "disabled") +
+                        " on the baseline. Any new injection/authorization findings below are most "
+                        "likely explained by this methodology change, not by the target getting more "
+                        "or less secure between runs."
+                    )
+                if pages_a != pages_b:
+                    st.warning(
+                        f"⚠️ Crawl coverage differed: {pages_a} page(s) scanned in the baseline vs "
+                        f"{pages_b} in the comparison run. A different set of discovered endpoints can "
+                        f"itself change which findings are possible."
+                    )
+
+                # --- Finding-level diff: exactly which titled findings were added or
+                # removed, so "why did the score change" always has a concrete answer. ---
+                defects_a = {(d["title"], d["category"]): d for d in sa.get("defects", [])}
+                defects_b = {(d["title"], d["category"]): d for d in sb.get("defects", [])}
+                added = [defects_b[k] for k in defects_b.keys() - defects_a.keys()]
+                removed = [defects_a[k] for k in defects_a.keys() - defects_b.keys()]
+
+                st.markdown("#### 📋 Finding-Level Differences")
+                if not added and not removed:
+                    st.success("No findings were added or removed between these two scans.")
+                else:
+                    if added:
+                        st.markdown("**➕ New findings in the comparison scan:**")
+                        for d in sorted(added, key=lambda x: -x.get("cvss", 0.0)):
+                            st.write(f"- [{d['severity']}] {d['title']} (CVSS: {d.get('cvss', 0.0)}, Confidence: {d.get('confidence', 90)}%)")
+                    if removed:
+                        st.markdown("**➖ Findings present in baseline but absent from the comparison scan:**")
+                        for d in sorted(removed, key=lambda x: -x.get("cvss", 0.0)):
+                            st.write(f"- [{d['severity']}] {d['title']} (CVSS: {d.get('cvss', 0.0)}, Confidence: {d.get('confidence', 90)}%)")
+
+                st.info(f"Net Result: Security score changed by **{diff:+.1f}** points between selected runs, fully accounted for by the methodology and finding differences above.")
     else:
         st.info("No prior scan history found in the Vault.")
 

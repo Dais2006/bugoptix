@@ -11,16 +11,17 @@ from io import BytesIO
 import concurrent.futures
 
 import streamlit as st
-import pandas as pd
 
 # ════════════════════════════════════════════════════════════
-#  1. PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
+#  1. PAGE CONFIG (MUST BE THE FIRST STREAMLIT CALL IN SCRIPT)
 # ════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="BugOptix Pro | Enterprise API & Web Auditor", 
     page_icon="⚡", 
     layout="wide"
 )
+
+import pandas as pd
 
 # ════════════════════════════════════════════════════════════
 #  2. SAFE IMPORTS FOR THIRD-PARTY LIBRARIES
@@ -621,7 +622,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-    # Enterprise Simulated Deep Checks
     simulated_deep_checks = [
         {
             "category": "API / Injection",
@@ -702,7 +702,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  8. BRAND HERO & NAVIGATION ARCHITECTURE
+#  8. NIKE-INSPIRED ENTERPRISE BRAND HERO & NAVIGATION ARCHITECTURE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="nike-hero">
@@ -996,10 +996,11 @@ with tab_reports:
             if REPORTLAB_AVAILABLE:
                 pdf_bytes = generate_pdf_report(scan)
                 st.download_button(
-                    "📄 Download Professional PDF Report",
+                    "📄 Download Professional PDF Report (With Precise Error Links)",
                     data=pdf_bytes,
                     file_name="bugoptix_enterprise_report.pdf",
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    use_container_width=True
                 )
         with col_email:
             recipient_email = st.text_input("Recipient Email Address:", "security-lead@enterprise.com")

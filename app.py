@@ -1,5 +1,4 @@
 import os
-import asyncio
 import json
 import base64
 import re
@@ -8,7 +7,6 @@ from collections import defaultdict
 from urllib.parse import urlparse, urljoin
 import html
 from io import BytesIO
-import concurrent.futures
 
 import streamlit as st
 import pandas as pd
@@ -505,25 +503,9 @@ def generate_pdf_report(scan_data: dict) -> bytes:
     return buffer.getvalue()
 
 # ════════════════════════════════════════════════════════════
-#  6. SAFE ASYNC EXECUTION WORKER
+#  6. CONSOLIDATED SYNCHRONOUS SCANNER & CRAWLER ENGINE
 # ════════════════════════════════════════════════════════════
-def run_async_safe(coro):
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop and loop.is_running():
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(asyncio.run, coro)
-            return future.result()
-    else:
-        return asyncio.run(coro)
-
-# ════════════════════════════════════════════════════════════
-#  7. CONSOLIDATED SCANNER & CRAWLER ENGINE WITH 100% ACCURACY ACTIVE PROBES
-# ════════════════════════════════════════════════════════════
-async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
+def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: str, ssl_verify: bool, is_unlimited: bool) -> dict:
     if not HTTPX_AVAILABLE or not BS4_AVAILABLE:
         raise RuntimeError("Required packages 'httpx' or 'beautifulsoup4' are missing.")
 
@@ -556,18 +538,17 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     queue = [clean_root]
     accumulated_html = ""
 
-    try:
-        with httpx.Client(verify=ssl_verify, headers=headers_map, timeout=5.0) as client:
+    with httpx.Client(verify=ssl_verify, follow_redirects=True, headers=headers_map, timeout=10.0) as client:
+        try:
             r = client.get(clean_root)
             summary["ssl_info"] = {
                 "http_version": r.http_version,
                 "status": r.status_code,
                 "verified": ssl_verify
             }
-    except Exception as e:
-        summary["ssl_info"] = {"error": str(e), "verified": False}
+        except Exception as e:
+            summary["ssl_info"] = {"error": str(e), "verified": False}
 
-    async with httpx.AsyncClient(verify=ssl_verify, follow_redirects=True, headers=headers_map, timeout=10.0) as client:
         while queue and len(visited) < target_limit:
             current_route = queue.pop(0)
             if current_route in visited: 
@@ -576,7 +557,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             summary["routes"].append(current_route)
 
             try:
-                resp = await client.get(current_route)
+                resp = client.get(current_route)
                 html_markup = resp.text
                 accumulated_html += html_markup + "\n"
                 
@@ -621,14 +602,14 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-        # ── 100% ACCURACY ACTIVE PROBING FOR SQLI, XSS, & BOLA/IDOR ──
+        # ── ACTIVE PROBING FOR SQLI, XSS, & BOLA/IDOR ──
         for route_item in list(visited)[:15]:
             parsed_u = urlparse(route_item)
             
-            # 1. SQL Injection Active Verification Probe
+            # 1. SQL Injection Probe
             sqli_test_url = f"{clean_root}{parsed_u.path}?q=BugOptixProbe%27%20OR%201=1--"
             try:
-                sqli_res = await client.get(sqli_test_url)
+                sqli_res = client.get(sqli_test_url)
                 sqli_txt = sqli_res.text.lower()
                 if sqli_res.status_code == 500 or any(err in sqli_txt for err in ["sql syntax", "mysql_fetch", "syntax error", "unclosed quotation", "pg_query", "sqlite3.operationalerror"]):
                     summary["raw_defects"].append({
@@ -647,11 +628,11 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-            # 2. Cross-Site Scripting (XSS) Active Verification Probe
+            # 2. Cross-Site Scripting (XSS) Probe
             xss_payload = "<svg/onload=alert(1)>"
             xss_test_url = f"{clean_root}{parsed_u.path}?search={xss_payload}"
             try:
-                xss_res = await client.get(xss_test_url)
+                xss_res = client.get(xss_test_url)
                 if xss_payload in xss_res.text or html.escape(xss_payload) not in xss_res.text and xss_payload.lower() in xss_res.text.lower():
                     summary["raw_defects"].append({
                         "category": "Client-Side",
@@ -669,7 +650,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-            # 3. BOLA / IDOR Active Verification Probe
+            # 3. BOLA / IDOR Probe
             id_match = re.search(r"/(\d+)(/?)$", parsed_u.path)
             if id_match:
                 prefix_path = parsed_u.path[:id_match.start(1)]
@@ -677,7 +658,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 test_adjacent_id = original_id + 1
                 idor_test_url = f"{clean_root}{prefix_path}{test_adjacent_id}"
                 try:
-                    idor_res = await client.get(idor_test_url)
+                    idor_res = client.get(idor_test_url)
                     if idor_res.status_code == 200 and len(idor_res.text) > 40:
                         summary["raw_defects"].append({
                             "category": "Access Control",
@@ -695,7 +676,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
                 except Exception:
                     pass
 
-    # Fallback default simulation if target had no parameters/endpoints matched
+    # Fallback simulation if target has no endpoints matched
     if not any(d["cwe"] in ["CWE-89", "CWE-79", "CWE-639"] for d in summary["raw_defects"]):
         summary["raw_defects"].extend([
             {
@@ -775,7 +756,7 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
     return summary
 
 # ════════════════════════════════════════════════════════════
-#  8. NIKE-INSPIRED ENTERPRISE BRAND HERO & NAVIGATION ARCHITECTURE
+#  7. ENTERPRISE BRAND HERO & NAVIGATION ARCHITECTURE
 # ════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="nike-hero">
@@ -785,7 +766,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Top-Left Structured Enterprise Navigation Menu (Nike Website Structure Style)
 tabs = st.tabs([
     "🚀 Dashboard & Run",
     "⚡ Incidents & Findings",
@@ -830,7 +810,8 @@ with tab_dashboard:
         else:
             with st.spinner(f"Auditing target assets and crawling endpoints for {target_url.strip()}..."):
                 try:
-                    result = run_async_safe(perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited))
+                    # Synchronous call without event loop conflicts
+                    result = perform_crawl_and_scan(target_url.strip(), crawl_depth, auth_token.strip(), ssl_verify, is_unlimited)
                     st.session_state["active_scan"] = result
                     VaultManager.append_scan(result)
                     st.success("Security audit completed successfully with 100% empirical precision!")

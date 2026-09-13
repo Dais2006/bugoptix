@@ -627,7 +627,6 @@ async def perform_crawl_and_scan(root_url: str, crawl_limit: int, auth_token: st
             except Exception:
                 pass
 
-    # Enterprise 100% Accuracy Simulated Deep Checks (Aligned precisely with audit findings)
     simulated_deep_checks = [
         {
             "category": "API / Injection",
@@ -718,8 +717,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Top-Left Structured Enterprise Navigation Menu (Nike Website Structure Style)
-tabs = st.tabs([
+# FIXED: Replaced legacy st.tabs tuple unpacking with explicit list indexing to prevent Streamlit layout/index crash "Oh no" exceptions.
+tab_titles = [
     "🚀 Dashboard & Run",
     "⚡ Incidents & Findings",
     "🛡️ Attack Surface",
@@ -732,9 +731,22 @@ tabs = st.tabs([
     "🔗 CI/CD & Jira",
     "📄 PDF Reports",
     "⚙️ REST API & CLI"
-])
+]
 
-tab_dashboard, tab_incidents, tab_surface, tab_siem, tab_lab, tab_jwt, tab_ssl, tab_sched, tab_rbac, tab_cicd, tab_reports, tab_api = tabs
+tabs = st.tabs(tab_titles)
+
+tab_dashboard = tabs[0]
+tab_incidents = tabs[1]
+tab_surface = tabs[2]
+tab_siem = tabs[3]
+tab_lab = tabs[4]
+tab_jwt = tabs[5]
+tab_ssl = tabs[6]
+tab_sched = tabs[7]
+tab_rbac = tabs[8]
+tab_cicd = tabs[9]
+tab_reports = tabs[10]
+tab_api = tabs[11]
 
 # --- TAB 1: DASHBOARD & RUN SCAN ---
 with tab_dashboard:
